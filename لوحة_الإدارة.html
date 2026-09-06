@@ -46,7 +46,7 @@
                     loader.innerHTML = `
                         <i class="fa-solid fa-lock text-4xl text-red-500 mb-4"></i>
                         <p class="text-gray-700 font-semibold">ليس لديك صلاحية الوصول إلى لوحة الإدارة</p>
-                        <a href="الصفحة_الريسيه.html" class="text-amber-600 text-sm mt-3 underline">العودة للصفحة الرئيسية</a>
+                        <a href="index.html" class="text-amber-600 text-sm mt-3 underline">العودة للصفحة الرئيسية</a>
                     `;
                 }
                 await signOut(auth);
@@ -117,7 +117,7 @@
         <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center border-b border-gray-100">
             <h1 class="text-lg font-bold text-amber-600">لوحة الإدارة - سفرة (الطلبات)</h1>
             <div class="flex items-center gap-4">
-                <a href="الصفحة_الريسيه.html" class="text-gray-600 text-sm hover:text-amber-600">الرئيسية</a>
+                <a href="index.html" class="text-gray-600 text-sm hover:text-amber-600">الرئيسية</a>
                 <button onclick="logout()" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-red-100 transition">تسجيل خروج</button>
             </div>
         </header>
