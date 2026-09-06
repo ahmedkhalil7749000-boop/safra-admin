@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تفاصيل المطعم - سفرة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <div class="max-w-5xl mx-auto p-6">
+        <div class="flex justify-between items-center mb-4">
+            <a href="المطاعم.html" class="text-sm text-gray-500 hover:text-amber-600">→ رجوع للمطاعم</a>
+            <a href="السلة.html" class="text-sm text-amber-600 hover:underline">عرض السلة 🛒</a>
+        </div>
+
+        <div id="loading" class="text-center text-gray-500 py-10">جاري تحميل بيانات المطعم...</div>
+
+        <div id="restaurant-info" class="hidden bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 mb-6">
+            <img id="r-image" src="" alt="" class="w-full h-52 object-cover">
+            <div class="p-4">
+                <h1 id="r-name" class="text-2xl font-bold text-gray-800"></h1>
+                <p id="r-description" class="text-gray-500 mt-1"></p>
+                <div class="flex gap-4 text-sm text-gray-600 mt-2">
+                    <span id="r-rating"></span>
+                    <span id="r-time"></span>
+                    <span id="r-fee"></span>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="text-xl font-bold text-gray-800 mb-3">المنيو</h2>
+        <div id="menu-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+    </div>
+
+    <script type="module">
+        import { db } from "./firebase-config.js";
+        import {
+            doc, getDoc, collection, query, where, getDocs
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const params = new URLSearchParams(window.location.search);
+        const restaurantId = params.get('id');
+
+        const loading = document.getElementById('loading');
+        const infoBox = document.getElementById('restaurant-info');
+        const menuList = document.getElementById('menu-list');
+
+        function addToCart(restaurantId, item) {
+            const cart = JSON.parse(localStorage.getItem('safra_cart') || '[]');
+            cart.push({ restaurantId, ...item, qty: 1 });
+            localStorage.setItem('safra_cart', JSON.stringify(cart));
+            alert(`تمت إضافة "${item.name}" للسلة`);
+        }
+
+        async function loadRestaurant() {
+            if (!restaurantId) {
+                loading.innerText = "ما في مطعم محدد. ارجع لصفحة المطاعم واختر واحد.";
+                return;
+            }
+
+            try {
+                const restaurantDoc = await getDoc(doc(db, "restaurants", restaurantId));
+                if (!restaurantDoc.exists()) {
+                    loading.innerText = "هذا المطعم غير موجود.";
+                    return;
+                }
+
+                const r = restaurantDoc.data();
+                document.getElementById('r-image').src = r.image || 'https://via.placeholder.com/800x300?text=No+Image';
+                document.getElementById('r-name').innerText = r.name;
+                document.getElementById('r-description').innerText = r.description || '';
+                document.getElementById('r-rating').innerText = `⭐ ${r.rating ?? '-'}`;
+                document.getElementById('r-time').innerText = `🕒 ${r.deliveryTimeMinutes ?? '-'} دقيقة`;
+                document.getElementById('r-fee').innerText = `🚚 ${r.deliveryFee ?? '-'} د.أ`;
+
+                loading.classList.add('hidden');
+                infoBox.classList.remove('hidden');
+
+                // تم التعديل هنا: المنيو مخزن بتجميعة menuItems بالمستوى الأعلى
+                // (نفس المكان يلي لوحة_المطعم.html بتكتب فيه)، مش كـ subcollection جوا المطعم
+                const menuQuery = query(collection(db, "menuItems"), where("restaurantId", "==", restaurantId));
+                const menuSnapshot = await getDocs(menuQuery);
+
+                if (menuSnapshot.empty) {
+                    menuList.innerHTML = `<p class="text-gray-500 col-span-full">لا يوجد أصناف بالمنيو بعد.</p>`;
+                    return;
+                }
+
+                menuSnapshot.forEach((itemDoc) => {
+                    const item = itemDoc.data();
+                    // تم التعديل هنا: اسم حقل الصورة الفعلي هو imageUrl (مش image)
+                    const itemImage = item.imageUrl || item.image || 'https://via.placeholder.com/100';
+                    const card = document.createElement('a');
+                    card.href = `تفاصيل_الوجبة.html?restaurantId=${restaurantId}&itemId=${itemDoc.id}`;
+                    card.className = "bg-white rounded-lg shadow-sm border border-gray-200 p-3 flex gap-3 items-center hover:shadow-md transition";
+                    card.innerHTML = `
+                        <img src="${itemImage}" class="w-20 h-20 object-cover rounded shrink-0">
+                        <div class="flex-1">
+                            <h3 class="font-bold text-gray-800">${item.name}</h3>
+                            <p class="text-xs text-gray-500">${item.description || ''}</p>
+                            <div class="flex justify-between items-center mt-2">
+                                <span class="font-semibold text-amber-600">${item.price} د.أ</span>
+                                <button class="add-btn bg-amber-600 text-white text-xs px-3 py-1 rounded hover:bg-amber-700 transition">أضف للسلة</button>
+                            </div>
+                        </div>
+                    `;
+                    card.querySelector('.add-btn').addEventListener('click', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        addToCart(restaurantId, { itemId: itemDoc.id, ...item, image: itemImage });
+                    });
+                    menuList.appendChild(card);
+                });
+            } catch (error) {
+                loading.innerText = "خطأ بتحميل بيانات المطعم: " + error.message;
+            }
+        }
+
+        loadRestaurant();
+    </script>
+</body>
+</html>

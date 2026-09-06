@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة تحكم الطلبات - سفرة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+
+    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
+        <h1 class="text-2xl font-bold text-amber-600 mb-6">إدارة طلبات العملاء</h1>
+        
+        <div id="orders-list" class="space-y-4">
+            <p class="text-gray-500">جاري جلب الطلبات...</p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { db } from "./firebase-config.js";
+        import { collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const ordersListDiv = document.getElementById('orders-list');
+
+        async function fetchOrders() {
+            try {
+                const querySnapshot = await getDocs(collection(db, "orders"));
+                ordersListDiv.innerHTML = "";
+                
+                if (querySnapshot.empty) {
+                    ordersListDiv.innerHTML = "<p class='text-gray-500'>لا توجد طلبات حالياً.</p>";
+                    return;
+                }
+
+                querySnapshot.forEach((docSnap) => {
+                    const order = docSnap.data();
+                    const orderId = docSnap.id;
+
+                    const email = order.userEmail || order.email || 'غير متوفر';
+                    const total = order.total !== undefined ? order.total : 'غير متوفر';
+                    const status = order.status || 'قيد المعالجة';
+
+                    // قراءة عناصر المنيو بشكل دقيق مطابق لبيانات فايربيس
+                    let itemsHtml = '<ul class="list-disc list-inside text-sm text-gray-700 mt-1 space-y-1">';
+                    if (order.items && Array.isArray(order.items) && order.items.length > 0) {
+                        order.items.forEach(item => {
+                            const itemName = item.name || 'وجبة';
+                            const itemQty = item.qty || 1;
+                            const itemPrice = item.price ? ` - السعر: ${item.price} د.أ` : '';
+                            itemsHtml += `<li><span class="font-medium">${itemName}</span> (الكمية: ${itemQty})${itemPrice}</li>`;
+                        });
+                    } else {
+                        itemsHtml += '<li class="text-gray-400">لا توجد أصناف مسجلة</li>';
+                    }
+                    itemsHtml += '</ul>';
+
+                    const orderCard = document.createElement('div');
+                    orderCard.className = "border border-gray-200 rounded-lg p-4 flex justify-between items-center bg-gray-50 shadow-sm";
+                    orderCard.innerHTML = `
+                        <div class="flex-1">
+                            <p class="text-sm font-bold text-gray-800">رقم الطلب: <span class="text-gray-500 font-normal">${orderId}</span></p>
+                            <p class="text-sm text-gray-600">العميل: ${email}</p>
+                            <p class="text-sm text-gray-600">الإجمالي: <span class="font-semibold text-amber-600">${total} د.أ</span></p>
+                            
+                            <div class="mt-3 bg-white p-3 rounded border border-gray-200">
+                                <p class="text-xs font-bold text-gray-700 mb-1">الوجبات المطلوبة:</p>
+                                ${itemsHtml}
+                            </div>
+
+                            <p class="text-sm mt-3">الحالة: <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-bold">${status}</span></p>
+                        </div>
+                        <div class="mr-4">
+                            <button onclick="changeStatus('${orderId}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+                                جعلها "تم الشحن"
+                            </button>
+                        </div>
+                    `;
+                    ordersListDiv.appendChild(orderCard);
+                });
+            } catch (error) {
+                console.error("خطأ في جلب الطلبات: ", error);
+                ordersListDiv.innerHTML = `<p class='text-red-500'>حدث خطأ أثناء تحميل الطلبات: ${error.message}</p>`;
+            }
+        }
+
+        async function updateOrderStatus(orderId, newStatus) {
+            try {
+                const orderRef = doc(db, "orders", orderId);
+                await updateDoc(orderRef, {
+                    status: newStatus
+                });
+                alert("تم تحديث حالة الطلب بنجاح إلى: " + newStatus);
+                fetchOrders();
+            } catch (error) {
+                console.error("خطأ أثناء تحديث الحالة: ", error);
+                alert("حدث خطأ أثناء التحديث: " + error.message);
+            }
+        }
+
+        window.changeStatus = function(orderId) {
+            updateOrderStatus(orderId, "تم الشحن");
+        }
+
+        fetchOrders();
+    </script>
+</body>
+</html>

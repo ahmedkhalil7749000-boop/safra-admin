@@ -1,0 +1,109 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =====================================================
+    //                  دوال مساعدة عامة
+    // =====================================================
+
+    // هل المستخدم مسجّل دخول أصلاً؟
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // هل هو حساب الأدمن الوحيد المصرّح له بلوحة الإدارة؟
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == "ahmedkhalil7749000@gmail.com";
+    }
+
+    // التحقق الآمن من وجود وثيقة المستخدم وجلب الـ role (بدون التسبب في خطأ إن لم تكن موجودة)
+    function getUserData() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) ? 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data : 
+             { "role": "" };
+    }
+
+    // هل المستخدم الحالي صاحب مطعم؟ (تم جعلها مرنة لتدعم الحالات التي لم يتم فيها إنشاء وثيقة users بعد)
+    function isRestaurantOwner() {
+      return isSignedIn() && (
+        getUserData().role == "restaurant_owner" || 
+        request.auth.token.email == "ahmedkhalil7749000@gmail.com"
+      );
+    }
+
+    // =====================================================
+    //                  users/{userId}
+    // =====================================================
+    match /users/{userId} {
+      // كل مستخدم يقرأ وثيقته الخاصة فقط، والأدمن يقدر يقرأ أي وثيقة
+      allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
+
+      // الإنشاء وقت التسجيل: بس صاحب الحساب نفسه، وبشرط تكون قيمة role صحيحة ومسموحة
+      allow create: if isSignedIn() && request.auth.uid == userId
+                    && request.resource.data.role in ["customer", "restaurant_owner"];
+
+      // التعديل: بس صاحب الحساب، وممنوع يغيّر حقل role بنفسه (حماية من ترقية صلاحياته)
+      allow update: if isSignedIn() && request.auth.uid == userId
+                    && request.resource.data.role == resource.data.role;
+
+      // الحذف: غير مسموح من الواجهة إطلاقاً (فقط عبر Firebase Console يدويًا)
+      allow delete: if false;
+    }
+
+    // =====================================================
+    //                  restaurants/{restaurantId}
+    // =====================================================
+    match /restaurants/{restaurantId} {
+      // القراءة عامة للجميع (حتى الزوار غير المسجلين) عشان صفحة عرض المطاعم تشتغل
+      allow read: if true;
+
+      // الإنشاء: فقط مستخدم مسجل دخول (أو صاحب مطعم)، ويجب أن يربط ownerEmail ببريده هو نفسه
+      allow create: if isSignedIn()
+                    && request.resource.data.ownerEmail == request.auth.token.email;
+
+      // التعديل والحذف: فقط صاحب هذا المطعم بالذات (مقارنة الإيميل مباشرة)، أو الأدمن
+      allow update, delete: if isAdmin()
+                    || (isSignedIn() && resource.data.ownerEmail == request.auth.token.email);
+    }
+
+    // =====================================================
+    //                  menuItems/{itemId}
+    // =====================================================
+    match /menuItems/{itemId} {
+      // القراءة عامة (المنيو لازم يظهر لكل الزوار والزبائن)
+      allow read: if true;
+
+      // الإنشاء: التحقق أن المطعم المرتبط بالصنف يملكه نفس البريد الإلكتروني المسجل حالياً
+      allow create: if isSignedIn()
+                    && get(/databases/$(database)/documents/restaurants/$(request.resource.data.restaurantId)).data.ownerEmail == request.auth.token.email;
+
+      // التعديل والحذف: فقط صاحب المطعم يلي الصنف تابع له (عبر مطابقة الإيميل)، أو الأدمن
+      allow update, delete: if isAdmin()
+                    || (isSignedIn()
+                        && get(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)).data.ownerEmail == request.auth.token.email);
+    }
+
+    // =====================================================
+    //                  orders/{orderId}
+    // =====================================================
+    match /orders/{orderId} {
+      // الإنشاء: أي زبون مسجل دخول، وبشرط يحط الـ customerId تبعه هو
+      allow create: if isSignedIn()
+                    && request.resource.data.customerId == request.auth.uid;
+
+      // القراءة: الأدمن، أو الزبون صاحب الطلب، أو صاحب المطعم يلي وصله الطلب
+      allow read: if isAdmin()
+                  || (isSignedIn() && resource.data.customerId == request.auth.uid)
+                  || (isSignedIn()
+                      && get(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)).data.ownerEmail == request.auth.token.email);
+
+      // التعديل: الأدمن أو صاحب المطعم المعني بالطلب فقط
+      allow update: if isAdmin()
+                    || (isSignedIn()
+                        && get(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)).data.ownerEmail == request.auth.token.email);
+
+      // الحذف: الأدمن فقط
+      allow delete: if isAdmin();
+    }
+  }
+}

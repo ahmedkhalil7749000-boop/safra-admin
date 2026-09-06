@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المطاعم - سفرة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <div class="max-w-6xl mx-auto p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-amber-600">المطاعم</h1>
+            <div class="flex items-center gap-4">
+                <a href="السلة.html" class="text-sm text-amber-600 hover:underline">عرض السلة 🛒</a>
+                <a href="الصفحة_الريسيه.html" class="text-sm text-gray-500 hover:text-amber-600">الرئيسية</a>
+            </div>
+        </div>
+
+        <!-- البحث -->
+        <div class="mb-4">
+            <input type="text" id="search-input" placeholder="ابحث عن مطعم..."
+                class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+        </div>
+
+        <!-- فلترة حسب التصنيف -->
+        <div id="category-filters" class="flex flex-wrap gap-2 mb-6">
+            <button data-cat="all" class="cat-btn bg-amber-600 text-white text-sm px-3 py-1 rounded-full">الكل</button>
+        </div>
+
+        <div id="loading" class="text-center text-gray-500 py-10">جاري تحميل المطاعم...</div>
+        <div id="error" class="hidden text-center text-red-500 py-10"></div>
+        <div id="empty" class="hidden text-center text-gray-500 py-10">لا يوجد مطاعم مطابقة.</div>
+
+        <div id="restaurants-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5"></div>
+    </div>
+
+    <script type="module">
+        import { db } from "./firebase-config.js";
+        import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const loading = document.getElementById('loading');
+        const errorBox = document.getElementById('error');
+        const emptyBox = document.getElementById('empty');
+        const grid = document.getElementById('restaurants-grid');
+        const searchInput = document.getElementById('search-input');
+        const filtersBox = document.getElementById('category-filters');
+
+        let allRestaurants = [];
+        let activeCategory = 'all';
+
+        function renderCard(id, r) {
+            const card = document.createElement('a');
+            card.href = `صفحة_المطعم.html?id=${id}`;
+            card.className = "bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition";
+            card.innerHTML = `
+                <img src="${r.image || 'https://via.placeholder.com/400x220?text=No+Image'}" class="w-full h-40 object-cover">
+                <div class="p-4">
+                    <div class="flex justify-between items-start">
+                        <h3 class="font-bold text-gray-800">${r.name || ''}</h3>
+                        <span class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded shrink-0">${r.category || ''}</span>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-1 line-clamp-2">${r.description || ''}</p>
+                    <div class="flex gap-3 text-xs text-gray-600 mt-3">
+                        <span>⭐ ${r.rating ?? '-'}</span>
+                        <span>🕒 ${r.deliveryTimeMinutes ?? '-'} د</span>
+                        <span>🚚 ${r.deliveryFee ?? '-'} د.أ</span>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        function applyFilters() {
+            const term = searchInput.value.trim().toLowerCase();
+            const filtered = allRestaurants.filter(({ data }) => {
+                const matchesCategory = activeCategory === 'all' || data.category === activeCategory;
+                const matchesSearch = !term || (data.name || '').toLowerCase().includes(term);
+                return matchesCategory && matchesSearch;
+            });
+
+            grid.innerHTML = '';
+            if (filtered.length === 0) {
+                emptyBox.classList.remove('hidden');
+                return;
+            }
+            emptyBox.classList.add('hidden');
+            filtered.forEach(({ id, data }) => grid.appendChild(renderCard(id, data)));
+        }
+
+        function buildCategoryFilters() {
+            const categories = [...new Set(allRestaurants.map(r => r.data.category).filter(Boolean))];
+            categories.forEach(cat => {
+                const btn = document.createElement('button');
+                btn.dataset.cat = cat;
+                btn.className = "cat-btn bg-white border border-gray-300 text-gray-700 text-sm px-3 py-1 rounded-full hover:bg-gray-50";
+                btn.innerText = cat;
+                filtersBox.appendChild(btn);
+            });
+        }
+
+        filtersBox.addEventListener('click', (e) => {
+            const btn = e.target.closest('.cat-btn');
+            if (!btn) return;
+            activeCategory = btn.dataset.cat;
+            [...filtersBox.querySelectorAll('.cat-btn')].forEach(b => {
+                b.classList.remove('bg-amber-600', 'text-white');
+                b.classList.add('bg-white', 'border', 'border-gray-300', 'text-gray-700');
+            });
+            btn.classList.add('bg-amber-600', 'text-white');
+            btn.classList.remove('bg-white', 'border', 'border-gray-300', 'text-gray-700');
+            applyFilters();
+        });
+
+        searchInput.addEventListener('input', applyFilters);
+
+        async function loadRestaurants() {
+            try {
+                const snapshot = await getDocs(collection(db, "restaurants"));
+                loading.classList.add('hidden');
+
+                if (snapshot.empty) {
+                    emptyBox.classList.remove('hidden');
+                    emptyBox.innerText = "لا يوجد مطاعم بعد. جرّب صفحة seed_data.html لإضافة بيانات تجريبية.";
+                    return;
+                }
+
+                snapshot.forEach((docSnap) => {
+                    allRestaurants.push({ id: docSnap.id, data: docSnap.data() });
+                });
+
+                buildCategoryFilters();
+                applyFilters();
+            } catch (error) {
+                loading.classList.add('hidden');
+                errorBox.classList.remove('hidden');
+                errorBox.innerText = "خطأ بتحميل المطاعم: " + error.message;
+            }
+        }
+
+        loadRestaurants();
+    </script>
+</body>
+</html>

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سلة المشتريات - سفرة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <div class="max-w-3xl mx-auto p-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-amber-600">سلة المشتريات</h1>
+            <a href="المطاعم.html" class="text-sm text-gray-500 hover:text-amber-600">تصفح المطاعم</a>
+        </div>
+
+        <div id="empty-cart" class="hidden text-center text-gray-500 py-16">
+            السلة فاضية. روح
+            <a href="المطاعم.html" class="text-amber-600 hover:underline">لصفحة المطاعم</a>
+            واختار وجبتك.
+        </div>
+
+        <div id="cart-items" class="space-y-3"></div>
+
+        <div id="cart-summary" class="hidden bg-white rounded-lg shadow-md border border-gray-200 p-4 mt-6">
+            <div class="flex justify-between text-sm text-gray-600 mb-1">
+                <span>المجموع</span>
+                <span id="subtotal">0.00 د.أ</span>
+            </div>
+            <div class="flex justify-between text-sm text-gray-600 mb-1">
+                <span>رسوم التوصيل</span>
+                <span id="delivery-fee">0.00 د.أ</span>
+            </div>
+            <div class="flex justify-between font-bold text-gray-800 mt-2 pt-2 border-t">
+                <span>الإجمالي</span>
+                <span id="total">0.00 د.أ</span>
+            </div>
+            <!-- تم تعديل الرابط هنا ليتطابق مع checkout.html -->
+            <a href="checkout.html" class="block text-center bg-amber-600 text-white py-2 rounded-lg font-semibold hover:bg-amber-700 transition mt-4">إتمام الطلب</a>
+        </div>
+    </div>
+
+    <script type="module">
+        const DELIVERY_FEE = 1.5;
+
+        const cartItemsEl = document.getElementById('cart-items');
+        const emptyEl = document.getElementById('empty-cart');
+        const summaryEl = document.getElementById('cart-summary');
+
+        function getCart() {
+            return JSON.parse(localStorage.getItem('safra_cart') || '[]');
+        }
+
+        function saveCart(cart) {
+            localStorage.setItem('safra_cart', JSON.stringify(cart));
+        }
+
+        function render() {
+            const cart = getCart();
+            cartItemsEl.innerHTML = '';
+
+            if (cart.length === 0) {
+                emptyEl.classList.remove('hidden');
+                summaryEl.classList.add('hidden');
+                return;
+            }
+
+            emptyEl.classList.add('hidden');
+            summaryEl.classList.remove('hidden');
+
+            let subtotal = 0;
+
+            cart.forEach((item, index) => {
+                subtotal += item.price * item.qty;
+                const row = document.createElement('div');
+                row.className = "bg-white rounded-lg shadow-sm border border-gray-200 p-3 flex items-center gap-3";
+                row.innerHTML = `
+                    <img src="${item.image || 'https://via.placeholder.com/80'}" class="w-16 h-16 object-cover rounded">
+                    <div class="flex-1">
+                        <h3 class="font-bold text-gray-800 text-sm">${item.name}</h3>
+                        <span class="text-amber-600 text-sm">${item.price} د.أ</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button class="dec-btn w-7 h-7 bg-gray-100 rounded hover:bg-gray-200">-</button>
+                        <span class="w-6 text-center">${item.qty}</span>
+                        <button class="inc-btn w-7 h-7 bg-gray-100 rounded hover:bg-gray-200">+</button>
+                    </div>
+                    <button class="remove-btn text-red-500 text-xs hover:underline">حذف</button>
+                `;
+                row.querySelector('.inc-btn').addEventListener('click', () => {
+                    cart[index].qty += 1;
+                    saveCart(cart);
+                    render();
+                });
+                row.querySelector('.dec-btn').addEventListener('click', () => {
+                    if (cart[index].qty > 1) {
+                        cart[index].qty -= 1;
+                    } else {
+                        cart.splice(index, 1);
+                    }
+                    saveCart(cart);
+                    render();
+                });
+                row.querySelector('.remove-btn').addEventListener('click', () => {
+                    cart.splice(index, 1);
+                    saveCart(cart);
+                    render();
+                });
+                cartItemsEl.appendChild(row);
+            });
+
+            const total = subtotal + (cart.length ? DELIVERY_FEE : 0);
+            document.getElementById('subtotal').innerText = subtotal.toFixed(2) + " د.أ";
+            document.getElementById('delivery-fee').innerText = DELIVERY_FEE.toFixed(2) + " د.أ";
+            document.getElementById('total').innerText = total.toFixed(2) + " د.أ";
+        }
+
+        render();
+    </script>
+</body>
+</html>

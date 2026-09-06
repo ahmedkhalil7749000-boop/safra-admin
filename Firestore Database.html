@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المستخدمون والمطاعم والمنيو - سفرة</title>
+    <!-- تضمين مكتبة Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+    <!-- حاوية القائمة -->
+    <div class="w-full max-w-5xl bg-white shadow-md rounded-lg overflow-hidden border border-gray-200">
+        <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x md:divide-x-reverse divide-gray-200 text-center md:text-right">
+            
+            <!-- القسم الأول (اليمين في العربية) -->
+            <div class="p-4 flex flex-wrap items-center justify-center md:justify-start gap-2 text-sm font-semibold text-gray-700">
+                <a href="#" class="hover:text-amber-600 transition">المستخدمون</a>
+                <span>+</span>
+                <a href="#" class="hover:text-amber-600 transition">المطاعم</a>
+                <span>+</span>
+                <a href="#" class="hover:text-amber-600 transition">المنيو</a>
+            </div>
+
+            <!-- القسم الثاني (اليسار في العربية) -->
+            <div class="p-4 flex flex-wrap items-center justify-center md:justify-end gap-2 text-sm font-semibold text-gray-700">
+                <a href="#" class="hover:text-amber-600 transition">الطلبات</a>
+                <span>+</span>
+                <a href="#" class="hover:text-amber-600 transition">التصنيفات</a>
+                <span>+</span>
+                <a href="#" class="hover:text-amber-600 transition">العروض</a>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>

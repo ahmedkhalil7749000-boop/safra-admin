@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل المستخدمين وإدارة الحسابات - سفرة</title>
+    <!-- تضمين مكتبة Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+
+    <!-- حاوية الصفحة الرئيسية -->
+    <div class="max-w-6xl mx-auto bg-white shadow-md rounded-lg overflow-hidden border border-gray-200 p-6">
+        
+        <div class="flex justify-between items-center mb-6 border-b pb-4">
+            <h1 class="text-2xl font-bold text-gray-800">إدارة المستخدمين والحسابات</h1>
+            <a href="لوحة_الإدارة.html" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600 transition text-sm">العودة لوحة الإدارة</a>
+        </div>
+
+        <!-- قسم عرض المستخدمين من Firestore -->
+        <div class="overflow-x-auto">
+            <table class="w-full text-right border-collapse">
+                <thead>
+                    <tr class="bg-gray-200 text-gray-700 text-sm">
+                        <th class="p-3 border">الاسم</th>
+                        <th class="p-3 border">البريد الإلكتروني</th>
+                        <th class="p-3 border">نوع الحساب</th>
+                        <th class="p-3 border">تاريخ التسجيل</th>
+                        <th class="p-3 border text-center">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody" class="text-gray-600 text-sm">
+                    <tr>
+                        <td colspan="5" class="p-4 text-center text-gray-500">جاري التحميل...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <!-- ربط Firebase والمنطق البرمجي -->
+    <script type="module">
+        import { db } from './firebase-config.js';
+        import { collection, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        async function loadUsers() {
+            const tableBody = document.getElementById('usersTableBody');
+            try {
+                const querySnapshot = await getDocs(collection(db, "users"));
+                tableBody.innerHTML = '';
+
+                if (querySnapshot.empty) {
+                    tableBody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-gray-500">لا توجد بيانات مستخدمين مسجلة حالياً في قاعدة البيانات.</td></tr>`;
+                    return;
+                }
+
+                querySnapshot.forEach((userDoc) => {
+                    const user = userDoc.data();
+                    const userId = userDoc.id;
+
+                    const row = document.createElement('tr');
+                    row.className = 'border-b hover:bg-gray-50';
+                    row.innerHTML = `
+                        <td class="p-3 border">${user.name || user.fullName || 'غير متوفر'}</td>
+                        <td class="p-3 border">${user.email || 'غير متوفر'}</td>
+                        <td class="p-3 border"><span class="px-2 py-1 bg-amber-100 text-amber-800 rounded text-xs">${user.role || 'مستخدم'}</span></td>
+                        <td class="p-3 border">${user.createdAt ? new Date(user.createdAt.seconds * 1000).toLocaleDateString('ar-SA') : 'غير متوفر'}</td>
+                        <td class="p-3 border text-center">
+                            <button onclick="window.deleteUserAccount('${userId}')" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition text-xs">حذف</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            } catch (error) {
+                console.error("خطأ في جلب المستخدمين: ", error);
+                tableBody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-amber-600">قاعدة البيانات فارغة أو بانتظار إضافة أول مستخدم.</td></tr>`;
+            }
+        }
+
+        window.deleteUserAccount = async function(userId) {
+            if (confirm('هل أنت متأكد من حذف هذا المستخدم؟')) {
+                try {
+                    await deleteDoc(doc(db, "users", userId));
+                    alert('تم حذف المستخدم بنجاح');
+                    loadUsers();
+                } catch (err) {
+                    console.error("خطأ أثناء الحذف: ", err);
+                    alert('فشل حذف المستخدم');
+                }
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', loadUsers);
+    </script>
+</body>
+</html>
