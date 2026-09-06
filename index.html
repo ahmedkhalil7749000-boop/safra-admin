@@ -8,45 +8,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- تضمين فايربيس -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyCp_boObC6rDyAcLYJ-FBqm8_QwRQXShUk",
-            authDomain: "safra-project-3.firebaseapp.com",
-            projectId: "safra-project-3",
-            storageBucket: "safra-project-3.firebasestorage.app",
-            messagingSenderId: "352714677428",
-            appId: "1:352714677428:web:5e3ae3b812beb9b5fe0be1"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-
-        // متابعة حالة تسجيل الدخول للمستخدم
-        onAuthStateChanged(auth, (user) => {
-            const authActions = document.getElementById('auth-actions');
-            if (user) {
-                authActions.innerHTML = `
-                    <div class="flex items-center gap-3">
-                        <span class="text-sm font-medium text-gray-700 hidden sm:inline">${user.email}</span>
-                        <button onclick="handleLogout()" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-full text-sm font-semibold hover:bg-red-100 transition">تسجيل خروج</button>
-                    </div>
-                `;
-            } else {
-                authActions.innerHTML = `
-                    <a href="Auth.html" class="bg-amber-600 text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-amber-700 transition shadow-sm">تسجيل الدخول / إنشاء حساب</a>
-                `;
-            }
-        });
-
-        window.handleLogout = function() {
-            signOut(auth).then(() => {
-                window.location.reload();
-            });
-        };
+        import { db } from "./firebase-config.js";
+        import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         // جلب المطاعم وعرضها بتصميم بطاقات حديثة
         async function loadRestaurants() {
@@ -105,25 +68,9 @@
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-800 font-sans">
 
-    <!-- الشريط العلوي الاحترافي -->
-    <header class="bg-white sticky top-0 z-50 shadow-sm border-b border-gray-100">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex justify-between items-center">
-            <div class="flex items-center gap-8">
-                <a href="index.html" class="text-2xl font-black text-amber-600 tracking-tight flex items-center gap-2">
-                    <i class="fa-solid fa-utensils"></i> سفرة
-                </a>
-                <nav class="hidden md:flex items-center gap-6 text-sm font-semibold text-gray-600">
-                    <a href="index.html" class="text-amber-600">الرئيسية</a>
-                    <a href="cart.html" class="hover:text-amber-600 transition">السلة</a>
-                    <a href="orders.html" class="hover:text-amber-600 transition">طلباتي</a>
-                    <a href="لوحة_المطعم.html" class="hover:text-amber-600 transition">لوحة المطعم</a>
-                </nav>
-            </div>
-            <div id="auth-actions" class="flex items-center gap-4">
-                <!-- يتم تعبئته برمجياً حسب حالة الدخول -->
-            </div>
-        </div>
-    </header>
+    <!-- الهيدر المشترك: بيتحمّل تلقائيًا من shared-header.js -->
+    <div id="app-header"></div>
+    <script type="module" src="shared-header.js"></script>
 
     <!-- قسم الهيرو والبحث الترحيبي -->
     <section class="bg-gradient-to-r from-amber-600 to-amber-700 text-white py-16 px-4 text-center">
