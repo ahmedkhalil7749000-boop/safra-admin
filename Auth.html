@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول - سفرة</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+
+    <div class="w-full max-w-md bg-white shadow-md rounded-lg p-6 border border-gray-200">
+        <h2 id="form-title" class="text-2xl font-bold text-center text-amber-600 mb-6">تسجيل الدخول</h2>
+
+        <form id="auth-form" class="space-y-4">
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">البريد الإلكتروني</label>
+                <input type="email" id="email" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="example@domain.com">
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-1">كلمة المرور</label>
+                <input type="password" id="password" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="********">
+            </div>
+
+            <div id="role-selection" class="hidden">
+                <label class="block text-sm font-semibold text-gray-700 mb-2">نوع الحساب</label>
+                <div class="flex gap-4">
+                    <label class="flex items-center gap-1 text-sm text-gray-700">
+                        <input type="radio" name="role" value="customer" checked> زبون
+                    </label>
+                    <label class="flex items-center gap-1 text-sm text-gray-700">
+                        <input type="radio" name="role" value="restaurant_owner"> صاحب مطعم
+                    </label>
+                </div>
+            </div>
+
+            <button type="submit" id="submit-btn" class="w-full bg-amber-600 text-white py-2 rounded-lg font-semibold hover:bg-amber-700 transition">دخول</button>
+        </form>
+
+        <!-- زر الانتقال السريع المباشر للوحة الإدارة عند النجاح -->
+        <div id="admin-redirect-box" class="hidden mt-4 text-center">
+            <a href="لوحة_الإدارة.html" class="block w-full bg-emerald-600 text-white py-2.5 rounded-lg font-bold hover:bg-emerald-700 transition shadow-md">
+                🚀 اضغط هنا للدخول إلى لوحة الإدارة فوراً
+            </a>
+        </div>
+
+        <div class="flex justify-between items-center mt-4 text-sm text-gray-600">
+            <button id="toggle-mode" class="hover:text-amber-600 transition">ليس لديك حساب؟ إنشاء حساب</button>
+            <a href="#" id="forgot-password" class="hover:text-amber-600 transition">استعادة كلمة المرور</a>
+        </div>
+
+        <p id="message" class="text-center text-sm mt-4 font-semibold"></p>
+
+        <div class="mt-6 text-center border-t pt-4">
+            <a href="index.html" class="text-sm text-gray-500 hover:text-amber-600">العودة إلى الصفحة الرئيسية</a>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth, db } from "./firebase-config.js";
+        import {
+            signInWithEmailAndPassword,
+            createUserWithEmailAndPassword,
+            sendPasswordResetEmail
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { doc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // البريد الوحيد المسموح له بالدخول للوحة الإدارة
+        const ADMIN_EMAIL = "ahmedkhalil7749000@gmail.com";
+
+        let isSignUp = false;
+
+        const formTitle = document.getElementById('form-title');
+        const submitBtn = document.getElementById('submit-btn');
+        const toggleModeBtn = document.getElementById('toggle-mode');
+        const authForm = document.getElementById('auth-form');
+        const message = document.getElementById('message');
+        const forgotPasswordLink = document.getElementById('forgot-password');
+        const adminRedirectBox = document.getElementById('admin-redirect-box');
+        const roleSelection = document.getElementById('role-selection');
+
+        toggleModeBtn.addEventListener('click', () => {
+            isSignUp = !isSignUp;
+            if (isSignUp) {
+                formTitle.innerText = "إنشاء حساب جديد";
+                submitBtn.innerText = "إنشاء الحساب";
+                toggleModeBtn.innerText = "لديك حساب بالفعل؟ تسجيل الدخول";
+                roleSelection.classList.remove('hidden');
+            } else {
+                formTitle.innerText = "تسجيل الدخول";
+                submitBtn.innerText = "دخول";
+                toggleModeBtn.innerText = "ليس لديك حساب؟ إنشاء حساب";
+                roleSelection.classList.add('hidden');
+            }
+        });
+
+        forgotPasswordLink.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('email').value;
+            if (!email) {
+                message.className = "text-center text-sm mt-4 text-red-500";
+                message.innerText = "اكتب بريدك الإلكتروني أولاً بالحقل فوق";
+                return;
+            }
+            try {
+                await sendPasswordResetEmail(auth, email);
+                message.className = "text-center text-sm mt-4 text-green-600";
+                message.innerText = "تم إرسال رابط استعادة كلمة المرور لبريدك";
+            } catch (error) {
+                message.className = "text-center text-sm mt-4 text-red-500";
+                message.innerText = "خطأ: " + error.message;
+            }
+        });
+
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const passwordVal = document.getElementById('password').value;
+            message.className = "text-center text-sm mt-4 text-blue-600";
+            message.innerText = "جاري المعالجة...";
+
+            try {
+                if (isSignUp) {
+                    const selectedRole = authForm.querySelector('input[name="role"]:checked').value;
+                    const cred = await createUserWithEmailAndPassword(auth, document.getElementById('email').value, passwordVal);
+
+                    // نخزن نوع الحساب (زبون / صاحب مطعم) بشكل صريح بتجميعة users
+                    await setDoc(doc(db, "users", cred.user.uid), {
+                        email: cred.user.email,
+                        role: selectedRole,
+                        createdAt: serverTimestamp()
+                    });
+
+                    message.className = "text-center text-sm mt-4 text-green-600";
+                    message.innerText = "تم إنشاء الحساب بنجاح!";
+
+                    setTimeout(() => {
+                        if (selectedRole === 'restaurant_owner') {
+                            window.location.href = "لوحة_المطعم.html";
+                        } else {
+                            window.location.href = "index.html";
+                        }
+                    }, 1000);
+                } else {
+                    const cred = await signInWithEmailAndPassword(auth, document.getElementById('email').value, passwordVal);
+                    message.className = "text-center text-sm mt-4 text-green-600 font-bold";
+                    message.innerText = "تم تسجيل الدخول بنجاح!";
+
+                    if (cred.user.email === ADMIN_EMAIL) {
+                        // هذا هو حساب المشرف فقط: أظهر زر لوحة الإدارة ووجّهه تلقائياً
+                        adminRedirectBox.classList.remove('hidden');
+                        setTimeout(() => {
+                            window.location.href = "لوحة_الإدارة.html";
+                        }, 1000);
+                    } else {
+                        // نجيب نوع الحساب من تجميعة users ونوجهه حسبه
+                        const userDoc = await getDoc(doc(db, "users", cred.user.uid));
+                        const role = userDoc.exists() ? userDoc.data().role : 'customer';
+
+                        setTimeout(() => {
+                            if (role === 'restaurant_owner') {
+                                window.location.href = "لوحة_المطعم.html";
+                            } else {
+                                window.location.href = "index.html";
+                            }
+                        }, 1000);
+                    }
+                }
+            } catch (error) {
+                message.className = "text-center text-sm mt-4 text-red-500";
+                message.innerText = "خطأ: " + error.message;
+            }
+        });
+    </script>
+</body>
+</html>
