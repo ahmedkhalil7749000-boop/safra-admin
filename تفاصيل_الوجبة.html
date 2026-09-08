@@ -69,6 +69,7 @@
     <script type="module">
         import { db } from "./firebase-config.js";
         import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { addToCart as addToCartService, replaceCartWithItem } from "./cart-service.js";
 
         const params = new URLSearchParams(window.location.search);
         const restaurantId = params.get('restaurantId');
@@ -95,18 +96,30 @@
             }
         }
 
-        function addToCart() {
-            const cart = JSON.parse(localStorage.getItem('safra_cart') || '[]');
-            cart.push({
-                restaurantId,
+        async function addToCart() {
+            const item = {
                 itemId,
                 name: itemData.name,
                 price: itemData.price,
                 image: itemData.image || '',
                 notes: document.getElementById('m-notes').value,
                 qty
-            });
-            localStorage.setItem('safra_cart', JSON.stringify(cart));
+            };
+
+            const result = await addToCartService(restaurantId, item);
+
+            if (result.conflict) {
+                const confirmed = confirm(
+                    "السلة حاليًا فيها أصناف من مطعم ثاني. لازم كل السلة تكون من نفس المطعم.\n" +
+                    "بدك نفرّغ السلة ونضيف هالصنف من هالمطعم بدالها؟"
+                );
+                if (confirmed) {
+                    await replaceCartWithItem(restaurantId, item);
+                    alert(`تمت تفريغ السلة وإضافة "${itemData.name}" (${qty}) بدالها`);
+                }
+                return;
+            }
+
             alert(`تمت إضافة "${itemData.name}" (${qty}) للسلة`);
         }
 

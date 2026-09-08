@@ -68,6 +68,7 @@
             doc, getDoc, updateDoc, collection, query, where, getDocs, addDoc, orderBy, serverTimestamp
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { addToCart as addToCartService, replaceCartWithItem } from "./cart-service.js";
 
         const params = new URLSearchParams(window.location.search);
         const restaurantId = params.get('id');
@@ -84,10 +85,21 @@
         let currentUser = null;
         let selectedStars = 0;
 
-        function addToCart(restaurantId, item) {
-            const cart = JSON.parse(localStorage.getItem('safra_cart') || '[]');
-            cart.push({ restaurantId, ...item, qty: 1 });
-            localStorage.setItem('safra_cart', JSON.stringify(cart));
+        async function addToCart(restaurantId, item) {
+            const result = await addToCartService(restaurantId, { ...item, qty: 1 });
+
+            if (result.conflict) {
+                const confirmed = confirm(
+                    "السلة حاليًا فيها أصناف من مطعم ثاني. لازم كل السلة تكون من نفس المطعم.\n" +
+                    "بدك نفرّغ السلة ونضيف هالصنف من هالمطعم بدالها؟"
+                );
+                if (confirmed) {
+                    await replaceCartWithItem(restaurantId, { ...item, qty: 1 });
+                    alert(`تمت تفريغ السلة وإضافة "${item.name}" بدالها`);
+                }
+                return;
+            }
+
             alert(`تمت إضافة "${item.name}" للسلة`);
         }
 

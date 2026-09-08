@@ -89,6 +89,7 @@
         import { auth, db } from "./firebase-config.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { collection, addDoc, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getCart as getCartService, clearCart } from "./cart-service.js";
 
         const DELIVERY_FEE = 1.5;
         const form = document.getElementById('checkout-form');
@@ -158,11 +159,11 @@
         // ===== نهاية منطق الطلب المسبق =====
 
         function getCart() {
-            return JSON.parse(localStorage.getItem('safra_cart') || '[]');
+            return getCartService();
         }
 
-        function renderSummary() {
-            const cart = getCart();
+        async function renderSummary() {
+            const cart = await getCart();
             const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
             const fee = cart.length ? DELIVERY_FEE : 0;
             document.getElementById('ck-subtotal').innerText = subtotal.toFixed(2) + " د.أ";
@@ -190,7 +191,7 @@
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
 
-            const cart = getCart();
+            const cart = await getCart();
             if (cart.length === 0) {
                 message.className = "text-center text-sm mt-4 text-red-500";
                 message.innerText = "السلة فاضية.";
@@ -199,6 +200,14 @@
             if (!currentUser) {
                 message.className = "text-center text-sm mt-4 text-red-500";
                 message.innerText = "لازم تسجل دخول أولاً.";
+                return;
+            }
+
+            // فحص أمان إضافي: تأكيد إن كل أصناف السلة من نفس المطعم قبل إرسال الطلب
+            const distinctRestaurants = new Set(cart.map(i => i.restaurantId));
+            if (distinctRestaurants.size > 1) {
+                message.className = "text-center text-sm mt-4 text-red-500";
+                message.innerText = "في أصناف بالسلة من أكتر من مطعم. رجع لصفحة السلة وعدّلها قبل ما تكمل.";
                 return;
             }
 
@@ -239,7 +248,7 @@
 
             try {
                 await addDoc(collection(db, "orders"), order);
-                localStorage.removeItem('safra_cart');
+                await clearCart();
                 message.className = "text-center text-sm mt-4 text-green-600";
                 message.innerText = scheduleCheck.isScheduled
                     ? `تم تأكيد طلبك المسبق! هيتم تجهيزه حوالي الساعة ${scheduleCheck.date.toLocaleString('ar-EG')}. رح تحول لصفحة طلباتي...`

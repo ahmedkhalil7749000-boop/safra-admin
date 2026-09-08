@@ -5,6 +5,8 @@
 // صفحة تستدعي هالملف.
 // ============================================================
 
+import { subscribeToCart } from "./cart-service.js";
+
 const currentPage = location.pathname.split("/").pop() || "index.html";
 
 const navItems = [
@@ -32,10 +34,11 @@ if (mountPoint) {
     document.body.classList.add('has-bottom-nav');
 }
 
-// عرض عدد أصناف السلة كـ badge فوق أيقونة السلة (لو في بيانات بالسلة محفوظة محليًا)
+// عرض عدد أصناف السلة كـ badge فوق أيقونة السلة
+// (بتنعكس فورًا سواء السلة محلية عند زائر، أو مخزّنة بالحساب عند مستخدم مسجل)
 function renderCartBadge(count) {
     const cartLink = document.getElementById('nav-cart');
-    if (!cartLink || !count) return;
+    if (!cartLink) return;
     const existing = cartLink.querySelector('.nav-badge');
     if (existing) existing.remove();
     if (count > 0) {
@@ -46,9 +49,7 @@ function renderCartBadge(count) {
     }
 }
 
-try {
-    const localCart = JSON.parse(localStorage.getItem('safra_cart') || '[]');
-    if (Array.isArray(localCart)) {
-        renderCartBadge(localCart.reduce((sum, i) => sum + (i.qty || 1), 0));
-    }
-} catch (e) { /* لا يوجد سلة محفوظة محليًا */ }
+subscribeToCart((cart) => {
+    const count = (cart || []).reduce((sum, i) => sum + (i.qty || 1), 0);
+    renderCartBadge(count);
+});

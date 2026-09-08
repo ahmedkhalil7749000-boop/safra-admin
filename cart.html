@@ -61,22 +61,16 @@
     <script type="module" src="shared-bottom-nav.js"></script>
 
     <script type="module">
+        import { getCart, saveCart } from "./cart-service.js";
+
         const DELIVERY_FEE = 1.5;
 
         const cartItemsEl = document.getElementById('cart-items');
         const emptyEl = document.getElementById('empty-cart');
         const summaryEl = document.getElementById('cart-summary');
 
-        function getCart() {
-            return JSON.parse(localStorage.getItem('safra_cart') || '[]');
-        }
-
-        function saveCart(cart) {
-            localStorage.setItem('safra_cart', JSON.stringify(cart));
-        }
-
-        function render() {
-            const cart = getCart();
+        async function render() {
+            const cart = await getCart();
             cartItemsEl.innerHTML = '';
 
             if (cart.length === 0) {
@@ -107,23 +101,23 @@
                     </div>
                     <button class="remove-btn text-red-500 text-xs hover:underline">حذف</button>
                 `;
-                row.querySelector('.inc-btn').addEventListener('click', () => {
+                row.querySelector('.inc-btn').addEventListener('click', async () => {
                     cart[index].qty += 1;
-                    saveCart(cart);
+                    await saveCart(cart);
                     render();
                 });
-                row.querySelector('.dec-btn').addEventListener('click', () => {
+                row.querySelector('.dec-btn').addEventListener('click', async () => {
                     if (cart[index].qty > 1) {
                         cart[index].qty -= 1;
                     } else {
                         cart.splice(index, 1);
                     }
-                    saveCart(cart);
+                    await saveCart(cart);
                     render();
                 });
-                row.querySelector('.remove-btn').addEventListener('click', () => {
+                row.querySelector('.remove-btn').addEventListener('click', async () => {
                     cart.splice(index, 1);
-                    saveCart(cart);
+                    await saveCart(cart);
                     render();
                 });
                 cartItemsEl.appendChild(row);
