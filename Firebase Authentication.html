@@ -6,8 +6,23 @@
     <title>تسجيل المستخدمين وإدارة الحسابات - سفرة</title>
     <!-- تضمين مكتبة Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'safra-dark': '#0b3b2c',
+              'safra-green': '#2e6f40',
+              'safra-cream': '#fbf9f5',
+              'safra-gold': '#d97706',
+              'safra-gold-dark': '#b45309',
+            }
+          }
+        }
+      }
+    </script>
 </head>
-<body class="bg-gray-100 min-h-screen p-6">
+<body class="bg-safra-cream min-h-screen p-6">
 
     <!-- حاوية الصفحة الرئيسية -->
     <div class="max-w-6xl mx-auto bg-white shadow-md rounded-lg overflow-hidden border border-gray-200 p-6">
@@ -64,7 +79,7 @@
                     row.innerHTML = `
                         <td class="p-3 border">${user.name || user.fullName || 'غير متوفر'}</td>
                         <td class="p-3 border">${user.email || 'غير متوفر'}</td>
-                        <td class="p-3 border"><span class="px-2 py-1 bg-amber-100 text-amber-800 rounded text-xs">${user.role || 'مستخدم'}</span></td>
+                        <td class="p-3 border"><span class="px-2 py-1 bg-safra-gold/10 text-safra-dark rounded text-xs">${user.role || 'مستخدم'}</span></td>
                         <td class="p-3 border">${user.createdAt ? new Date(user.createdAt.seconds * 1000).toLocaleDateString('ar-SA') : 'غير متوفر'}</td>
                         <td class="p-3 border text-center">
                             <button onclick="window.deleteUserAccount('${userId}')" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition text-xs">حذف</button>
@@ -74,7 +89,7 @@
                 });
             } catch (error) {
                 console.error("خطأ في جلب المستخدمين: ", error);
-                tableBody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-amber-600">قاعدة البيانات فارغة أو بانتظار إضافة أول مستخدم.</td></tr>`;
+                tableBody.innerHTML = `<tr><td colspan="5" class="p-4 text-center text-safra-gold">قاعدة البيانات فارغة أو بانتظار إضافة أول مستخدم.</td></tr>`;
             }
         }
 

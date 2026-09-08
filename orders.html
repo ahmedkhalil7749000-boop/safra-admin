@@ -2,26 +2,38 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>الطلبات السابقة - سفرة</title>
+    <link rel="stylesheet" href="app-shell.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'safra-dark': '#0b3b2c',
+              'safra-green': '#2e6f40',
+              'safra-cream': '#fbf9f5',
+              'safra-gold': '#d97706',
+              'safra-gold-dark': '#b45309',
+            }
+          }
+        }
+      }
+    </script>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="app-narrow bg-safra-cream min-h-screen">
     <!-- الهيدر المشترك: بيتحمّل تلقائيًا من shared-header.js -->
     <div id="app-header"></div>
     <script type="module" src="shared-header.js"></script>
 
-
-    <div class="max-w-3xl mx-auto p-6">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold text-amber-600">طلباتي السابقة</h1>
-            <a href="index.html" class="text-sm text-gray-500 hover:text-amber-600">الصفحة الرئيسية</a>
-        </div>
+    <div class="p-4">
+        <h1 class="text-xl font-bold text-safra-gold mb-4">طلباتي السابقة</h1>
 
         <div id="login-warning" class="hidden bg-yellow-50 border border-yellow-300 text-yellow-800 text-sm rounded-lg p-4 text-center mb-4">
             الرجاء تسجيل الدخول لعرض طلباتك.
             <br>
-            <a href="Auth.html" class="text-amber-600 font-semibold hover:underline mt-1 inline-block">تسجيل الدخول</a>
+            <a href="Auth.html" class="text-safra-gold font-semibold hover:underline mt-1 inline-block">تسجيل الدخول</a>
         </div>
 
         <div id="loading" class="text-center text-gray-500 py-10">جاري تحميل الطلبات...</div>
@@ -30,15 +42,87 @@
         <div id="orders-list" class="space-y-4"></div>
     </div>
 
+    <!-- شريط التنقل السفلي -->
+    <div id="app-bottom-nav"></div>
+    <script type="module" src="shared-bottom-nav.js"></script>
+
     <script type="module">
         import { auth, db } from "./firebase-config.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { collection, query, where, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const loginWarning = document.getElementById('login-warning');
         const loading = document.getElementById('loading');
         const empty = document.getElementById('empty');
         const ordersList = document.getElementById('orders-list');
+
+        // ===== تنبيه الطلب المسبق عند حلول الموعد =====
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        function playAlertSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.connect(g);
+                g.connect(ctx.destination);
+                o.type = 'sine';
+                o.frequency.value = 880;
+                g.gain.setValueAtTime(0.15, ctx.currentTime);
+                o.start();
+                o.stop(ctx.currentTime + 0.4);
+            } catch (e) { /* تجاهل لو المتصفح ما يدعم الصوت */ }
+        }
+
+        function showScheduleAlert(orderId, scheduledDate) {
+            const banner = document.createElement('div');
+            banner.className = "app-toast bg-safra-gold text-white px-4 py-3 rounded-lg shadow-lg text-sm font-semibold text-center";
+            banner.innerText = `⏰ حان موعد طلبك المسبق #${orderId.substring(0, 6)} - جاري تجهيزه الآن!`;
+            document.body.appendChild(banner);
+            setTimeout(() => banner.remove(), 7000);
+
+            playAlertSound();
+
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('سفرة - تنبيه طلب مسبق', {
+                    body: `حان موعد طلبك رقم #${orderId.substring(0, 6)}`,
+                    icon: 'logo.png'
+                });
+            }
+        }
+
+        let scheduleWatcher = null;
+        function startScheduleWatcher(scheduledOrders) {
+            if (scheduleWatcher) clearInterval(scheduleWatcher);
+            if (!scheduledOrders.length) return;
+
+            const checkNow = async () => {
+                const now = new Date();
+                for (const o of scheduledOrders) {
+                    if (o.notified || !o.scheduledFor) continue;
+                    if (now >= o.scheduledFor) {
+                        o.notified = true;
+                        showScheduleAlert(o.id, o.scheduledFor);
+                        const badge = document.getElementById(`status-badge-${o.id}`);
+                        if (badge) badge.innerText = "قيد المعالجة";
+                        try {
+                            await updateDoc(doc(db, "orders", o.id), {
+                                status: "قيد المعالجة",
+                                scheduleNotified: true
+                            });
+                        } catch (e) {
+                            console.error("تعذر تحديث حالة الطلب المسبق:", e);
+                        }
+                    }
+                }
+            };
+
+            checkNow(); // فحص فوري عند التحميل
+            scheduleWatcher = setInterval(checkNow, 15000); // ثم كل 15 ثانية
+        }
+        // ===== نهاية منطق تنبيه الطلب المسبق =====
 
         onAuthStateChanged(auth, async (user) => {
             if (!user) {
@@ -50,7 +134,7 @@
             try {
                 const q = query(
                     collection(db, "orders"),
-                    where("userId", "==", user.uid)
+                    where("customerId", "==", user.uid)
                 );
                 
                 const snapshot = await getDocs(q);
@@ -62,7 +146,8 @@
                 }
 
                 ordersList.innerHTML = '';
-                
+                const scheduledOrders = [];
+
                 snapshot.forEach((docSnap) => {
                     const orderId = docSnap.id;
                     const data = docSnap.data() || {};
@@ -78,21 +163,34 @@
                     const totalVal = typeof data.total === 'number' ? data.total.toFixed(2) : (data.total || '0.00');
                     const dateStr = data.createdAt?.toDate ? data.createdAt.toDate().toLocaleString('ar-EG') : 'حديثاً';
 
+                    // شارة الطلب المسبق (المجدول)
+                    let scheduleBadge = '';
+                    if (data.isScheduled && data.scheduledFor?.toDate) {
+                        const schedDate = data.scheduledFor.toDate();
+                        scheduleBadge = `<p class="text-xs text-safra-gold-dark font-semibold mt-1">🕒 طلب مسبق - الموعد: ${schedDate.toLocaleString('ar-EG')}</p>`;
+                        if (!data.scheduleNotified) {
+                            scheduledOrders.push({ id: orderId, scheduledFor: schedDate, notified: false });
+                        }
+                    }
+
                     const card = document.createElement('div');
                     card.className = "bg-white rounded-lg shadow-sm border border-gray-200 p-4 transition hover:shadow-md mb-3";
                     card.innerHTML = `
                         <div class="flex justify-between items-start mb-2 border-b pb-2">
                             <span class="text-xs text-gray-400">رقم الطلب: #${orderId.substring(0, 6)}</span>
-                            <span class="text-xs font-semibold bg-amber-100 text-amber-700 px-2 py-1 rounded">${status}</span>
+                            <span id="status-badge-${orderId}" class="text-xs font-semibold bg-safra-gold/10 text-safra-gold-dark px-2 py-1 rounded">${status}</span>
                         </div>
                         <p class="text-sm font-medium text-gray-800 mb-2">الأصناف: ${itemsText}</p>
+                        ${scheduleBadge}
                         <div class="flex justify-between items-center text-sm mt-3 pt-2 border-t border-gray-100">
                             <span class="text-xs text-gray-500">${dateStr}</span>
-                            <span class="font-bold text-amber-600 text-base">${totalVal} د.أ</span>
+                            <span class="font-bold text-safra-gold text-base">${totalVal} د.أ</span>
                         </div>
                     `;
                     ordersList.appendChild(card);
                 });
+
+                startScheduleWatcher(scheduledOrders);
 
             } catch (error) {
                 loading.classList.add('hidden');

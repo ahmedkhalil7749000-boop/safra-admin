@@ -2,33 +2,48 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>تأكيد الطلب - سفرة</title>
+    <link rel="stylesheet" href="app-shell.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'safra-dark': '#0b3b2c',
+              'safra-green': '#2e6f40',
+              'safra-cream': '#fbf9f5',
+              'safra-gold': '#d97706',
+              'safra-gold-dark': '#b45309',
+            }
+          }
+        }
+      }
+    </script>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="app-narrow bg-safra-cream min-h-screen">
     <!-- الهيدر المشترك: بيتحمّل تلقائيًا من shared-header.js -->
     <div id="app-header"></div>
     <script type="module" src="shared-header.js"></script>
 
-
-    <div class="max-w-lg mx-auto p-6">
-        <h1 class="text-2xl font-bold text-amber-600 mb-6 text-center">إتمام الطلب</h1>
+    <div class="p-4">
+        <h1 class="text-xl font-bold text-safra-gold mb-5 text-center">إتمام الطلب</h1>
 
         <div id="login-warning" class="hidden bg-yellow-50 border border-yellow-300 text-yellow-800 text-sm rounded-lg p-4 mb-4 text-center">
             لازم تسجل دخول الأول عشان تكمل الطلب.
-            <a href="Auth.html" class="text-amber-600 font-semibold hover:underline">سجّل دخول</a>
+            <a href="Auth.html" class="text-safra-gold font-semibold hover:underline">سجّل دخول</a>
         </div>
 
         <form id="checkout-form" class="bg-white rounded-lg shadow-md border border-gray-200 p-4 space-y-4">
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-1">العنوان</label>
-                <input type="text" id="address" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="مثال: عمان - الدوار السابع - عمارة 12">
+                <input type="text" id="address" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-safra-gold" placeholder="مثال: عمان - الدوار السابع - عمارة 12">
             </div>
 
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-1">طريقة الدفع</label>
-                <select id="payment-method" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+                <select id="payment-method" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-safra-gold">
                     <option value="cash">الدفع عند الاستلام (كاش)</option>
                     <option value="card">بطاقة ائتمان</option>
                 </select>
@@ -36,7 +51,26 @@
 
             <div>
                 <label class="block text-sm font-semibold text-gray-700 mb-1">ملاحظات (اختياري)</label>
-                <textarea id="notes" rows="2" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500" placeholder="مثال: بدون بصل"></textarea>
+                <textarea id="notes" rows="2" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-safra-gold" placeholder="مثال: بدون بصل"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">موعد الطلب</label>
+                <div class="flex gap-4 mb-2">
+                    <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+                        <input type="radio" name="order-timing" id="timing-now" value="now" checked class="accent-safra-gold">
+                        <span>الآن (فوري)</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+                        <input type="radio" name="order-timing" id="timing-scheduled" value="scheduled" class="accent-safra-gold">
+                        <span>طلب مسبق (حدد الوقت)</span>
+                    </label>
+                </div>
+                <div id="scheduled-time-wrapper" class="hidden">
+                    <input type="datetime-local" id="scheduled-time" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-safra-gold">
+                    <p id="schedule-hint" class="text-xs text-gray-500 mt-1"></p>
+                    <p id="schedule-error" class="text-xs text-red-500 mt-1 hidden"></p>
+                </div>
             </div>
 
             <div class="border-t pt-3 text-sm text-gray-700">
@@ -45,7 +79,7 @@
                 <div class="flex justify-between font-bold text-gray-900 mt-1"><span>الإجمالي</span><span id="ck-total">0.00 د.أ</span></div>
             </div>
 
-            <button type="submit" id="confirm-btn" class="w-full bg-amber-600 text-white py-2 rounded-lg font-semibold hover:bg-amber-700 transition">تأكيد الطلب</button>
+            <button type="submit" id="confirm-btn" class="w-full bg-safra-gold text-white py-2 rounded-lg font-semibold hover:bg-safra-gold-dark transition">تأكيد الطلب</button>
         </form>
 
         <p id="message" class="text-center text-sm mt-4 font-semibold"></p>
@@ -54,13 +88,74 @@
     <script type="module">
         import { auth, db } from "./firebase-config.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { collection, addDoc, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const DELIVERY_FEE = 1.5;
         const form = document.getElementById('checkout-form');
         const message = document.getElementById('message');
         const loginWarning = document.getElementById('login-warning');
         const confirmBtn = document.getElementById('confirm-btn');
+
+        // ===== منطق الطلب المسبق (جدولة الطلب) =====
+        const MIN_LEAD_MINUTES = 30;   // أقل مدة مسموحة قبل موعد التسليم
+        const MAX_LEAD_DAYS = 7;       // أقصى مدة يمكن الجدولة لها مسبقاً
+
+        const timingNow = document.getElementById('timing-now');
+        const timingScheduled = document.getElementById('timing-scheduled');
+        const scheduledWrapper = document.getElementById('scheduled-time-wrapper');
+        const scheduledInput = document.getElementById('scheduled-time');
+        const scheduleHint = document.getElementById('schedule-hint');
+        const scheduleError = document.getElementById('schedule-error');
+
+        // تحويل تاريخ JS لصيغة تقبلها خاصية datetime-local (بالتوقيت المحلي)
+        function toLocalInputValue(date) {
+            const pad = (n) => String(n).padStart(2, '0');
+            return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+        }
+
+        function setupScheduleBounds() {
+            const now = new Date();
+            const minDate = new Date(now.getTime() + MIN_LEAD_MINUTES * 60000);
+            const maxDate = new Date(now.getTime() + MAX_LEAD_DAYS * 24 * 60 * 60000);
+            scheduledInput.min = toLocalInputValue(minDate);
+            scheduledInput.max = toLocalInputValue(maxDate);
+            scheduleHint.innerText = `اختر وقتاً بعد ${MIN_LEAD_MINUTES} دقيقة على الأقل من الآن، وبحد أقصى ${MAX_LEAD_DAYS} أيام مقدماً.`;
+        }
+        setupScheduleBounds();
+
+        function toggleScheduleUI() {
+            const isScheduled = timingScheduled.checked;
+            scheduledWrapper.classList.toggle('hidden', !isScheduled);
+            scheduledInput.required = isScheduled;
+            scheduleError.classList.add('hidden');
+            if (isScheduled) setupScheduleBounds();
+        }
+        timingNow.addEventListener('change', toggleScheduleUI);
+        timingScheduled.addEventListener('change', toggleScheduleUI);
+
+        function validateSchedule() {
+            if (!timingScheduled.checked) {
+                return { ok: true, isScheduled: false };
+            }
+            if (!scheduledInput.value) {
+                return { ok: false, msg: "الرجاء تحديد وقت الطلب المسبق." };
+            }
+            const chosen = new Date(scheduledInput.value);
+            if (isNaN(chosen.getTime())) {
+                return { ok: false, msg: "الوقت المحدد غير صالح." };
+            }
+            const now = new Date();
+            const minAllowed = new Date(now.getTime() + MIN_LEAD_MINUTES * 60000);
+            const maxAllowed = new Date(now.getTime() + MAX_LEAD_DAYS * 24 * 60 * 60000);
+            if (chosen < minAllowed) {
+                return { ok: false, msg: `الرجاء اختيار وقت بعد ${MIN_LEAD_MINUTES} دقيقة على الأقل من الآن.` };
+            }
+            if (chosen > maxAllowed) {
+                return { ok: false, msg: `لا يمكن جدولة الطلب لأكثر من ${MAX_LEAD_DAYS} أيام مقدماً.` };
+            }
+            return { ok: true, isScheduled: true, date: chosen };
+        }
+        // ===== نهاية منطق الطلب المسبق =====
 
         function getCart() {
             return JSON.parse(localStorage.getItem('safra_cart') || '[]');
@@ -107,6 +202,15 @@
                 return;
             }
 
+            const scheduleCheck = validateSchedule();
+            if (!scheduleCheck.ok) {
+                scheduleError.innerText = scheduleCheck.msg;
+                scheduleError.classList.remove('hidden');
+                scheduledInput.focus();
+                return;
+            }
+            scheduleError.classList.add('hidden');
+
             const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
             const total = subtotal + DELIVERY_FEE;
 
@@ -122,7 +226,11 @@
                 subtotal,
                 deliveryFee: DELIVERY_FEE,
                 total,
-                status: "قيد المعالجة",
+                // حقول الطلب المسبق (الجدولة)
+                isScheduled: scheduleCheck.isScheduled,
+                scheduledFor: scheduleCheck.isScheduled ? Timestamp.fromDate(scheduleCheck.date) : null,
+                scheduleNotified: false,
+                status: scheduleCheck.isScheduled ? "قيد الانتظار" : "قيد المعالجة",
                 createdAt: serverTimestamp()
             };
 
@@ -133,7 +241,9 @@
                 await addDoc(collection(db, "orders"), order);
                 localStorage.removeItem('safra_cart');
                 message.className = "text-center text-sm mt-4 text-green-600";
-                message.innerText = "تم تأكيد الطلب بنجاح! رح تحول لصفحة طلباتي...";
+                message.innerText = scheduleCheck.isScheduled
+                    ? `تم تأكيد طلبك المسبق! هيتم تجهيزه حوالي الساعة ${scheduleCheck.date.toLocaleString('ar-EG')}. رح تحول لصفحة طلباتي...`
+                    : "تم تأكيد الطلب بنجاح! رح تحول لصفحة طلباتي...";
                 setTimeout(() => window.location.href = "orders.html", 1200);
             } catch (error) {
                 message.className = "text-center text-sm mt-4 text-red-500";

@@ -1,0 +1,137 @@
+/* ============================================================
+   app-shell.css
+   يحوّل الموقع لشكل تطبيق موبايل حقيقي على كل الشاشات:
+   - عرض ثابت بعرض تطبيق (كموبايل) حتى على شاشات الديسكتوب
+   - يراعي الشقوق/الحواف الآمنة (Safe Area) بالموبايلات الحديثة
+   - شريط تنقل سفلي ثابت بعرض التطبيق فقط
+   ============================================================ */
+
+html {
+    background: #e7e7ea; /* خلفية خارج "جسم" التطبيق على الشاشات الواسعة */
+}
+
+body {
+    margin-left: auto !important;
+    margin-right: auto !important;
+    min-height: 100vh;
+    min-height: 100dvh;
+    position: relative;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
+/* عرض تطبيق عادي (المستخدم/الزبون) */
+body.app-narrow {
+    max-width: 480px;
+}
+
+/* عرض أوسع شوي للوحات الإدارة/المطعم (فيها جداول وبيانات أكتر) */
+body.app-wide {
+    max-width: 860px;
+}
+
+@media (min-width: 540px) {
+    body.app-narrow {
+        box-shadow: 0 0 50px rgba(0, 0, 0, 0.15);
+    }
+}
+
+@media (min-width: 900px) {
+    body.app-wide {
+        box-shadow: 0 0 50px rgba(0, 0, 0, 0.12);
+    }
+}
+
+/* مساحة تحت المحتوى لما يكون في شريط تنقل سفلي، حتى ما يغطي آخر المحتوى */
+body.has-bottom-nav {
+    padding-bottom: calc(78px + env(safe-area-inset-bottom));
+}
+
+/* مراعاة النوتش/الحافة العلوية للهيدر الثابت */
+#app-header header {
+    padding-top: env(safe-area-inset-top);
+}
+
+/* تنبيهات/توست عائمة (Fixed) لازم تبقى محصورة بعرض التطبيق مش الشاشة كلها */
+.app-toast {
+    position: fixed !important;
+    top: calc(1rem + env(safe-area-inset-top));
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
+    width: calc(100% - 2rem);
+    max-width: 448px; /* 480px app width - 2rem margins */
+    z-index: 200;
+}
+
+/* غطاء تحميل يغطي "جسم" التطبيق فقط مش الشاشة كلها */
+.app-fullscreen-overlay {
+    position: fixed !important;
+    top: 0;
+    bottom: 0;
+    left: 50% !important;
+    right: auto !important;
+    transform: translateX(-50%);
+    width: 100%;
+}
+body.app-narrow .app-fullscreen-overlay { max-width: 480px; }
+body.app-wide .app-fullscreen-overlay { max-width: 860px; }
+
+/* ------------------ شريط التنقل السفلي ------------------ */
+.app-bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    background: #ffffff;
+    border-top: 1px solid #eee;
+    display: flex;
+    align-items: stretch;
+    z-index: 100;
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.05);
+}
+
+.app-bottom-nav a {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 9px 2px 7px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #9ca3af;
+    text-decoration: none;
+    position: relative;
+    transition: color 0.15s;
+}
+
+.app-bottom-nav a i {
+    font-size: 18px;
+}
+
+.app-bottom-nav a.active {
+    color: #2e6f40;
+}
+
+.app-bottom-nav a .nav-badge {
+    position: absolute;
+    top: 3px;
+    left: calc(50% + 6px);
+    background: #d97706;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    border-radius: 9999px;
+    min-width: 15px;
+    height: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 3px;
+    line-height: 1;
+}
