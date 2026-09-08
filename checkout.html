@@ -74,9 +74,12 @@
             </div>
 
             <div class="border-t pt-3 text-sm text-gray-700">
-                <div class="flex justify-between"><span>المجموع</span><span id="ck-subtotal">0.00 د.أ</span></div>
-                <div class="flex justify-between"><span>رسوم التوصيل</span><span id="ck-fee">0.00 د.أ</span></div>
-                <div class="flex justify-between font-bold text-gray-900 mt-1"><span>الإجمالي</span><span id="ck-total">0.00 د.أ</span></div>
+                <div class="flex justify-between"><span>مجموع الأصناف</span><span id="ck-subtotal">0.00 د.أ</span></div>
+                <div class="flex justify-between"><span id="ck-fee-label">رسوم التوصيل</span><span id="ck-fee">0.00 د.أ</span></div>
+                <div class="flex justify-between font-bold text-gray-900 mt-1"><span>الإجمالي الكلي</span><span id="ck-total">0.00 د.أ</span></div>
+                <p id="ck-multi-hint" class="hidden text-xs text-gray-500 mt-2">
+                    ملاحظة: سلتك فيها أكتر من مطعم، فرح ينبعث كل مطعم كطلب منفصل لصاحبه.
+                </p>
             </div>
 
             <button type="submit" id="confirm-btn" class="w-full bg-safra-gold text-white py-2 rounded-lg font-semibold hover:bg-safra-gold-dark transition">تأكيد الطلب</button>
@@ -89,7 +92,7 @@
         import { auth, db } from "./firebase-config.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { collection, addDoc, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        import { getCart as getCartService, clearCart } from "./cart-service.js";
+        import { getCart as getCartService, clearCart, groupCartByRestaurant } from "./cart-service.js";
 
         const DELIVERY_FEE = 1.5;
         const form = document.getElementById('checkout-form');
@@ -164,11 +167,15 @@
 
         async function renderSummary() {
             const cart = await getCart();
+            const groups = groupCartByRestaurant(cart);
             const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-            const fee = cart.length ? DELIVERY_FEE : 0;
+            const fee = groups.length * DELIVERY_FEE;
             document.getElementById('ck-subtotal').innerText = subtotal.toFixed(2) + " د.أ";
+            document.getElementById('ck-fee-label').innerText =
+                groups.length > 1 ? `رسوم التوصيل (${groups.length} طلبات)` : "رسوم التوصيل";
             document.getElementById('ck-fee').innerText = fee.toFixed(2) + " د.أ";
             document.getElementById('ck-total').innerText = (subtotal + fee).toFixed(2) + " د.أ";
+            document.getElementById('ck-multi-hint').classList.toggle('hidden', groups.length <= 1);
         }
 
         let currentUser = null;
@@ -203,13 +210,8 @@
                 return;
             }
 
-            // فحص أمان إضافي: تأكيد إن كل أصناف السلة من نفس المطعم قبل إرسال الطلب
-            const distinctRestaurants = new Set(cart.map(i => i.restaurantId));
-            if (distinctRestaurants.size > 1) {
-                message.className = "text-center text-sm mt-4 text-red-500";
-                message.innerText = "في أصناف بالسلة من أكتر من مطعم. رجع لصفحة السلة وعدّلها قبل ما تكمل.";
-                return;
-            }
+            // فحص أمان: لازم كل مطعم بالسلة يصير طلب منفصل خاص فيه
+            const groups = groupCartByRestaurant(cart);
 
             const scheduleCheck = validateSchedule();
             if (!scheduleCheck.ok) {
@@ -220,39 +222,51 @@
             }
             scheduleError.classList.add('hidden');
 
-            const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-            const total = subtotal + DELIVERY_FEE;
+            const address = document.getElementById('address').value;
+            const paymentMethod = document.getElementById('payment-method').value;
+            const notes = document.getElementById('notes').value;
 
-            // تم تعديل userId إلى customerId ليتوافق مع قواعد الأمان في فايربيس
-            const order = {
-                customerId: currentUser.uid,
-                userEmail: currentUser.email,
-                restaurantId: cart[0]?.restaurantId || null,
-                items: cart,
-                address: document.getElementById('address').value,
-                paymentMethod: document.getElementById('payment-method').value,
-                notes: document.getElementById('notes').value,
-                subtotal,
-                deliveryFee: DELIVERY_FEE,
-                total,
-                // حقول الطلب المسبق (الجدولة)
-                isScheduled: scheduleCheck.isScheduled,
-                scheduledFor: scheduleCheck.isScheduled ? Timestamp.fromDate(scheduleCheck.date) : null,
-                scheduleNotified: false,
-                status: scheduleCheck.isScheduled ? "قيد الانتظار" : "قيد المعالجة",
-                createdAt: serverTimestamp()
-            };
+            // بنجهّز طلب (order) مستقل لكل مطعم بالسلة
+            const orders = groups.map((group) => {
+                const groupSubtotal = group.items.reduce((sum, item) => sum + item.price * item.qty, 0);
+                const groupTotal = groupSubtotal + DELIVERY_FEE;
+                return {
+                    customerId: currentUser.uid,
+                    userEmail: currentUser.email,
+                    restaurantId: group.restaurantId,
+                    items: group.items,
+                    address,
+                    paymentMethod,
+                    notes,
+                    subtotal: groupSubtotal,
+                    deliveryFee: DELIVERY_FEE,
+                    total: groupTotal,
+                    // حقول الطلب المسبق (الجدولة)
+                    isScheduled: scheduleCheck.isScheduled,
+                    scheduledFor: scheduleCheck.isScheduled ? Timestamp.fromDate(scheduleCheck.date) : null,
+                    scheduleNotified: false,
+                    status: scheduleCheck.isScheduled ? "قيد الانتظار" : "قيد المعالجة",
+                    createdAt: serverTimestamp()
+                };
+            });
 
             message.className = "text-center text-sm mt-4 text-blue-600";
-            message.innerText = "جاري إرسال الطلب...";
+            message.innerText = orders.length > 1
+                ? `جاري إرسال ${orders.length} طلبات...`
+                : "جاري إرسال الطلب...";
 
             try {
-                await addDoc(collection(db, "orders"), order);
+                for (const order of orders) {
+                    await addDoc(collection(db, "orders"), order);
+                }
                 await clearCart();
                 message.className = "text-center text-sm mt-4 text-green-600";
+                const doneMsg = orders.length > 1
+                    ? `تم تأكيد ${orders.length} طلبات (وحدة لكل مطعم) بنجاح!`
+                    : "تم تأكيد الطلب بنجاح!";
                 message.innerText = scheduleCheck.isScheduled
-                    ? `تم تأكيد طلبك المسبق! هيتم تجهيزه حوالي الساعة ${scheduleCheck.date.toLocaleString('ar-EG')}. رح تحول لصفحة طلباتي...`
-                    : "تم تأكيد الطلب بنجاح! رح تحول لصفحة طلباتي...";
+                    ? `${doneMsg} هيتم تجهيزها حوالي الساعة ${scheduleCheck.date.toLocaleString('ar-EG')}. رح تحول لصفحة طلباتي...`
+                    : `${doneMsg} رح تحول لصفحة طلباتي...`;
                 setTimeout(() => window.location.href = "orders.html", 1200);
             } catch (error) {
                 message.className = "text-center text-sm mt-4 text-red-500";

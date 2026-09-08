@@ -2,14 +2,17 @@
 // cart-service.js
 // خدمة السلة المشتركة لكل صفحات تطبيق سفرة (الزبون)
 // ------------------------------------------------------------
-// بتحل مشكلتين:
-// 1) بتتأكد إن كل أصناف السلة من نفس المطعم. لو حد حاول يضيف
-//    صنف من مطعم تاني، بترجع "conflict" بدل ما تخلط الطلب.
-// 2) لو المستخدم مسجل دخول: السلة بتتخزن بـ Firestore (carts/{uid})
-//    بدل localStorage بس، فما بتضيع لو بدّل جهاز أو مسح المتصفح.
-//    لو زائر (مش مسجل): السلة بتضل محليًا متل ما كانت.
-//    ولحظة ما يسجل دخول ولو كان عنده سلة محفوظة محليًا، بتنضم
-//    تلقائيًا لسلة حسابه (مرة وحدة بس).
+// السلة بتدعم أكتر من مطعم بنفس الوقت. كل أصناف السلة بتتخزن
+// سوا بمصفوفة وحدة، وكل صنف معه restaurantId تبعه. وقت العرض
+// (cart.html) ووقت تأكيد الطلب (checkout.html) منجمّع الأصناف
+// حسب المطعم، وكل مجموعة بتصير طلب (order) منفصل لمطعمه.
+//
+// تخزين السلة:
+// - لو المستخدم مسجل دخول: بتتخزن بـ Firestore (carts/{uid})
+//   فما بتضيع لو بدّل جهاز أو مسح المتصفح.
+// - لو زائر (مش مسجل): بتضل بالـ localStorage متل قبل.
+// - لحظة ما يسجل دخول ولو كان عنده سلة محفوظة محليًا، بتنضم
+//   تلقائيًا لسلة حسابه (مرة وحدة بس).
 //
 // كل الصفحات لازم تستورد من هون بدل ما تحكي مباشرة مع
 // localStorage.getItem('safra_cart') / setItem زي ما كان قبل.
@@ -58,18 +61,13 @@ async function writeRemoteCart(uid, cart) {
 }
 
 // بتنقل أي سلة محفوظة محليًا (كزائر) لحساب المستخدم بعد تسجيل الدخول
+// (دمج بسيط: كل أصناف السلتين مع بعض، كل مطعم بضل مجموعة لحاله)
 async function mergeLocalCartIntoAccount(uid) {
     const localCart = getLocalCart();
     if (localCart.length === 0) return;
 
     const remoteCart = await readRemoteCart(uid);
-
-    // لو سلة الحساب فيها أصناف من مطعم مختلف عن السلة المحلية،
-    // منحافظ على سلة الحساب (الأصل) ومنلغي المحلية عشان ما نخلط طلبين
-    const sameRestaurant = remoteCart.length === 0 || remoteCart[0].restaurantId === localCart[0].restaurantId;
-    const finalCart = sameRestaurant ? [...remoteCart, ...localCart] : remoteCart;
-
-    await writeRemoteCart(uid, finalCart);
+    await writeRemoteCart(uid, [...remoteCart, ...localCart]);
     localStorage.removeItem(LOCAL_KEY);
 }
 
@@ -90,30 +88,32 @@ export async function saveCart(cart) {
     }
 }
 
-// إضافة صنف للسلة، مع التأكد إنه من نفس مطعم باقي الأصناف.
-// النتيجة:
-//   { added: true, cart }
-//   { added: false, conflict: true, currentRestaurantId, cart }  <- لو في تعارض مطعم
+// إضافة صنف للسلة (من أي مطعم - السلة بتدعم أكتر من مطعم بنفس الوقت)
 export async function addToCart(restaurantId, item) {
     const cart = await getCart();
-    if (cart.length > 0 && cart[0].restaurantId !== restaurantId) {
-        return { added: false, conflict: true, currentRestaurantId: cart[0].restaurantId, cart };
-    }
     cart.push({ restaurantId, ...item });
     await saveCart(cart);
     return { added: true, cart };
 }
 
-// بتفرّغ السلة الحالية وتضيف الصنف الجديد بدالها
-// (تُستخدم بعد ما المستخدم يأكد إنه بدو يستبدل سلته بمطعم جديد)
-export async function replaceCartWithItem(restaurantId, item) {
-    const cart = [{ restaurantId, ...item }];
-    await saveCart(cart);
-    return cart;
-}
-
 export async function clearCart() {
     await saveCart([]);
+}
+
+// بتجمّع أصناف السلة حسب المطعم.
+// بترجع مصفوفة: [{ restaurantId, items: [...] }, ...]
+// بنفس ترتيب أول ظهور لكل مطعم بالسلة.
+export function groupCartByRestaurant(cart) {
+    const order = [];
+    const map = new Map();
+    for (const item of cart) {
+        if (!map.has(item.restaurantId)) {
+            map.set(item.restaurantId, []);
+            order.push(item.restaurantId);
+        }
+        map.get(item.restaurantId).push(item);
+    }
+    return order.map((restaurantId) => ({ restaurantId, items: map.get(restaurantId) }));
 }
 
 // اشتراك بتغيّرات السلة بشكل حي (مفيد لعرض عدد الأصناف بشريط التنقل).
