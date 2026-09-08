@@ -106,6 +106,7 @@
         function playAlertSound() {
             try {
                 const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (ctx.state === 'suspended') { ctx.resume(); }
                 const o = ctx.createOscillator();
                 const g = ctx.createGain();
                 o.connect(g);
@@ -116,6 +117,12 @@
                 o.start();
                 o.stop(ctx.currentTime + 0.5);
             } catch (e) { /* تجاهل لو المتصفح ما يدعم الصوت */ }
+        }
+
+        // نغمتين متتاليتين (أوضح للمنبه المستمر من نغمة وحدة)
+        function playAlarmBeep() {
+            playAlertSound();
+            setTimeout(playAlertSound, 350);
         }
 
         function showNewOrderAlert(orderId) {
@@ -191,6 +198,58 @@
             checkNow();
             scheduleWatcher = setInterval(checkNow, 15000);
         }
+        // ===== منبه مستمر: يظل يرن لحد ما صاحب المطعم يقبل الطلب أو يرفضه =====
+        let alarmInterval = null;
+        let alarmBanner = null;
+
+        function pendingOrdersCount() {
+            return allOrdersCache.filter(o => (o.status || 'قيد المعالجة') === 'قيد المعالجة').length;
+        }
+
+        function updateAlarmBanner() {
+            if (!alarmBanner) return;
+            const n = pendingOrdersCount();
+            alarmBanner.innerText = `🔔 لديك ${n} طلب${n > 1 ? 'ات' : ''} بانتظار الرد - اضغط قبول أو رفض لإيقاف المنبه`;
+        }
+
+        function startAlarm() {
+            if (alarmInterval) { updateAlarmBanner(); return; } // شغّال مسبقاً، بس حدّث العداد
+            alarmBanner = document.createElement('div');
+            alarmBanner.id = 'alarm-banner';
+            alarmBanner.className = "fixed top-0 left-0 right-0 z-50 bg-red-600 text-white text-center py-3 font-bold text-sm shadow-lg animate-pulse";
+            document.body.appendChild(alarmBanner);
+            document.body.style.paddingTop = '52px';
+            updateAlarmBanner();
+
+            playAlarmBeep();
+            if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+
+            alarmInterval = setInterval(() => {
+                playAlarmBeep();
+                if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+                updateAlarmBanner();
+            }, 3000);
+        }
+
+        function stopAlarm() {
+            if (alarmInterval) {
+                clearInterval(alarmInterval);
+                alarmInterval = null;
+            }
+            if (alarmBanner) {
+                alarmBanner.remove();
+                alarmBanner = null;
+                document.body.style.paddingTop = '';
+            }
+        }
+
+        function checkAlarmState() {
+            if (pendingOrdersCount() > 0) {
+                startAlarm();
+            } else {
+                stopAlarm();
+            }
+        }
         // ===== نهاية منطق التنبيه =====
 
         // ===== استماع فوري (Real-time) لطلبات المطعم: أي تغيير بفايربيس بينعكس فوراً بدون Refresh =====
@@ -215,6 +274,7 @@
                 isFirstLoad = false;
 
                 allOrdersCache = orders;
+                checkAlarmState();
                 renderFilterBar();
                 renderOrders();
             }, (error) => {
