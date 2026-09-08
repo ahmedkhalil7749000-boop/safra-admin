@@ -21,6 +21,7 @@
         }
       }
     </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="app-narrow bg-safra-cream min-h-screen">
     <!-- الهيدر المشترك: بيتحمّل تلقائيًا من shared-header.js -->
@@ -48,6 +49,25 @@
             <div class="border-t pt-4 flex flex-col gap-2">
                 <a href="orders.html" class="text-center bg-gray-100 text-gray-700 py-2 rounded-lg font-semibold hover:bg-gray-200 transition">طلباتي السابقة</a>
                 <button id="logout-btn" class="bg-red-50 text-red-600 py-2 rounded-lg font-semibold hover:bg-red-100 transition">تسجيل الخروج</button>
+            </div>
+        </div>
+
+        <!-- روابط لأصحاب المطاعم / الإدارة -->
+        <div class="mt-4 bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <h2 class="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wide">إدارة الأعمال</h2>
+            <div class="flex flex-col gap-2">
+                <a href="لوحة_المطعم.html" class="flex items-center justify-between bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg font-semibold hover:bg-gray-100 transition text-sm">
+                    <span><i class="fa-solid fa-store ml-2 text-safra-gold"></i>لوحة تحكم المطعم</span>
+                    <i class="fa-solid fa-chevron-left text-xs text-gray-400"></i>
+                </a>
+                <a href="adman.html" class="flex items-center justify-between bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg font-semibold hover:bg-gray-100 transition text-sm">
+                    <span><i class="fa-solid fa-clipboard-list ml-2 text-safra-gold"></i>إدارة الطلبات</span>
+                    <i class="fa-solid fa-chevron-left text-xs text-gray-400"></i>
+                </a>
+                <a href="لوحة_الإدارة.html" class="flex items-center justify-between bg-gray-50 text-gray-700 px-4 py-2.5 rounded-lg font-semibold hover:bg-gray-100 transition text-sm">
+                    <span><i class="fa-solid fa-user-shield ml-2 text-safra-gold"></i>لوحة الإدارة العامة</span>
+                    <i class="fa-solid fa-chevron-left text-xs text-gray-400"></i>
+                </a>
             </div>
         </div>
 
