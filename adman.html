@@ -30,6 +30,8 @@
             <h1 class="text-lg sm:text-2xl font-bold text-safra-gold">إدارة طلبات العملاء</h1>
         </div>
         
+        <div id="filter-bar" class="flex flex-wrap gap-2 mb-4"></div>
+
         <div id="orders-list" class="space-y-4">
             <p class="text-gray-500">جاري جلب الطلبات...</p>
         </div>
@@ -38,13 +40,38 @@
     <script type="module">
         import { auth, db } from "./firebase-config.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { collection, query, where, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { collection, query, where, getDocs, doc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { initPushNotifications } from "./push-notifications.js";
 
         // تفعيل الإشعارات الفورية (Push) لموظف/صاحب لوحة إدارة الطلبات
         initPushNotifications();
 
         const ordersListDiv = document.getElementById('orders-list');
+        const filterBarDiv = document.getElementById('filter-bar');
+
+        // ===== حالة الفلترة الحالية =====
+        let currentFilter = 'الكل';
+        let allOrdersCache = []; // آخر نسخة من الطلبات (تُحدَّث فورياً من onSnapshot)
+        let knownOrderIds = new Set(); // لمعرفة الطلبات الجديدة اللي لسا ما ظهرت
+        let isFirstLoad = true;
+
+        const FILTERS = ['الكل', 'قيد المعالجة', 'تم القبول', 'تم الشحن', 'مرفوض'];
+
+        function renderFilterBar() {
+            filterBarDiv.innerHTML = FILTERS.map(f => {
+                const count = f === 'الكل'
+                    ? allOrdersCache.length
+                    : allOrdersCache.filter(o => (o.status || 'قيد المعالجة') === f).length;
+                const active = f === currentFilter;
+                return `<button onclick="setFilter('${f}')" class="px-3 py-1.5 rounded-full text-xs font-semibold border transition ${active ? 'bg-safra-gold text-white border-safra-gold' : 'bg-white text-gray-600 border-gray-300 hover:border-safra-gold'}">${f} (${count})</button>`;
+            }).join('');
+        }
+
+        window.setFilter = function(f) {
+            currentFilter = f;
+            renderFilterBar();
+            renderOrders();
+        }
 
         // ===== حماية الصفحة: لازم تسجيل دخول، وجلب المطعم المرتبط بالمستخدم =====
         // (بدون هذا، استعلام الطلبات كان يجيب كل الطلبات بدون فلترة، وهذا يتعارض
@@ -64,7 +91,7 @@
                     return;
                 }
                 myRestaurantId = snap.docs[0].id;
-                fetchOrders();
+                listenToOrders();
             } catch (error) {
                 console.error("تعذر تحميل بيانات المطعم:", error);
                 ordersListDiv.innerHTML = `<p class='text-red-500'>حدث خطأ أثناء تحميل بيانات المطعم: ${error.message}</p>`;
@@ -89,6 +116,34 @@
                 o.start();
                 o.stop(ctx.currentTime + 0.5);
             } catch (e) { /* تجاهل لو المتصفح ما يدعم الصوت */ }
+        }
+
+        function showNewOrderAlert(orderId) {
+            const banner = document.createElement('div');
+            banner.className = "app-toast bg-safra-green text-white px-4 py-3 rounded-lg shadow-lg text-sm font-semibold text-center";
+            banner.innerText = `🔔 طلب جديد وصل! رقم ${orderId}`;
+            document.body.appendChild(banner);
+            setTimeout(() => banner.remove(), 8000);
+
+            playAlertSound();
+
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('سفرة - طلب جديد', {
+                    body: `وصل طلب جديد رقم ${orderId}`,
+                    icon: 'logo.png'
+                });
+            }
+        }
+
+        // لون وخلفية كل حالة
+        const STATUS_STYLES = {
+            'قيد المعالجة': 'bg-yellow-100 text-yellow-800',
+            'تم القبول': 'bg-blue-100 text-blue-800',
+            'تم الشحن': 'bg-green-100 text-green-800',
+            'مرفوض': 'bg-red-100 text-red-800',
+        };
+        function statusClass(status) {
+            return STATUS_STYLES[status] || 'bg-gray-100 text-gray-800';
         }
 
         function showScheduleAlert(orderId) {
@@ -125,7 +180,7 @@
                                 status: "قيد المعالجة",
                                 scheduleNotified: true
                             });
-                            fetchOrders();
+                            // onSnapshot رح يحدّث القائمة تلقائياً
                         } catch (e) {
                             console.error("تعذر تحديث حالة الطلب المسبق:", e);
                         }
@@ -138,91 +193,132 @@
         }
         // ===== نهاية منطق التنبيه =====
 
-        async function fetchOrders() {
+        // ===== استماع فوري (Real-time) لطلبات المطعم: أي تغيير بفايربيس بينعكس فوراً بدون Refresh =====
+        function listenToOrders() {
             if (!myRestaurantId) return;
-            try {
-                const q = query(collection(db, "orders"), where("restaurantId", "==", myRestaurantId));
-                const querySnapshot = await getDocs(q);
-                ordersListDiv.innerHTML = "";
-                const scheduledOrders = [];
-                
-                if (querySnapshot.empty) {
-                    ordersListDiv.innerHTML = "<p class='text-gray-500'>لا توجد طلبات حالياً.</p>";
-                    return;
-                }
-
+            const q = query(collection(db, "orders"), where("restaurantId", "==", myRestaurantId));
+            onSnapshot(q, (querySnapshot) => {
+                const orders = [];
                 querySnapshot.forEach((docSnap) => {
-                    const order = docSnap.data();
-                    const orderId = docSnap.id;
-
-                    const email = order.userEmail || order.email || 'غير متوفر';
-                    const total = order.total !== undefined ? order.total : 'غير متوفر';
-                    const status = order.status || 'قيد المعالجة';
-
-                    // شارة الطلب المسبق (المجدول) + تجميعه لمراقبة الموعد
-                    let scheduleHtml = '';
-                    if (order.isScheduled && order.scheduledFor?.toDate) {
-                        const schedDate = order.scheduledFor.toDate();
-                        scheduleHtml = `<p class="text-xs font-bold text-red-600 mt-1">🕒 طلب مسبق - موعد التجهيز: ${schedDate.toLocaleString('ar-EG')}</p>`;
-                        if (!order.scheduleNotified) {
-                            scheduledOrders.push({ id: orderId, scheduledFor: schedDate, notified: false });
-                        }
-                    }
-
-                    // قراءة عناصر المنيو بشكل دقيق مطابق لبيانات فايربيس
-                    let itemsHtml = '<ul class="list-disc list-inside text-sm text-gray-700 mt-1 space-y-1">';
-                    if (order.items && Array.isArray(order.items) && order.items.length > 0) {
-                        order.items.forEach(item => {
-                            const itemName = item.name || 'وجبة';
-                            const itemQty = item.qty || 1;
-                            const itemPrice = item.price ? ` - السعر: ${item.price} د.أ` : '';
-                            itemsHtml += `<li><span class="font-medium">${itemName}</span> (الكمية: ${itemQty})${itemPrice}</li>`;
-                        });
-                    } else {
-                        itemsHtml += '<li class="text-gray-400">لا توجد أصناف مسجلة</li>';
-                    }
-                    itemsHtml += '</ul>';
-
-                    const orderCard = document.createElement('div');
-                    orderCard.className = "border border-gray-200 rounded-lg p-4 flex justify-between items-center bg-gray-50 shadow-sm";
-                    orderCard.innerHTML = `
-                        <div class="flex-1">
-                            <p class="text-sm font-bold text-gray-800">رقم الطلب: <span class="text-gray-500 font-normal">${orderId}</span></p>
-                            <p class="text-sm text-gray-600">العميل: ${email}</p>
-                            <p class="text-sm text-gray-600">الإجمالي: <span class="font-semibold text-safra-gold">${total} د.أ</span></p>
-                            ${scheduleHtml}
-                            
-                            <div class="mt-3 bg-white p-3 rounded border border-gray-200">
-                                <p class="text-xs font-bold text-gray-700 mb-1">الوجبات المطلوبة:</p>
-                                ${itemsHtml}
-                            </div>
-
-                            <p class="text-sm mt-3">الحالة: <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-bold">${status}</span></p>
-                        </div>
-                        <div class="mr-4">
-                            <button onclick="changeStatus('${orderId}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
-                                جعلها "تم الشحن"
-                            </button>
-                        </div>
-                    `;
-                    ordersListDiv.appendChild(orderCard);
+                    orders.push({ id: docSnap.id, ...docSnap.data() });
                 });
 
-                startScheduleWatcher(scheduledOrders);
-            } catch (error) {
-                console.error("خطأ في جلب الطلبات: ", error);
+                // كشف الطلبات الجديدة اللي لسا ما شفناها (بعد أول تحميل فقط)
+                if (!isFirstLoad) {
+                    orders.forEach(o => {
+                        if (!knownOrderIds.has(o.id)) {
+                            showNewOrderAlert(o.id);
+                        }
+                    });
+                }
+                knownOrderIds = new Set(orders.map(o => o.id));
+                isFirstLoad = false;
+
+                allOrdersCache = orders;
+                renderFilterBar();
+                renderOrders();
+            }, (error) => {
+                console.error("خطأ في متابعة الطلبات: ", error);
                 ordersListDiv.innerHTML = `<p class='text-red-500'>حدث خطأ أثناء تحميل الطلبات: ${error.message}</p>`;
-            }
+            });
         }
 
-        async function updateOrderStatus(orderId, newStatus) {
+        function renderOrders() {
+            ordersListDiv.innerHTML = "";
+            const scheduledOrders = [];
+
+            const filtered = currentFilter === 'الكل'
+                ? allOrdersCache
+                : allOrdersCache.filter(o => (o.status || 'قيد المعالجة') === currentFilter);
+
+            if (filtered.length === 0) {
+                ordersListDiv.innerHTML = "<p class='text-gray-500'>لا توجد طلبات في هذا التصنيف.</p>";
+            }
+
+            filtered.forEach((order) => {
+                const orderId = order.id;
+
+                const email = order.userEmail || order.email || 'غير متوفر';
+                const total = order.total !== undefined ? order.total : 'غير متوفر';
+                const status = order.status || 'قيد المعالجة';
+
+                // شارة الطلب المسبق (المجدول) + تجميعه لمراقبة الموعد
+                let scheduleHtml = '';
+                if (order.isScheduled && order.scheduledFor?.toDate) {
+                    const schedDate = order.scheduledFor.toDate();
+                    scheduleHtml = `<p class="text-xs font-bold text-red-600 mt-1">🕒 طلب مسبق - موعد التجهيز: ${schedDate.toLocaleString('ar-EG')}</p>`;
+                    if (!order.scheduleNotified) {
+                        scheduledOrders.push({ id: orderId, scheduledFor: schedDate, notified: false });
+                    }
+                }
+
+                // سبب الرفض (لو موجود)
+                let rejectionHtml = '';
+                if (status === 'مرفوض' && order.rejectionReason) {
+                    rejectionHtml = `<p class="text-xs text-red-600 mt-1">سبب الرفض: ${order.rejectionReason}</p>`;
+                }
+
+                // قراءة عناصر المنيو بشكل دقيق مطابق لبيانات فايربيس
+                let itemsHtml = '<ul class="list-disc list-inside text-sm text-gray-700 mt-1 space-y-1">';
+                if (order.items && Array.isArray(order.items) && order.items.length > 0) {
+                    order.items.forEach(item => {
+                        const itemName = item.name || 'وجبة';
+                        const itemQty = item.qty || 1;
+                        const itemPrice = item.price ? ` - السعر: ${item.price} د.أ` : '';
+                        itemsHtml += `<li><span class="font-medium">${itemName}</span> (الكمية: ${itemQty})${itemPrice}</li>`;
+                    });
+                } else {
+                    itemsHtml += '<li class="text-gray-400">لا توجد أصناف مسجلة</li>';
+                }
+                itemsHtml += '</ul>';
+
+                const orderCard = document.createElement('div');
+                orderCard.className = "border border-gray-200 rounded-lg p-4 flex justify-between items-center bg-gray-50 shadow-sm";
+                orderCard.innerHTML = `
+                    <div class="flex-1">
+                        <p class="text-sm font-bold text-gray-800">رقم الطلب: <span class="text-gray-500 font-normal">${orderId}</span></p>
+                        <p class="text-sm text-gray-600">العميل: ${email}</p>
+                        <p class="text-sm text-gray-600">الإجمالي: <span class="font-semibold text-safra-gold">${total} د.أ</span></p>
+                        ${scheduleHtml}
+                        
+                        <div class="mt-3 bg-white p-3 rounded border border-gray-200">
+                            <p class="text-xs font-bold text-gray-700 mb-1">الوجبات المطلوبة:</p>
+                            ${itemsHtml}
+                        </div>
+
+                        <p class="text-sm mt-3">الحالة: <span class="px-2 py-1 ${statusClass(status)} rounded text-xs font-bold">${status}</span></p>
+                        ${rejectionHtml}
+                    </div>
+                    <div class="mr-4 flex flex-col gap-2">
+                        ${status === 'قيد المعالجة' ? `
+                        <button onclick="acceptOrder('${orderId}')" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition">
+                            قبول الطلب
+                        </button>
+                        <button onclick="rejectOrder('${orderId}')" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition">
+                            رفض الطلب
+                        </button>
+                        ` : ''}
+                        ${status === 'تم القبول' ? `
+                        <button onclick="changeStatus('${orderId}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
+                            جعلها "تم الشحن"
+                        </button>
+                        ` : ''}
+                    </div>
+                `;
+                ordersListDiv.appendChild(orderCard);
+            });
+
+            startScheduleWatcher(scheduledOrders);
+        }
+
+        async function updateOrderStatus(orderId, newStatus, extraFields = {}) {
             try {
                 const orderRef = doc(db, "orders", orderId);
                 await updateDoc(orderRef, {
-                    status: newStatus
+                    status: newStatus,
+                    ...extraFields
                 });
-                alert("تم تحديث حالة الطلب بنجاح إلى: " + newStatus);
-                fetchOrders();
+                // ما في حاجة نعمل fetch يدوي: onSnapshot رح يحدّث القائمة تلقائياً
             } catch (error) {
                 console.error("خطأ أثناء تحديث الحالة: ", error);
                 alert("حدث خطأ أثناء التحديث: " + error.message);
@@ -231,6 +327,16 @@
 
         window.changeStatus = function(orderId) {
             updateOrderStatus(orderId, "تم الشحن");
+        }
+
+        window.acceptOrder = function(orderId) {
+            updateOrderStatus(orderId, "تم القبول");
+        }
+
+        window.rejectOrder = function(orderId) {
+            const reason = prompt("سبب رفض الطلب (اختياري):", "");
+            if (reason === null) return; // المستخدم دوس إلغاء
+            updateOrderStatus(orderId, "مرفوض", reason ? { rejectionReason: reason } : {});
         }
     </script>
 </body>
