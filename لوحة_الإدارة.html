@@ -26,8 +26,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
+        import { getFirestore, collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCp_boObC6rDyAcLYJ-FBqm8_QwRQXShUk",
@@ -44,7 +43,6 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        const functionsInstance = getFunctions(app);
 
         // هذا الفحص في الواجهة فقط للتوجيه؛ الحماية الحقيقية للبيانات
         // يجب أن تكون في قواعد أمان Firestore (راجع الرسالة المرفقة بالكود)
@@ -77,92 +75,20 @@
             await loadOrders();
             await loadSubscriptions();
             await loadPlans();
+            await loadUsers();
         });
 
         // ===============================================================
         //                  تبديل التبويبات (طلبات / اشتراكات)
         // ===============================================================
         window.showTab = function(tab) {
-            document.getElementById('tab-orders').classList.toggle('hidden', tab !== 'orders');
-            document.getElementById('tab-subscriptions').classList.toggle('hidden', tab !== 'subscriptions');
-            document.getElementById('tab-users').classList.toggle('hidden', tab !== 'users');
-
-            const activeCls = "px-4 py-2 rounded-lg text-sm font-semibold bg-safra-gold text-white";
-            const inactiveCls = "px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200";
-
-            document.getElementById('btn-tab-orders').className = tab === 'orders' ? activeCls : inactiveCls;
-            document.getElementById('btn-tab-subscriptions').className = tab === 'subscriptions' ? activeCls : inactiveCls;
-            document.getElementById('btn-tab-users').className = tab === 'users' ? activeCls : inactiveCls;
-        }
-
-        // ===============================================================
-        //                  إدارة نوع حساب المستخدمين (زبون / صاحب مطعم)
-        // ===============================================================
-        const ROLE_LABELS = { customer: "زبون", restaurant_owner: "صاحب مطعم", admin: "أدمن" };
-
-        window.searchUser = async function() {
-            const resultBox = document.getElementById('user-search-result');
-            const email = document.getElementById('user-search-email').value.trim();
-
-            if (!email) {
-                resultBox.innerHTML = `<p class="text-red-500 text-sm">اكتب بريد إلكتروني أولاً</p>`;
-                return;
-            }
-
-            resultBox.innerHTML = `<p class="text-gray-400 text-sm py-4 text-center">جاري البحث...</p>`;
-
-            try {
-                const q = query(collection(db, "users"), where("email", "==", email));
-                const snap = await getDocs(q);
-
-                if (snap.empty) {
-                    resultBox.innerHTML = `<p class="text-gray-500 text-sm py-2">ما لقيت مستخدم مسجل بهذا البريد.</p>`;
-                    return;
-                }
-
-                const docSnap = snap.docs[0];
-                const data = docSnap.data();
-                const uid = docSnap.id;
-                const currentLabel = ROLE_LABELS[data.role] || (data.role || "غير محدد");
-
-                resultBox.innerHTML = `
-                    <div class="border border-gray-100 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div>
-                            <p class="font-semibold text-gray-800">${data.name || "(بدون اسم)"}</p>
-                            <p class="text-xs text-gray-500">${data.email || email}</p>
-                            <p class="text-xs text-gray-500 mt-1">النوع الحالي: <span class="font-bold">${currentLabel}</span></p>
-                        </div>
-                        <div class="flex gap-2 shrink-0">
-                            <button onclick="changeUserRole('${uid}', 'restaurant_owner')"
-                                class="bg-safra-green text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:opacity-90 transition"
-                                ${data.role === 'restaurant_owner' ? 'disabled style="opacity:.5;cursor:not-allowed"' : ''}>
-                                ترقية لصاحب مطعم
-                            </button>
-                            <button onclick="changeUserRole('${uid}', 'customer')"
-                                class="bg-gray-100 text-gray-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-200 transition"
-                                ${data.role === 'customer' ? 'disabled style="opacity:.5;cursor:not-allowed"' : ''}>
-                                تحويل لزبون
-                            </button>
-                        </div>
-                    </div>
-                `;
-            } catch (err) {
-                resultBox.innerHTML = `<p class="text-red-500 text-sm">خطأ: ${err.message}</p>`;
-            }
-        }
-
-        window.changeUserRole = async function(uid, role) {
-            const label = ROLE_LABELS[role] || role;
-            if (!confirm(`متأكد بدك تحوّل نوع هذا الحساب إلى "${label}"؟`)) return;
-
-            try {
-                const setRole = httpsCallable(functionsInstance, 'adminSetUserRole');
-                await setRole({ uid, role });
-                alert(`تم تحويل الحساب إلى "${label}" بنجاح ✅`);
-                await searchUser(); // نحدّث النتيجة المعروضة
-            } catch (err) {
-                alert("صار خطأ: " + err.message);
-            }
+            const tabs = ['orders', 'subscriptions', 'users'];
+            tabs.forEach(t => {
+                document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+                document.getElementById('btn-tab-' + t).className = t === tab
+                    ? "px-4 py-2 rounded-lg text-sm font-semibold bg-safra-gold text-white"
+                    : "px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200";
+            });
         }
 
         // ===============================================================
@@ -443,6 +369,79 @@
             }
         }
 
+        // ===============================================================
+        //                  إدارة المستخدمين (نوع الحساب)
+        // ===============================================================
+        const ROLE_LABELS = {
+            'customer': 'زبون',
+            'restaurant_owner': 'صاحب مطعم',
+            'admin': 'أدمن'
+        };
+
+        async function loadUsers() {
+            const box = document.getElementById('users-list');
+            if (!box) return;
+            try {
+                const snap = await getDocs(collection(db, "users"));
+                if (snap.empty) {
+                    box.innerHTML = `<p class="text-center text-gray-400 py-6">لا يوجد مستخدمون</p>`;
+                    return;
+                }
+
+                box.innerHTML = "";
+                snap.forEach((d) => {
+                    const u = d.data();
+                    const uid = d.id;
+                    const currentRole = u.role || 'غير محدد';
+                    const isYou = uid === auth.currentUser?.uid;
+
+                    const row = document.createElement('div');
+                    row.className = "flex flex-col sm:flex-row sm:items-center justify-between gap-2 border border-gray-200 rounded-xl p-3 bg-gray-50";
+                    row.innerHTML = `
+                        <div class="min-w-0">
+                            <p class="font-semibold text-gray-800 text-sm truncate">${u.email || '(بدون إيميل)'} ${isYou ? '<span class="text-xs text-safra-gold">(أنت)</span>' : ''}</p>
+                            <p class="text-xs text-gray-400 font-mono truncate">${uid}</p>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <select data-uid="${uid}" class="role-select text-xs border rounded-lg px-2 py-1.5">
+                                <option value="customer" ${currentRole === 'customer' ? 'selected' : ''}>زبون</option>
+                                <option value="restaurant_owner" ${currentRole === 'restaurant_owner' ? 'selected' : ''}>صاحب مطعم</option>
+                                <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>أدمن</option>
+                            </select>
+                            <button data-uid="${uid}" class="act-save-role bg-safra-gold text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-safra-gold-dark transition">حفظ</button>
+                        </div>
+                    `;
+                    box.appendChild(row);
+                });
+
+                box.querySelectorAll('.act-save-role').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const uid = btn.dataset.uid;
+                        const select = box.querySelector(`.role-select[data-uid="${uid}"]`);
+                        saveUserRole(uid, select.value, btn);
+                    });
+                });
+            } catch (error) {
+                console.error("خطأ في جلب المستخدمين:", error);
+                box.innerHTML = `<p class="text-red-500 text-sm text-center py-4">تعذر تحميل المستخدمين: ${error.message}</p>`;
+            }
+        }
+
+        async function saveUserRole(uid, newRole, btn) {
+            const original = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '...';
+            try {
+                await updateDoc(doc(db, "users", uid), { role: newRole });
+                btn.textContent = '✅';
+                setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 1200);
+            } catch (error) {
+                alert("خطأ أثناء تحديث نوع الحساب: " + error.message);
+                btn.textContent = original;
+                btn.disabled = false;
+            }
+        }
+
         window.logout = function() {
             signOut(auth).then(() => {
                 window.location.replace("Auth.html");
@@ -546,19 +545,16 @@
 
             </div>
 
-            <!-- ===== تبويب: المستخدمين (تغيير نوع الحساب) ===== -->
-            <div id="tab-users" class="hidden space-y-6">
+            <!-- ===== تبويب: المستخدمين ===== -->
+            <div id="tab-users" class="hidden">
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <h2 class="text-lg font-bold text-gray-800 mb-1">إدارة نوع الحساب</h2>
-                    <p class="text-xs text-gray-500 mb-4">دوّر على مستخدم بالبريد الإلكتروني وحوّل حسابه بين "زبون" و"صاحب مطعم" بضغطة زر.</p>
-
-                    <div class="flex flex-col sm:flex-row gap-2 mb-5">
-                        <input type="email" id="user-search-email" placeholder="بريد المستخدم الإلكتروني"
-                            class="flex-1 px-3 py-2 border rounded-lg text-sm" onkeydown="if(event.key==='Enter'){event.preventDefault();searchUser();}">
-                        <button onclick="searchUser()" class="bg-safra-gold text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-safra-gold-dark transition">بحث</button>
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-lg font-bold text-gray-800">إدارة نوع الحساب</h2>
+                        <span class="text-xs text-gray-400">زبون / صاحب مطعم / أدمن</span>
                     </div>
-
-                    <div id="user-search-result"></div>
+                    <div id="users-list" class="space-y-3">
+                        <p class="text-center text-gray-400 py-6">جاري التحميل...</p>
+                    </div>
                 </div>
             </div>
 

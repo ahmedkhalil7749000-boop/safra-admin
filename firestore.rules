@@ -30,9 +30,10 @@ service cloud.firestore {
       // التعديل: بس صاحب الحساب، وممنوع يغيّر حقل role بنفسه (حماية من ترقية صلاحياته).
       // استثناء: لو الوثيقة أصلاً ناقصها role (حساب قديم أو غير مكتمل)، مسموح
       // يحطها لأول مرة (بس مو يغيّرها لو كانت موجودة أصلاً).
-      allow update: if isSignedIn() && request.auth.uid == userId
+      allow update: if (isSignedIn() && request.auth.uid == userId
                     && (request.resource.data.role == resource.data.role
-                        || !('role' in resource.data));
+                        || !('role' in resource.data)))
+                    || isAdmin();
 
       // الحذف: غير مسموح من الواجهة إطلاقاً (فقط عبر Firebase Console يدويًا)
       allow delete: if false;
