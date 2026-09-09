@@ -127,11 +127,13 @@ service cloud.firestore {
 
       // التعديل: الأدمن يقدر يعدّل أي شيء بالطلب.
       // إصلاح: صاحب المطعم كان مسموح له يعدّل أي حقل بالطلب (حتى السعر وبيانات الزبون!).
-      // الآن مقيّد فقط بتحديث حالة الطلب ووقت التسليم المتوقع.
+      // الآن مقيّد فقط بتحديث حالة الطلب، سبب الرفض، طريقة التسليم (سائق/استلام
+      // ذاتي)، ووقت التسليم المتوقع.
       allow update: if isAdmin()
                   || (isSignedIn()
                       && get(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)).data.ownerEmail == request.auth.token.email
-                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'estimatedDeliveryTime', 'updatedAt']));
+                      && request.resource.data.diff(resource.data).affectedKeys()
+                            .hasOnly(['status', 'rejectionReason', 'deliveryMethod', 'estimatedDeliveryTime', 'scheduleNotified', 'updatedAt']));
 
       // الحذف: الأدمن فقط
       allow delete: if isAdmin();

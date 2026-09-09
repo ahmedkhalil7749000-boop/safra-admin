@@ -37,6 +37,20 @@
 
         <form id="checkout-form" class="bg-white rounded-lg shadow-md border border-gray-200 p-4 space-y-4">
             <div>
+                <label class="block text-sm font-semibold text-gray-700 mb-2">طريقة الاستلام</label>
+                <div class="flex gap-4 mb-2">
+                    <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+                        <input type="radio" name="delivery-method" id="method-delivery" value="driver" checked class="accent-safra-gold">
+                        <span>🚚 توصيل للعنوان</span>
+                    </label>
+                    <label class="flex items-center gap-1.5 text-sm cursor-pointer">
+                        <input type="radio" name="delivery-method" id="method-pickup" value="selfPickup" class="accent-safra-gold">
+                        <span>🏠 استلام من المطعم</span>
+                    </label>
+                </div>
+            </div>
+
+            <div id="address-field">
                 <label class="block text-sm font-semibold text-gray-700 mb-1">العنوان</label>
                 <input type="text" id="address" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-safra-gold" placeholder="مثال: عمان - الدوار السابع - عمارة 12">
             </div>
@@ -111,6 +125,26 @@
         const scheduleHint = document.getElementById('schedule-hint');
         const scheduleError = document.getElementById('schedule-error');
 
+        // ===== طريقة الاستلام: توصيل بسائق أو استلام ذاتي من المطعم =====
+        const methodDelivery = document.getElementById('method-delivery');
+        const methodPickup = document.getElementById('method-pickup');
+        const addressField = document.getElementById('address-field');
+        const addressInput = document.getElementById('address');
+
+        function isSelfPickup() {
+            return methodPickup.checked;
+        }
+
+        function toggleDeliveryMethodUI() {
+            const pickup = isSelfPickup();
+            addressField.classList.toggle('hidden', pickup);
+            addressInput.required = !pickup;
+            renderSummary();
+        }
+        methodDelivery.addEventListener('change', toggleDeliveryMethodUI);
+        methodPickup.addEventListener('change', toggleDeliveryMethodUI);
+        // ===== نهاية منطق طريقة الاستلام =====
+
         // تحويل تاريخ JS لصيغة تقبلها خاصية datetime-local (بالتوقيت المحلي)
         function toLocalInputValue(date) {
             const pad = (n) => String(n).padStart(2, '0');
@@ -169,10 +203,12 @@
             const cart = await getCart();
             const groups = groupCartByRestaurant(cart);
             const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-            const fee = groups.length * DELIVERY_FEE;
+            const pickup = isSelfPickup();
+            const fee = pickup ? 0 : groups.length * DELIVERY_FEE;
             document.getElementById('ck-subtotal').innerText = subtotal.toFixed(2) + " د.أ";
-            document.getElementById('ck-fee-label').innerText =
-                groups.length > 1 ? `رسوم التوصيل (${groups.length} طلبات)` : "رسوم التوصيل";
+            document.getElementById('ck-fee-label').innerText = pickup
+                ? "رسوم التوصيل (لا يوجد - استلام ذاتي)"
+                : (groups.length > 1 ? `رسوم التوصيل (${groups.length} طلبات)` : "رسوم التوصيل");
             document.getElementById('ck-fee').innerText = fee.toFixed(2) + " د.أ";
             document.getElementById('ck-total').innerText = (subtotal + fee).toFixed(2) + " د.أ";
             document.getElementById('ck-multi-hint').classList.toggle('hidden', groups.length <= 1);
@@ -222,14 +258,16 @@
             }
             scheduleError.classList.add('hidden');
 
-            const address = document.getElementById('address').value;
+            const pickup = isSelfPickup();
+            const address = pickup ? "استلام ذاتي من المطعم" : document.getElementById('address').value;
             const paymentMethod = document.getElementById('payment-method').value;
             const notes = document.getElementById('notes').value;
 
             // بنجهّز طلب (order) مستقل لكل مطعم بالسلة
             const orders = groups.map((group) => {
                 const groupSubtotal = group.items.reduce((sum, item) => sum + item.price * item.qty, 0);
-                const groupTotal = groupSubtotal + DELIVERY_FEE;
+                const groupFee = pickup ? 0 : DELIVERY_FEE;
+                const groupTotal = groupSubtotal + groupFee;
                 return {
                     customerId: currentUser.uid,
                     userEmail: currentUser.email,
@@ -239,8 +277,10 @@
                     paymentMethod,
                     notes,
                     subtotal: groupSubtotal,
-                    deliveryFee: DELIVERY_FEE,
+                    deliveryFee: groupFee,
                     total: groupTotal,
+                    // طريقة الاستلام: driver = توصيل بسائق، selfPickup = الزبون بيستلم من المطعم
+                    deliveryMethod: pickup ? "selfPickup" : "driver",
                     // حقول الطلب المسبق (الجدولة)
                     isScheduled: scheduleCheck.isScheduled,
                     scheduledFor: scheduleCheck.isScheduled ? Timestamp.fromDate(scheduleCheck.date) : null,

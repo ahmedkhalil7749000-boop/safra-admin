@@ -55,7 +55,7 @@
         let knownOrderIds = new Set(); // لمعرفة الطلبات الجديدة اللي لسا ما ظهرت
         let isFirstLoad = true;
 
-        const FILTERS = ['الكل', 'قيد المعالجة', 'تم القبول', 'تم الشحن', 'مرفوض'];
+        const FILTERS = ['الكل', 'قيد المعالجة', 'تم القبول', 'قيد التنفيذ', 'تم الشحن', 'تم التسليم', 'مرفوض'];
 
         function renderFilterBar() {
             filterBarDiv.innerHTML = FILTERS.map(f => {
@@ -146,7 +146,9 @@
         const STATUS_STYLES = {
             'قيد المعالجة': 'bg-yellow-100 text-yellow-800',
             'تم القبول': 'bg-blue-100 text-blue-800',
-            'تم الشحن': 'bg-green-100 text-green-800',
+            'قيد التنفيذ': 'bg-purple-100 text-purple-800',
+            'تم الشحن': 'bg-indigo-100 text-indigo-800',
+            'تم التسليم': 'bg-green-100 text-green-800',
             'مرفوض': 'bg-red-100 text-red-800',
         };
         function statusClass(status) {
@@ -359,9 +361,27 @@
                         </button>
                         ` : ''}
                         ${status === 'تم القبول' ? `
-                        <button onclick="changeStatus('${orderId}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
-                            جعلها "تم الشحن"
+                        <button onclick="startPreparing('${orderId}')" class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-700 transition">
+                            بدء التحضير (قيد التنفيذ)
                         </button>
+                        ` : ''}
+                        ${status === 'قيد التنفيذ' ? `
+                        <button onclick="markHandedToDriver('${orderId}')" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition">
+                            🚗 تم تسليم الطلب للسائق
+                        </button>
+                        <button onclick="markSelfPickup('${orderId}')" class="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-teal-700 transition">
+                            🏠 استلمه الزبون من المطعم
+                        </button>
+                        ` : ''}
+                        ${status === 'تم الشحن' ? `
+                        <button onclick="confirmDelivered('${orderId}')" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition">
+                            ✅ تأكيد وصول الطلب للزبون
+                        </button>
+                        ` : ''}
+                        ${status === 'تم التسليم' ? `
+                        <span class="text-xs font-semibold text-green-700">
+                            ✅ الطلب مكتمل
+                        </span>
                         ` : ''}
                     </div>
                 `;
@@ -385,12 +405,27 @@
             }
         }
 
-        window.changeStatus = function(orderId) {
-            updateOrderStatus(orderId, "تم الشحن");
-        }
-
         window.acceptOrder = function(orderId) {
             updateOrderStatus(orderId, "تم القبول");
+        }
+
+        window.startPreparing = function(orderId) {
+            updateOrderStatus(orderId, "قيد التنفيذ");
+        }
+
+        // السائق استلم الطلب من المطعم → عند الزبون بيصير "طلبك في الطريق إليك"
+        window.markHandedToDriver = function(orderId) {
+            updateOrderStatus(orderId, "تم الشحن", { deliveryMethod: "driver" });
+        }
+
+        // الزبون استلم طلبه بنفسه من المطعم → الطلب بينتهي فورًا (بالهناء والشفاء)
+        window.markSelfPickup = function(orderId) {
+            updateOrderStatus(orderId, "تم التسليم", { deliveryMethod: "selfPickup" });
+        }
+
+        // تأكيد وصول الطلب للزبون بعد ما كان بالطريق مع السائق (بالهناء والشفاء)
+        window.confirmDelivered = function(orderId) {
+            updateOrderStatus(orderId, "تم التسليم");
         }
 
         window.rejectOrder = function(orderId) {

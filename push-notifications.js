@@ -13,7 +13,7 @@ import { doc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-
 
 // ⚠️ لازم تحط هون مفتاح VAPID الخاص بمشروعك قبل النشر:
 // Firebase Console → إعدادات المشروع → Cloud Messaging → Web configuration → Generate key pair
-const VAPID_KEY = "ضع_مفتاح_VAPID_من_إعدادات_فايربيس_هون";
+const VAPID_KEY = "BAXBpMTQVVNCUZ4mdPeoRjf-TPjTLlL7NzjDNUeMDFXGkq3l6I6WkF_urhkSsIBDvHwjx0yespMJix_FxOfjGUg";
 
 // إشعار داخل الصفحة (يظهر وقت تكون الصفحة مفتوحة أمام المستخدم فعلاً)
 function showInAppToast(title, body) {

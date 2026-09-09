@@ -89,14 +89,24 @@
         const activeOrderWrap = document.getElementById('active-order-wrap');
 
         // مراحل تتبع الطلب - مطابقة تمامًا للحالات الفعلية اللي بتحدّثها لوحة المطعم (adman.html)
-        const STAGES = [
-            { key: 'قيد المعالجة', label: 'استُلم الطلب', icon: 'fa-receipt' },
-            { key: 'تم القبول',   label: 'يتم التحضير',  icon: 'fa-utensils' },
-            { key: 'تم الشحن',    label: 'بالطريق إليك', icon: 'fa-truck' },
-        ];
+        // لو الطلب استلمه الزبون بنفسه من المطعم، بتقصر السلسلة (بدون مرحلة "بالطريق إليك")
+        function getStagesFor(data) {
+            const stages = [
+                { key: 'قيد المعالجة', label: 'استُلم الطلب',  icon: 'fa-receipt' },
+                { key: 'تم القبول',    label: 'تم قبول الطلب', icon: 'fa-check' },
+                { key: 'قيد التنفيذ',  label: 'يتم التحضير',   icon: 'fa-utensils' },
+            ];
+            if (data.deliveryMethod === 'selfPickup') {
+                stages.push({ key: 'تم التسليم', label: 'استلمت طلبك', icon: 'fa-bag-shopping' });
+            } else {
+                stages.push({ key: 'تم الشحن',   label: 'بالطريق إليك', icon: 'fa-truck' });
+                stages.push({ key: 'تم التسليم', label: 'تم التوصيل',   icon: 'fa-circle-check' });
+            }
+            return stages;
+        }
 
-        function stageIndexFor(status) {
-            const i = STAGES.findIndex(s => s.key === status);
+        function stageIndexFor(status, stages) {
+            const i = stages.findIndex(s => s.key === status);
             return i === -1 ? 0 : i;
         }
 
@@ -121,7 +131,8 @@
         // ===== بطاقة التتبع الحي (الخط الزمني) =====
         function renderActiveOrderCard(orderId, data) {
             const status = data.status || 'قيد المعالجة';
-            const idx = stageIndexFor(status);
+            const STAGES = getStagesFor(data);
+            const idx = stageIndexFor(status, STAGES);
             const progressPct = STAGES.length > 1 ? Math.round((idx / (STAGES.length - 1)) * 100) : 0;
             const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : null;
             const totalVal = typeof data.total === 'number' ? data.total.toFixed(2) : (data.total || '0.00');
@@ -176,7 +187,9 @@
         const STATUS_STYLES = {
             'قيد المعالجة': 'bg-yellow-100 text-yellow-800',
             'تم القبول': 'bg-blue-100 text-blue-800',
-            'تم الشحن': 'bg-green-100 text-green-800',
+            'قيد التنفيذ': 'bg-purple-100 text-purple-800',
+            'تم الشحن': 'bg-indigo-100 text-indigo-800',
+            'تم التسليم': 'bg-green-100 text-green-800',
             'مرفوض': 'bg-red-100 text-red-800',
         };
 
@@ -316,10 +329,10 @@
                 });
                 orders.sort((a, b) => b.createdMillis - a.createdMillis);
 
-                // الطلب النشط: أحدث طلب لسا ما وصل ولا انرفض
+                // الطلب النشط: أحدث طلب لسا ما وصل (تم التسليم) ولا انرفض
                 const activeIdx = orders.findIndex(o => {
                     const s = o.data.status || 'قيد المعالجة';
-                    return s !== 'تم الشحن' && s !== 'مرفوض';
+                    return s !== 'تم التسليم' && s !== 'مرفوض';
                 });
 
                 const scheduledOrders = [];
