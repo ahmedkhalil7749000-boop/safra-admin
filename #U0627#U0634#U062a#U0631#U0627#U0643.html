@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>اشتراك المطعم - منصة سفرة</title>
+    <link rel="stylesheet" href="app-shell.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'safra-dark': '#0b3b2c',
+              'safra-green': '#2e6f40',
+              'safra-cream': '#fbf9f5',
+              'safra-gold': '#d97706',
+              'safra-gold-dark': '#b45309',
+            }
+          }
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="app-wide bg-safra-cream font-sans min-h-screen text-gray-800">
+
+    <header class="bg-white shadow p-3 sm:p-4 flex flex-wrap justify-between items-center gap-2 px-4 sm:px-8" style="padding-top: calc(0.75rem + env(safe-area-inset-top));">
+        <div class="flex items-center gap-2 min-w-0">
+            <img src="logo.png" alt="سفرة" class="h-8 w-8 sm:h-9 sm:w-9 object-contain rounded-full shrink-0">
+            <h1 class="text-sm sm:text-lg font-bold text-safra-gold truncate">اشتراك المطعم</h1>
+        </div>
+        <a href="لوحة_المطعم.html" class="text-xs sm:text-sm text-gray-600 hover:text-safra-gold font-medium">
+            <i class="fa-solid fa-arrow-right ml-1"></i> رجوع
+        </a>
+    </header>
+
+    <main class="max-w-2xl mx-auto p-4 sm:p-6">
+
+        <div id="global-status" class="text-center text-gray-500 py-10">
+            <i class="fa-solid fa-spinner fa-spin text-3xl text-safra-gold mb-3"></i>
+            <p>جاري التحقق من حالة حسابك...</p>
+        </div>
+
+        <!-- يُملأ ديناميكياً حسب حالة الاشتراك -->
+        <div id="content" class="hidden space-y-6"></div>
+
+    </main>
+
+    <script type="module">
+        import { auth, db } from "./firebase-config.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import {
+            collection, query, where, getDocs, addDoc, updateDoc, doc, getDoc,
+            orderBy, limit, serverTimestamp, Timestamp
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // ==== رقم الدفع عبر CliQ ====
+        const CLIQ_NUMBER = "0787000190";
+
+        // ==== رفع صور سكرين شوت الاشتراك عبر imgbb (بديل مجاني عن Firebase Storage) ====
+        const IMGBB_API_KEY = "7dfc52facabaef7d38eddf1c83976c5d";
+
+        // يحوّل ملف الصورة لنص base64 (مطلوب لـ imgbb API)
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result.split(",")[1]);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // يرفع الصورة على imgbb ويرجع رابطها المباشر
+        async function uploadToImgbb(file) {
+            const base64 = await fileToBase64(file);
+            const formData = new FormData();
+            formData.append("image", base64);
+
+            const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                method: "POST",
+                body: formData
+            });
+            const data = await res.json();
+
+            if (!data.success) {
+                throw new Error(data.error?.message || "فشل رفع الصورة على imgbb");
+            }
+            return data.data.url;
+        }
+
+        const globalStatus = document.getElementById('global-status');
+        const content = document.getElementById('content');
+
+        let currentUser = null;
+        let myRestaurant = null; // { id, name, ... }
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = "Auth.html";
+                return;
+            }
+            currentUser = user;
+            await bootstrap();
+        });
+
+        async function bootstrap() {
+            try {
+                // 1) لازم يكون عنده مطعم أول
+                const rq = query(collection(db, "restaurants"), where("ownerEmail", "==", currentUser.email), limit(1));
+                const rSnap = await getDocs(rq);
+
+                if (rSnap.empty) {
+                    globalStatus.innerHTML = `
+                        <i class="fa-solid fa-store-slash text-3xl text-gray-400 mb-3"></i>
+                        <p class="text-gray-700 font-semibold">لازم تنشئ مطعمك الأول قبل ما تشترك.</p>
+                        <a href="لوحة_المطعم.html" class="inline-block mt-4 bg-safra-gold text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-safra-gold-dark transition">إنشاء مطعمي الآن</a>
+                    `;
+                    return;
+                }
+
+                const rDoc = rSnap.docs[0];
+                myRestaurant = { id: rDoc.id, ...rDoc.data() };
+
+                // 2) آخر طلب اشتراك لهذا المطعم (إن وجد)
+                // ملاحظة: بنتفادى orderBy مع أكثر من where (بيحتاج فهرس مركّب)
+                // وبنرتب يدويًا بالجافاسكربت بدلها.
+                const sq = query(
+                    collection(db, "subscriptions"),
+                    where("ownerUid", "==", currentUser.uid),
+                    where("restaurantId", "==", myRestaurant.id)
+                );
+                const sSnap = await getDocs(sq);
+                const subsData = sSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+                subsData.sort((a, b) => {
+                    const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+                    const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+                    return tb - ta;
+                });
+                const latestSub = subsData.length ? subsData[0] : null;
+
+                globalStatus.classList.add('hidden');
+                content.classList.remove('hidden');
+
+                await renderContent(latestSub);
+            } catch (error) {
+                globalStatus.innerHTML = `<p class="text-red-500">حدث خطأ: ${error.message}</p>`;
+            }
+        }
+
+        function fmtDate(ts) {
+            try {
+                const d = ts?.toDate ? ts.toDate() : new Date(ts);
+                return d.toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+            } catch { return '-'; }
+        }
+
+        async function renderContent(sub) {
+            // اشتراك فعّال وما زال ساري
+            if (sub && sub.status === "نشط") {
+                const end = sub.endDate?.toDate ? sub.endDate.toDate() : new Date(sub.endDate);
+                const expired = end && end.getTime() < Date.now();
+
+                if (!expired) {
+                    content.innerHTML = `
+                        <div class="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+                            <i class="fa-solid fa-circle-check text-4xl text-green-600 mb-3"></i>
+                            <h2 class="text-lg font-bold text-green-800 mb-1">اشتراكك فعّال ✅</h2>
+                            <p class="text-green-700 text-sm">مطعم "${myRestaurant.name}" مفعّل حتى تاريخ <span class="font-semibold">${fmtDate(sub.endDate)}</span></p>
+                        </div>
+                    `;
+                    return;
+                }
+                // منتهي فعليًا: حدّث الحالة تلقائيًا ثم أعد الرسم كطلب جديد
+                await markExpired(sub);
+                sub = { ...sub, status: "منتهي" };
+            }
+
+            // قيد المراجعة (رفع السكرين شوت وبانتظار الأدمن)
+            if (sub && sub.status === "قيد المراجعة") {
+                content.innerHTML = `
+                    <div class="bg-yellow-50 border border-yellow-200 rounded-xl p-6 text-center">
+                        <i class="fa-solid fa-hourglass-half text-4xl text-yellow-600 mb-3"></i>
+                        <h2 class="text-lg font-bold text-yellow-800 mb-1">طلب اشتراكك قيد المراجعة</h2>
+                        <p class="text-yellow-700 text-sm">استلمنا إثبات التحويل الخاص فيك، وبيتم مراجعته يدويًا من فريق سفرة. رح نرسلّك كود تفعيل أو نفعّل حسابك مباشرة خلال وقت قصير.</p>
+                        ${sub.screenshotUrl ? `<a href="${sub.screenshotUrl}" target="_blank" class="inline-block mt-4 text-sm text-safra-gold underline">عرض السكرين شوت المرفوع</a>` : ''}
+                    </div>
+                `;
+                return;
+            }
+
+            // بانتظار إدخال كود التفعيل (الأدمن راجع الطلب وولّد كود وأرسله يدويًا)
+            if (sub && sub.status === "بانتظار كود التفعيل") {
+                content.innerHTML = `
+                    <div class="bg-blue-50 border border-blue-200 rounded-xl p-6">
+                        <div class="text-center mb-4">
+                            <i class="fa-solid fa-key text-4xl text-blue-600 mb-3"></i>
+                            <h2 class="text-lg font-bold text-blue-800 mb-1">جاهز للتفعيل!</h2>
+                            <p class="text-blue-700 text-sm">فريق سفرة راجع طلبك ورح يرسلك كود تفعيل عبر اتصال/واتساب. أدخل الكود تحت لتفعيل اشتراكك فورًا.</p>
+                        </div>
+                        <form id="code-form" class="flex flex-col sm:flex-row gap-2 max-w-sm mx-auto">
+                            <input type="text" id="code-input" required placeholder="أدخل كود التفعيل" class="flex-1 px-3 py-2 border rounded-lg text-center tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-safra-gold" maxlength="10">
+                            <button type="submit" class="bg-safra-green text-white px-5 py-2 rounded-lg font-semibold hover:bg-safra-dark transition">تفعيل</button>
+                        </form>
+                        <p id="code-message" class="text-center text-sm font-semibold mt-3"></p>
+                    </div>
+                `;
+                document.getElementById('code-form').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    await activateWithCode(sub);
+                });
+                return;
+            }
+
+            // لا يوجد اشتراك، أو تم رفضه، أو انتهى: اعرض خطط الاشتراك
+            await renderPlanSelection(sub);
+        }
+
+        async function markExpired(sub) {
+            try {
+                await updateDoc(doc(db, "subscriptions", sub.id), { status: "منتهي" });
+                await updateDoc(doc(db, "restaurants", myRestaurant.id), { subscriptionStatus: "منتهي" });
+            } catch (e) { /* تجاهل، بيتحدث لاحقًا */ }
+        }
+
+        async function renderPlanSelection(previousSub) {
+            const plansSnap = await getDocs(query(collection(db, "subscriptionPlans"), where("active", "==", true)));
+
+            let banner = "";
+            if (previousSub && previousSub.status === "مرفوض") {
+                banner = `
+                    <div class="bg-red-50 border border-red-200 rounded-xl p-4 text-center text-sm text-red-700">
+                        <i class="fa-solid fa-circle-xmark mr-1"></i>
+                        تم رفض طلب اشتراكك السابق${previousSub.adminNote ? `: ${previousSub.adminNote}` : ''}. فيك تعيد المحاولة تحت.
+                    </div>`;
+            } else if (previousSub && previousSub.status === "منتهي") {
+                banner = `
+                    <div class="bg-orange-50 border border-orange-200 rounded-xl p-4 text-center text-sm text-orange-700">
+                        <i class="fa-solid fa-triangle-exclamation mr-1"></i>
+                        انتهت مدة اشتراكك. جدّد الاشتراك تحت للاستمرار.
+                    </div>`;
+            }
+
+            if (plansSnap.empty) {
+                content.innerHTML = `
+                    ${banner}
+                    <div class="bg-white border border-gray-200 rounded-xl p-6 text-center">
+                        <p class="text-gray-600">ما في خطط اشتراك متاحة حاليًا. تواصل مع إدارة سفرة على الرقم
+                        <span class="font-mono font-bold text-safra-gold">${CLIQ_NUMBER}</span> لتفعيل حسابك.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const plans = plansSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+            content.innerHTML = `
+                ${banner}
+                <div class="bg-white border border-gray-200 rounded-xl p-5">
+                    <h2 class="font-bold text-gray-800 mb-3">1) اختر خطة الاشتراك</h2>
+                    <div id="plans-list" class="grid sm:grid-cols-2 gap-3">
+                        ${plans.map(p => `
+                            <label class="plan-card cursor-pointer border-2 border-gray-200 rounded-lg p-4 flex flex-col gap-1 hover:border-safra-gold transition">
+                                <div class="flex items-center gap-2">
+                                    <input type="radio" name="plan" value="${p.id}" class="accent-safra-gold" required>
+                                    <span class="font-bold text-gray-800">${p.name}</span>
+                                </div>
+                                <span class="text-safra-gold font-bold text-lg">${p.price} د.أ</span>
+                                <span class="text-xs text-gray-500">مدة الاشتراك: ${p.durationDays} يوم</span>
+                                ${p.description ? `<span class="text-xs text-gray-500 mt-1">${p.description}</span>` : ''}
+                            </label>
+                        `).join('')}
+                    </div>
+                </div>
+
+                <div class="bg-white border border-gray-200 rounded-xl p-5">
+                    <h2 class="font-bold text-gray-800 mb-3">2) حوّل المبلغ عبر CliQ</h2>
+                    <div class="bg-safra-cream border border-dashed border-safra-gold rounded-lg p-4 text-center">
+                        <p class="text-sm text-gray-600 mb-1">رقم CliQ الخاص بمنصة سفرة</p>
+                        <p class="text-2xl font-black text-safra-gold font-mono tracking-wider">${CLIQ_NUMBER}</p>
+                        <button type="button" id="copy-cliq" class="mt-2 text-xs text-gray-500 hover:text-safra-gold underline">نسخ الرقم</button>
+                    </div>
+                    <p class="text-xs text-gray-500 mt-3">حوّل قيمة الخطة يلي اخترتها فوق، واكتب اسم مطعمك "${myRestaurant.name}" في ملاحظة التحويل إذا أمكن.</p>
+                </div>
+
+                <div class="bg-white border border-gray-200 rounded-xl p-5">
+                    <h2 class="font-bold text-gray-800 mb-3">3) ارفع سكرين شوت الحوالة</h2>
+                    <form id="sub-form" class="space-y-3">
+                        <input type="file" id="screenshot-input" accept="image/*" required class="w-full text-sm border rounded-lg p-2">
+                        <button type="submit" id="submit-btn" class="w-full bg-safra-gold text-white py-3 rounded-lg font-semibold hover:bg-safra-gold-dark transition">إرسال طلب الاشتراك</button>
+                        <p id="sub-message" class="text-center text-sm font-semibold"></p>
+                    </form>
+                </div>
+            `;
+
+            document.getElementById('copy-cliq').addEventListener('click', () => {
+                navigator.clipboard.writeText(CLIQ_NUMBER);
+                const btn = document.getElementById('copy-cliq');
+                btn.innerText = "تم النسخ ✓";
+                setTimeout(() => btn.innerText = "نسخ الرقم", 1500);
+            });
+
+            document.getElementById('sub-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const msg = document.getElementById('sub-message');
+                const submitBtn = document.getElementById('submit-btn');
+                const selectedPlan = document.querySelector('input[name="plan"]:checked');
+                const file = document.getElementById('screenshot-input').files[0];
+
+                if (!selectedPlan) {
+                    msg.className = "text-center text-sm font-semibold text-red-500";
+                    msg.innerText = "اختر خطة اشتراك أولاً.";
+                    return;
+                }
+                if (!file) {
+                    msg.className = "text-center text-sm font-semibold text-red-500";
+                    msg.innerText = "لازم ترفع سكرين شوت الحوالة.";
+                    return;
+                }
+
+                const plan = plans.find(p => p.id === selectedPlan.value);
+                submitBtn.disabled = true;
+                msg.className = "text-center text-sm font-semibold text-blue-600";
+                msg.innerText = "جاري رفع السكرين شوت وإرسال الطلب...";
+
+                try {
+                    const screenshotUrl = await uploadToImgbb(file);
+
+                    await addDoc(collection(db, "subscriptions"), {
+                        restaurantId: myRestaurant.id,
+                        restaurantName: myRestaurant.name,
+                        ownerUid: currentUser.uid,
+                        ownerEmail: currentUser.email,
+                        planId: plan.id,
+                        planName: plan.name,
+                        price: plan.price,
+                        durationDays: plan.durationDays,
+                        paymentMethod: "CliQ",
+                        cliqNumber: CLIQ_NUMBER,
+                        screenshotUrl,
+                        status: "قيد المراجعة",
+                        createdAt: serverTimestamp()
+                    });
+
+                    await updateDoc(doc(db, "restaurants", myRestaurant.id), {
+                        subscriptionStatus: "قيد المراجعة"
+                    });
+
+                    msg.className = "text-center text-sm font-semibold text-green-600";
+                    msg.innerText = "تم إرسال طلبك بنجاح! بيتم تحويله لحالة قيد المراجعة.";
+                    setTimeout(() => location.reload(), 1200);
+                } catch (error) {
+                    submitBtn.disabled = false;
+                    msg.className = "text-center text-sm font-semibold text-red-500";
+                    msg.innerText = "خطأ: " + error.message;
+                }
+            });
+        }
+
+        async function activateWithCode(sub) {
+            const msg = document.getElementById('code-message');
+            const codeInput = document.getElementById('code-input');
+            const enteredCode = codeInput.value.trim();
+
+            if (!enteredCode) return;
+
+            msg.className = "text-center text-sm font-semibold mt-3 text-blue-600";
+            msg.innerText = "جاري التحقق من الكود...";
+
+            try {
+                const start = new Date();
+                const end = new Date(start.getTime() + (sub.durationDays || 30) * 24 * 60 * 60 * 1000);
+
+                await updateDoc(doc(db, "subscriptions", sub.id), {
+                    status: "نشط",
+                    enteredCode: enteredCode,
+                    startDate: Timestamp.fromDate(start),
+                    endDate: Timestamp.fromDate(end),
+                    activatedAt: serverTimestamp()
+                });
+
+                await updateDoc(doc(db, "restaurants", myRestaurant.id), {
+                    subscriptionStatus: "نشط",
+                    subscriptionEndDate: Timestamp.fromDate(end)
+                });
+
+                msg.className = "text-center text-sm font-semibold mt-3 text-green-600";
+                msg.innerText = "تم تفعيل اشتراكك بنجاح! 🎉";
+                setTimeout(() => location.reload(), 1000);
+            } catch (error) {
+                msg.className = "text-center text-sm font-semibold mt-3 text-red-500";
+                msg.innerText = "الكود غير صحيح أو حدث خطأ. تأكد من الكود وحاول مرة ثانية.";
+            }
+        }
+    </script>
+</body>
+</html>

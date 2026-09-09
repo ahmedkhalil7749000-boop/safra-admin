@@ -27,7 +27,16 @@ messaging.onBackgroundMessage((payload) => {
         body: payload.notification?.body || "",
         icon: '/logo.png',
         badge: '/logo.png',
-        data: payload.data || {}
+        data: payload.data || {},
+        // تخلي الإشعار يضل ظاهر على الشاشة لحد ما المستخدم يضغط عليه أو يسكّره يدوياً
+        // (بدون هاي الخاصية، بعض الأجهزة/المتصفحات بتخفي الإشعار تلقائياً بعد ثواني)
+        requireInteraction: true,
+        // اهتزاز يلفت الانتباه (يشتغل على الموبايل بالأخص)
+        vibrate: [200, 100, 200, 100, 200],
+        // كل إشعار طلب جديد إله tag مختلف (orderId) عشان ما ينكتب فوق إشعار سابق
+        // ولو رجع نفس orderId (نادراً) ما يتكرر إشعارين لنفس الطلب
+        tag: payload.data?.orderId ? `order-${payload.data.orderId}` : undefined,
+        renotify: true
     };
     self.registration.showNotification(title, options);
 });
