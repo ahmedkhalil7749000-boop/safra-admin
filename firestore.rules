@@ -27,9 +27,12 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.auth.uid == userId
                     && request.resource.data.role in ["customer", "restaurant_owner"];
 
-      // التعديل: بس صاحب الحساب، وممنوع يغيّر حقل role بنفسه (حماية من ترقية صلاحياته)
+      // التعديل: بس صاحب الحساب، وممنوع يغيّر حقل role بنفسه (حماية من ترقية صلاحياته).
+      // استثناء: لو الوثيقة أصلاً ناقصها role (حساب قديم أو غير مكتمل)، مسموح
+      // يحطها لأول مرة (بس مو يغيّرها لو كانت موجودة أصلاً).
       allow update: if isSignedIn() && request.auth.uid == userId
-                    && request.resource.data.role == resource.data.role;
+                    && (request.resource.data.role == resource.data.role
+                        || !('role' in resource.data));
 
       // الحذف: غير مسموح من الواجهة إطلاقاً (فقط عبر Firebase Console يدويًا)
       allow delete: if false;

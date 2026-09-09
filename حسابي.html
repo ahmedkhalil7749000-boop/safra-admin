@@ -217,10 +217,13 @@
             editMessage.innerText = "جاري الحفظ...";
 
             try {
-                // merge: true عشان ما نلمس حقل role أبدًا ونضمن توافقها مع قواعد الأمان
-                await setDoc(doc(db, "users", currentUid), { name, phone }, { merge: true });
+                // بنبعت role دايمًا (نفس القيمة الحالية أو "customer" كافتراضي) عشان
+                // لو وثيقة المستخدم أصلاً مو موجودة، setDoc تقدر "تنشئها" بدون ما
+                // تنرفض من قاعدة الأمان اللي بتشترط وجود role صحيح عند الإنشاء.
+                const role = currentUserData.role || 'customer';
+                await setDoc(doc(db, "users", currentUid), { name, phone, role }, { merge: true });
 
-                currentUserData = { ...currentUserData, name, phone };
+                currentUserData = { ...currentUserData, name, phone, role };
                 renderView(auth.currentUser, currentUserData);
 
                 editMessage.className = "text-xs font-semibold text-center text-green-600";
