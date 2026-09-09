@@ -105,7 +105,7 @@
     <script type="module">
         import { auth, db } from "./firebase-config.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { collection, addDoc, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { collection, addDoc, serverTimestamp, Timestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getCart as getCartService, clearCart, groupCartByRestaurant } from "./cart-service.js";
 
         const DELIVERY_FEE = 1.5;
@@ -199,6 +199,23 @@
             return getCartService();
         }
 
+        // فحص أخير قبل تأكيد الطلب: هل أي مطعم بالسلة صار مغلق (status = "متوقف")؟
+        // بيرجع أسماء المطاعم المغلقة (لو في)، عشان نمنع تأكيد الطلب ونوضح للزبون السبب.
+        async function findClosedRestaurants(groups) {
+            const closedNames = [];
+            for (const group of groups) {
+                try {
+                    const rDoc = await getDoc(doc(db, "restaurants", group.restaurantId));
+                    if (rDoc.exists() && rDoc.data().status === 'متوقف') {
+                        closedNames.push(rDoc.data().name || group.restaurantId);
+                    }
+                } catch (err) {
+                    console.warn('تعذّر التحقق من حالة المطعم:', group.restaurantId, err.message);
+                }
+            }
+            return closedNames;
+        }
+
         async function renderSummary() {
             const cart = await getCart();
             const groups = groupCartByRestaurant(cart);
@@ -248,6 +265,17 @@
 
             // فحص أمان: لازم كل مطعم بالسلة يصير طلب منفصل خاص فيه
             const groups = groupCartByRestaurant(cart);
+
+            // تنبيه: امنع تأكيد الطلب لو أي مطعم بالسلة صار مغلق حالياً (صاحب المطعم سكّره)
+            message.className = "text-center text-sm mt-4 text-blue-600";
+            message.innerText = "جاري التحقق من حالة المطاعم...";
+            const closedNames = await findClosedRestaurants(groups);
+            if (closedNames.length > 0) {
+                message.className = "text-center text-sm mt-4 text-red-500";
+                message.innerText = `عذرًا، المطعم "${closedNames.join('، ')}" مغلق حالياً ولا يستقبل طلبات. رجاءً احذف أصنافه من السلة عشان تكمل باقي طلبك.`;
+                return;
+            }
+            message.innerText = "";
 
             const scheduleCheck = validateSchedule();
             if (!scheduleCheck.ok) {

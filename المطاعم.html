@@ -66,12 +66,25 @@
         let allRestaurants = [];
         let activeCategory = 'all';
 
+        function isRestaurantClosed(r) {
+            return r.status === 'متوقف';
+        }
+
         function renderCard(id, r) {
+            const closed = isRestaurantClosed(r);
             const card = document.createElement('a');
             card.href = `صفحة_المطعم.html?id=${id}`;
-            card.className = "bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition";
+            card.className = "bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition relative"
+                + (closed ? " opacity-70" : "");
             card.innerHTML = `
-                <img src="${r.imageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'}" class="w-full h-24 object-cover">
+                <div class="relative">
+                    <img src="${r.imageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'}" class="w-full h-24 object-cover ${closed ? 'grayscale' : ''}">
+                    ${closed ? `
+                        <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
+                            <span class="bg-red-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-full">🔴 مغلق حالياً</span>
+                        </div>
+                    ` : ''}
+                </div>
                 <div class="p-2.5">
                     <div class="flex justify-between items-start gap-1">
                         <h3 class="font-bold text-sm text-gray-800 truncate">${r.name || ''}</h3>
