@@ -16,21 +16,6 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email == "ahmedkhalil7749000@gmail.com";
     }
 
-    // التحقق الآمن من وجود وثيقة المستخدم وجلب الـ role (بدون التسبب في خطأ إن لم تكن موجودة)
-    function getUserData() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) ? 
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data : 
-             { "role": "" };
-    }
-
-    // هل المستخدم الحالي صاحب مطعم؟ (تم جعلها مرنة لتدعم الحالات التي لم يتم فيها إنشاء وثيقة users بعد)
-    function isRestaurantOwner() {
-      return isSignedIn() && (
-        getUserData().role == "restaurant_owner" || 
-        request.auth.token.email == "ahmedkhalil7749000@gmail.com"
-      );
-    }
-
     // =====================================================
     //                  users/{userId}
     // =====================================================
@@ -42,9 +27,13 @@ service cloud.firestore {
       allow create: if isSignedIn() && request.auth.uid == userId
                     && request.resource.data.role in ["customer", "restaurant_owner"];
 
-      // التعديل: بس صاحب الحساب، وممنوع يغيّر حقل role بنفسه (حماية من ترقية صلاحياته)
-      allow update: if isSignedIn() && request.auth.uid == userId
-                    && request.resource.data.role == resource.data.role;
+      // التعديل: بس صاحب الحساب، وممنوع يغيّر حقل role بنفسه (حماية من ترقية صلاحياته).
+      // استثناء: لو الوثيقة أصلاً ناقصها role (حساب قديم أو غير مكتمل)، مسموح
+      // يحطها لأول مرة (بس مو يغيّرها لو كانت موجودة أصلاً).
+      allow update: if (isSignedIn() && request.auth.uid == userId
+                    && (request.resource.data.role == resource.data.role
+                        || !('role' in resource.data)))
+                    || isAdmin();
 
       // الحذف: غير مسموح من الواجهة إطلاقاً (فقط عبر Firebase Console يدويًا)
       allow delete: if false;
@@ -57,12 +46,28 @@ service cloud.firestore {
       // القراءة عامة للجميع (حتى الزوار غير المسجلين) عشان صفحة عرض المطاعم تشتغل
       allow read: if true;
 
-      // الإنشاء: فقط مستخدم مسجل دخول (أو صاحب مطعم)، ويجب أن يربط ownerEmail ببريده هو نفسه
+      // الإنشاء: فقط مستخدم مسجل دخول، ويجب أن يربط ownerEmail ببريده هو نفسه
       allow create: if isSignedIn()
                     && request.resource.data.ownerEmail == request.auth.token.email;
 
-      // التعديل والحذف: فقط صاحب هذا المطعم بالذات (مقارنة الإيميل مباشرة)، أو الأدمن
-      allow update, delete: if isAdmin()
+      // التعديل: صاحب المطعم أو الأدمن يقدروا يعدلوا أي حقل.
+      // أي مستخدم مسجل دخول (زبون) مسموح له يعدّل فقط rating و reviewsCount،
+      // وبشرط تكون القيم صحيحة النوع وضمن حدود منطقية
+      // (إصلاح: قبل كذا كان أي شخص يقدر يحط أي رقم عشوائي بدون تحقق)
+      allow update: if isAdmin()
+                    || (isSignedIn() && resource.data.ownerEmail == request.auth.token.email)
+                    || (
+                      isSignedIn()
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'reviewsCount'])
+                      && request.resource.data.rating is number
+                      && request.resource.data.rating >= 0
+                      && request.resource.data.rating <= 5
+                      && request.resource.data.reviewsCount is int
+                      && request.resource.data.reviewsCount >= 0
+                    );
+
+      // الحذف: فقط صاحب هذا المطعم بالذات، أو الأدمن
+      allow delete: if isAdmin()
                     || (isSignedIn() && resource.data.ownerEmail == request.auth.token.email);
     }
 
@@ -77,30 +82,115 @@ service cloud.firestore {
       allow create: if isSignedIn()
                     && get(/databases/$(database)/documents/restaurants/$(request.resource.data.restaurantId)).data.ownerEmail == request.auth.token.email;
 
-      // التعديل والحذف: فقط صاحب المطعم يلي الصنف تابع له (عبر مطابقة الإيميل)، أو الأدمن
-      allow update, delete: if isAdmin()
+      // التعديل: فقط صاحب المطعم يلي الصنف تابع له، أو الأدمن.
+      // إصلاح: أضفنا شرط يمنع تغيير restaurantId أثناء التعديل، عشان صاحب مطعم
+      // ما يقدر "ينقل" صنف لمطعم ثاني مو ملكه (كانت ثغرة تسمح بزرع أصناف مزوّرة).
+      allow update: if isAdmin()
+                    || (isSignedIn()
+                        && get(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)).data.ownerEmail == request.auth.token.email
+                        && request.resource.data.restaurantId == resource.data.restaurantId);
+
+      // الحذف: فقط صاحب المطعم يلي الصنف تابع له، أو الأدمن
+      allow delete: if isAdmin()
                     || (isSignedIn()
                         && get(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)).data.ownerEmail == request.auth.token.email);
+    }
+
+    // =====================================================
+    //                  reviews/{reviewId}
+    // =====================================================
+    match /reviews/{reviewId} {
+      // القراءة عامة للجميع عشان الكل يشوف تقييمات المطعم قبل ما يطلب
+      allow read: if true;
+
+      // الإنشاء: بس مستخدم مسجل دخول، وبشرط يربط customerId بحسابه هو، وتقييم بين 1 و5
+      allow create: if isSignedIn()
+                    && request.resource.data.customerId == request.auth.uid
+                    && request.resource.data.rating is int
+                    && request.resource.data.rating >= 1
+                    && request.resource.data.rating <= 5;
+
+      // التعديل والحذف: بس صاحب التقييم نفسه، أو الأدمن
+      allow update, delete: if isAdmin()
+                    || (isSignedIn() && resource.data.customerId == request.auth.uid);
     }
 
     // =====================================================
     //                  orders/{orderId}
     // =====================================================
     match /orders/{orderId} {
-      // الإنشاء: أي زبون مسجل دخول، وبشرط يحط الـ customerId تبعه هو
+      // الإنشاء: السماح للمستخدم المسجل بإنشاء الطلب سواء استعمل customerId أو userId
       allow create: if isSignedIn()
-                    && request.resource.data.customerId == request.auth.uid;
+                    && (request.resource.data.customerId == request.auth.uid || request.resource.data.userId == request.auth.uid);
 
-      // القراءة: الأدمن، أو الزبون صاحب الطلب، أو صاحب المطعم يلي وصله الطلب
+      // القراءة: الأدمن، أو الزبون صاحب الطلب (بأي من الحقلين)، أو صاحب المطعم المرتبط بالطلب
       allow read: if isAdmin()
-                  || (isSignedIn() && resource.data.customerId == request.auth.uid)
+                  || (isSignedIn() && (resource.data.customerId == request.auth.uid || resource.data.userId == request.auth.uid))
                   || (isSignedIn()
                       && get(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)).data.ownerEmail == request.auth.token.email);
 
-      // التعديل: الأدمن أو صاحب المطعم المعني بالطلب فقط
+      // التعديل: الأدمن يقدر يعدّل أي شيء بالطلب.
+      // إصلاح: صاحب المطعم كان مسموح له يعدّل أي حقل بالطلب (حتى السعر وبيانات الزبون!).
+      // الآن مقيّد فقط بتحديث حالة الطلب، سبب الرفض، طريقة التسليم (سائق/استلام
+      // ذاتي)، ووقت التسليم المتوقع.
       allow update: if isAdmin()
-                    || (isSignedIn()
-                        && get(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)).data.ownerEmail == request.auth.token.email);
+                  || (isSignedIn()
+                      && get(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)).data.ownerEmail == request.auth.token.email
+                      && request.resource.data.diff(resource.data).affectedKeys()
+                            .hasOnly(['status', 'rejectionReason', 'deliveryMethod', 'estimatedDeliveryTime', 'scheduleNotified', 'updatedAt']));
+
+      // الحذف: الأدمن فقط
+      allow delete: if isAdmin();
+    }
+
+    // =====================================================
+    //                  carts/{uid}  (سلة كل مستخدم مسجّل)
+    // =====================================================
+    match /carts/{uid} {
+      // كل مستخدم يقرأ ويكتب على سلته هو بس (وثيقة السلة معرّفها = uid صاحبها)
+      allow read, write: if isSignedIn() && request.auth.uid == uid;
+    }
+
+    // =====================================================
+    //          subscriptionPlans/{planId}  (خطط الاشتراك)
+    // =====================================================
+    match /subscriptionPlans/{planId} {
+      // أي مستخدم مسجل دخول يقدر يشوف الخطط المتاحة (عشان صفحة الاشتراك تشتغل)
+      allow read: if isSignedIn();
+
+      // الإنشاء / التعديل / الحذف: الأدمن فقط
+      allow write: if isAdmin();
+    }
+
+    // =====================================================
+    //          subscriptions/{subscriptionId}  (طلبات/سجل الاشتراك)
+    // =====================================================
+    match /subscriptions/{subscriptionId} {
+      // القراءة: الأدمن يشوف الكل، وصاحب المطعم يشوف طلباته هو بس
+      allow read: if isAdmin()
+                  || (isSignedIn() && resource.data.ownerUid == request.auth.uid);
+
+      // الإنشاء: صاحب المطعم يقدر يفتح طلب اشتراك جديد لنفسه فقط،
+      // ولازم يبدأ الطلب بحالة "قيد المراجعة"
+      allow create: if isSignedIn()
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.status == "قيد المراجعة";
+
+      // التعديل:
+      // 1) الأدمن يقدر يعدّل أي شي (موافقة/رفض/توليد كود/إنهاء الاشتراك)
+      // 2) صاحب المطعم يقدر يفعّل اشتراكه بنفسه فقط لما يدخل كود التفعيل الصحيح
+      //    اللي ولّده الأدمن (لازم يطابق تمامًا activationCode المخزّن بالطلب)
+      allow update: if isAdmin()
+                    || (
+                      isSignedIn()
+                      && resource.data.ownerUid == request.auth.uid
+                      && resource.data.status == "بانتظار كود التفعيل"
+                      && request.resource.data.status == "نشط"
+                      && resource.data.activationCode != null
+                      && request.resource.data.enteredCode == resource.data.activationCode
+                      && request.resource.data.diff(resource.data).affectedKeys()
+                            .hasOnly(['status', 'enteredCode', 'startDate', 'endDate', 'activatedAt'])
+                    );
 
       // الحذف: الأدمن فقط
       allow delete: if isAdmin();

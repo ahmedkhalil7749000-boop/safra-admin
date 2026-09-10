@@ -2,21 +2,40 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>تعبئة بيانات تجريبية - سفرة</title>
+    <link rel="stylesheet" href="app-shell.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'safra-dark': '#0b3b2c',
+              'safra-green': '#2e6f40',
+              'safra-cream': '#fbf9f5',
+              'safra-gold': '#d97706',
+              'safra-gold-dark': '#b45309',
+            }
+          }
+        }
+      }
+    </script>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+<body class="app-narrow bg-safra-cream flex items-center justify-center min-h-screen p-4">
 
-    <div class="w-full max-w-lg bg-white shadow-md rounded-lg p-6 border border-gray-200 text-center">
-        <h1 class="text-2xl font-bold text-amber-600 mb-2">تعبئة بيانات تجريبية</h1>
+    <div class="w-full bg-white shadow-md rounded-lg p-6 border border-gray-200 text-center">
+        <div class="flex flex-col items-center mb-2">
+            <img src="logo.png" alt="سفرة" class="h-14 w-14 object-contain rounded-full mb-2">
+        </div>
+        <h1 class="text-2xl font-bold text-safra-gold mb-2">تعبئة بيانات تجريبية</h1>
         <p class="text-sm text-gray-500 mb-6">
             هاي الصفحة تضيف 3 مطاعم تجريبية مع منيو لكل وحدة على Firestore.
             <br>
             <span class="text-red-500 font-semibold">استخدمها مرة وحدة بس</span> — كل ضغطة على الزر بتضيف نسخة جديدة من نفس البيانات.
         </p>
 
-        <button id="seed-btn" class="w-full bg-amber-600 text-white py-2 rounded-lg font-semibold hover:bg-amber-700 transition">
+        <button id="seed-btn" class="w-full bg-safra-gold text-white py-2 rounded-lg font-semibold hover:bg-safra-gold-dark transition">
             ابدأ التعبئة
         </button>
 

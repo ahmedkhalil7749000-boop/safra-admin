@@ -2,15 +2,31 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>لوحة الإدارة العامة - منصة سفرة</title>
+    <link rel="stylesheet" href="app-shell.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'safra-dark': '#0b3b2c',
+              'safra-green': '#2e6f40',
+              'safra-cream': '#fbf9f5',
+              'safra-gold': '#d97706',
+              'safra-gold-dark': '#b45309',
+            }
+          }
+        }
+      }
+    </script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCp_boObC6rDyAcLYJ-FBqm8_QwRQXShUk",
@@ -46,7 +62,7 @@
                     loader.innerHTML = `
                         <i class="fa-solid fa-lock text-4xl text-red-500 mb-4"></i>
                         <p class="text-gray-700 font-semibold">ليس لديك صلاحية الوصول إلى لوحة الإدارة</p>
-                        <a href="index.html" class="text-amber-600 text-sm mt-3 underline">العودة للصفحة الرئيسية</a>
+                        <a href="index.html" class="text-safra-gold text-sm mt-3 underline">العودة للصفحة الرئيسية</a>
                     `;
                 }
                 await signOut(auth);
@@ -57,7 +73,261 @@
             if (loader) loader.remove();
             content.classList.remove('hidden');
             await loadOrders();
+            await loadSubscriptions();
+            await loadPlans();
+            await loadUsers();
         });
+
+        // ===============================================================
+        //                  تبديل التبويبات (طلبات / اشتراكات)
+        // ===============================================================
+        window.showTab = function(tab) {
+            const tabs = ['orders', 'subscriptions', 'users'];
+            tabs.forEach(t => {
+                document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
+                document.getElementById('btn-tab-' + t).className = t === tab
+                    ? "px-4 py-2 rounded-lg text-sm font-semibold bg-safra-gold text-white"
+                    : "px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200";
+            });
+        }
+
+        // ===============================================================
+        //                  إدارة طلبات الاشتراك
+        // ===============================================================
+        function fmtDate(ts) {
+            try {
+                const d = ts?.toDate ? ts.toDate() : new Date(ts);
+                return d.toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' });
+            } catch { return '-'; }
+        }
+
+        function statusBadge(status) {
+            const map = {
+                "قيد المراجعة": "bg-yellow-100 text-yellow-800",
+                "بانتظار كود التفعيل": "bg-blue-100 text-blue-800",
+                "نشط": "bg-green-100 text-green-800",
+                "منتهي": "bg-orange-100 text-orange-800",
+                "مرفوض": "bg-red-100 text-red-800"
+            };
+            return `<span class="px-2 py-1 rounded-full text-xs font-bold ${map[status] || 'bg-gray-100 text-gray-700'}">${status}</span>`;
+        }
+
+        async function loadSubscriptions() {
+            const box = document.getElementById('subscriptions-list');
+            if (!box) return;
+            try {
+                const q = query(collection(db, "subscriptions"), orderBy("createdAt", "desc"));
+                const snap = await getDocs(q);
+
+                if (snap.empty) {
+                    box.innerHTML = `<p class="text-center text-gray-400 py-6">لا توجد طلبات اشتراك حتى الآن</p>`;
+                    return;
+                }
+
+                box.innerHTML = "";
+                snap.forEach((d) => {
+                    const s = d.data();
+                    const id = d.id;
+                    const end = s.endDate?.toDate ? s.endDate.toDate() : (s.endDate ? new Date(s.endDate) : null);
+
+                    let actions = "";
+                    if (s.status === "قيد المراجعة") {
+                        actions = `
+                            <button data-id="${id}" class="act-activate bg-safra-green text-white px-3 py-1.5 rounded text-xs font-semibold hover:bg-safra-dark">✅ تفعيل مباشر</button>
+                            <button data-id="${id}" class="act-gencode bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-semibold hover:bg-blue-700">🔑 توليد كود تفعيل</button>
+                            <button data-id="${id}" class="act-reject bg-red-100 text-red-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-red-200">❌ رفض</button>`;
+                    } else if (s.status === "بانتظار كود التفعيل") {
+                        actions = `
+                            <span class="font-mono bg-gray-100 px-2 py-1 rounded text-xs">الكود: <b>${s.activationCode || '-'}</b></span>
+                            <button data-id="${id}" class="act-activate bg-safra-green text-white px-3 py-1.5 rounded text-xs font-semibold hover:bg-safra-dark">✅ تفعيل مباشر</button>
+                            <button data-id="${id}" class="act-gencode bg-blue-600 text-white px-3 py-1.5 rounded text-xs font-semibold hover:bg-blue-700">🔄 كود جديد</button>
+                            <button data-id="${id}" class="act-reject bg-red-100 text-red-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-red-200">❌ رفض</button>`;
+                    } else if (s.status === "نشط") {
+                        actions = `
+                            <span class="text-xs text-gray-500">حتى ${end ? fmtDate(end) : '-'}</span>
+                            <button data-id="${id}" data-rid="${s.restaurantId}" class="act-end bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-300">⛔ إنهاء الاشتراك</button>`;
+                    } else {
+                        actions = `<button data-id="${id}" class="act-delete text-gray-400 hover:text-red-500 text-xs">حذف السجل</button>`;
+                    }
+
+                    const card = document.createElement('div');
+                    card.className = "border border-gray-200 rounded-xl p-4 bg-gray-50";
+                    card.innerHTML = `
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-1 flex-wrap">
+                                    <h3 class="font-bold text-gray-800">${s.restaurantName || 'مطعم'}</h3>
+                                    ${statusBadge(s.status)}
+                                </div>
+                                <p class="text-xs text-gray-500">${s.ownerEmail || ''}</p>
+                                <p class="text-xs text-gray-600 mt-1">الخطة: <b>${s.planName || '-'}</b> — ${s.price || 0} د.أ / ${s.durationDays || '-'} يوم</p>
+                                <p class="text-xs text-gray-400 mt-1">تاريخ الطلب: ${fmtDate(s.createdAt)}</p>
+                            </div>
+                            <div class="flex flex-col items-center gap-2">
+                                ${s.screenshotUrl ? `<a href="${s.screenshotUrl}" target="_blank"><img src="${s.screenshotUrl}" class="h-20 w-20 object-cover rounded-lg border border-gray-300 hover:opacity-80 transition"></a>` : ''}
+                            </div>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-gray-200">
+                            ${actions}
+                        </div>
+                    `;
+                    box.appendChild(card);
+                });
+
+                box.querySelectorAll('.act-activate').forEach(btn => btn.addEventListener('click', () => activateSubscription(btn.dataset.id)));
+                box.querySelectorAll('.act-gencode').forEach(btn => btn.addEventListener('click', () => generateActivationCode(btn.dataset.id)));
+                box.querySelectorAll('.act-reject').forEach(btn => btn.addEventListener('click', () => rejectSubscription(btn.dataset.id)));
+                box.querySelectorAll('.act-end').forEach(btn => btn.addEventListener('click', () => endSubscription(btn.dataset.id, btn.dataset.rid)));
+                box.querySelectorAll('.act-delete').forEach(btn => btn.addEventListener('click', () => deleteSubscriptionRecord(btn.dataset.id)));
+            } catch (error) {
+                console.error("خطأ في جلب طلبات الاشتراك:", error);
+                box.innerHTML = `<p class="text-red-500 text-sm text-center py-4">تعذر تحميل طلبات الاشتراك: ${error.message}</p>`;
+            }
+        }
+
+        function genRandomCode() {
+            return Math.floor(100000 + Math.random() * 900000).toString();
+        }
+
+        async function activateSubscription(subId) {
+            try {
+                const subRef = doc(db, "subscriptions", subId);
+                const subSnap = await getDoc(subRef);
+                if (!subSnap.exists()) return;
+                const s = subSnap.data();
+
+                const start = new Date();
+                const end = new Date(start.getTime() + (s.durationDays || 30) * 24 * 60 * 60 * 1000);
+
+                await updateDoc(subRef, {
+                    status: "نشط",
+                    startDate: Timestamp.fromDate(start),
+                    endDate: Timestamp.fromDate(end),
+                    activatedAt: serverTimestamp()
+                });
+
+                await updateDoc(doc(db, "restaurants", s.restaurantId), {
+                    subscriptionStatus: "نشط",
+                    subscriptionEndDate: Timestamp.fromDate(end)
+                });
+
+                await loadSubscriptions();
+            } catch (error) {
+                alert("خطأ أثناء التفعيل: " + error.message);
+            }
+        }
+
+        async function generateActivationCode(subId) {
+            try {
+                const code = genRandomCode();
+                await updateDoc(doc(db, "subscriptions", subId), {
+                    activationCode: code,
+                    status: "بانتظار كود التفعيل",
+                    codeGeneratedAt: serverTimestamp()
+                });
+                alert("تم توليد كود التفعيل: " + code + "\nأرسله لصاحب المطعم عبر اتصال أو واتساب ليدخله بنفسه في صفحة الاشتراك.");
+                await loadSubscriptions();
+            } catch (error) {
+                alert("خطأ أثناء توليد الكود: " + error.message);
+            }
+        }
+
+        async function rejectSubscription(subId) {
+            try {
+                const reason = prompt("سبب الرفض (اختياري):") || "";
+                await updateDoc(doc(db, "subscriptions", subId), {
+                    status: "مرفوض",
+                    adminNote: reason,
+                    reviewedAt: serverTimestamp()
+                });
+                await loadSubscriptions();
+            } catch (error) {
+                alert("خطأ أثناء الرفض: " + error.message);
+            }
+        }
+
+        async function endSubscription(subId, restaurantId) {
+            if (!confirm("متأكد إنك بدك تنهي هالاشتراك يدويًا؟")) return;
+            try {
+                await updateDoc(doc(db, "subscriptions", subId), { status: "منتهي" });
+                await updateDoc(doc(db, "restaurants", restaurantId), { subscriptionStatus: "منتهي" });
+                await loadSubscriptions();
+            } catch (error) {
+                alert("خطأ أثناء الإنهاء: " + error.message);
+            }
+        }
+
+        async function deleteSubscriptionRecord(subId) {
+            if (!confirm("حذف هذا السجل نهائيًا؟")) return;
+            try {
+                await deleteDoc(doc(db, "subscriptions", subId));
+                await loadSubscriptions();
+            } catch (error) {
+                alert("خطأ أثناء الحذف: " + error.message);
+            }
+        }
+
+        // ===============================================================
+        //                  إدارة خطط الاشتراك
+        // ===============================================================
+        async function loadPlans() {
+            const box = document.getElementById('plans-list');
+            if (!box) return;
+            try {
+                const snap = await getDocs(collection(db, "subscriptionPlans"));
+                if (snap.empty) {
+                    box.innerHTML = `<p class="text-gray-400 text-sm text-center py-3">لا توجد خطط بعد. أضف خطة من النموذج تحت.</p>`;
+                    return;
+                }
+                box.innerHTML = "";
+                snap.forEach((d) => {
+                    const p = d.data();
+                    const row = document.createElement('div');
+                    row.className = "flex items-center justify-between gap-2 border border-gray-200 rounded-lg px-3 py-2 bg-white text-sm";
+                    row.innerHTML = `
+                        <div>
+                            <b>${p.name}</b> — ${p.price} د.أ / ${p.durationDays} يوم
+                            <span class="mr-2 text-xs px-2 py-0.5 rounded-full ${p.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">${p.active ? 'فعّالة' : 'موقوفة'}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button data-id="${d.id}" data-active="${p.active}" class="plan-toggle text-xs font-semibold text-blue-600 hover:underline">${p.active ? 'إيقاف' : 'تفعيل'}</button>
+                            <button data-id="${d.id}" class="plan-delete text-xs font-semibold text-red-500 hover:underline">حذف</button>
+                        </div>`;
+                    box.appendChild(row);
+                });
+
+                box.querySelectorAll('.plan-toggle').forEach(btn => btn.addEventListener('click', async () => {
+                    await updateDoc(doc(db, "subscriptionPlans", btn.dataset.id), { active: !(btn.dataset.active === 'true') });
+                    await loadPlans();
+                }));
+                box.querySelectorAll('.plan-delete').forEach(btn => btn.addEventListener('click', async () => {
+                    if (!confirm("حذف هذه الخطة؟")) return;
+                    await deleteDoc(doc(db, "subscriptionPlans", btn.dataset.id));
+                    await loadPlans();
+                }));
+            } catch (error) {
+                console.error("خطأ في جلب الخطط:", error);
+            }
+        }
+
+        window.addPlan = async function(e) {
+            e.preventDefault();
+            const name = document.getElementById('plan-name').value.trim();
+            const price = parseFloat(document.getElementById('plan-price').value);
+            const durationDays = parseInt(document.getElementById('plan-duration').value);
+            const description = document.getElementById('plan-desc').value.trim();
+            if (!name || isNaN(price) || isNaN(durationDays)) return;
+
+            try {
+                await addDoc(collection(db, "subscriptionPlans"), {
+                    name, price, durationDays, description, active: true, createdAt: serverTimestamp()
+                });
+                document.getElementById('plan-form').reset();
+                await loadPlans();
+            } catch (error) {
+                alert("خطأ أثناء إضافة الخطة: " + error.message);
+            }
+        }
 
         // جلب وعرض الطلبات من جدول orders الفعلي في فايربيس
         async function loadOrders() {
@@ -86,7 +356,7 @@
                             <td class="py-3 px-4 font-medium text-gray-800">${data.address || 'العنوان غير متوفر'}</td>
                             <td class="py-3 px-4 text-gray-600">${itemsText}</td>
                             <td class="py-3 px-4">
-                                <span class="bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full text-xs font-semibold">رسوم: ${data.deliveryFee || 0}</span>
+                                <span class="bg-safra-green/10 text-safra-green px-3 py-1 rounded-full text-xs font-semibold">رسوم: ${data.deliveryFee || 0}</span>
                             </td>
                             <td class="py-3 px-4">
                                 <span class="text-xs text-gray-400 font-mono">${documentSnap.id.substring(0, 8)}...</span>
@@ -99,6 +369,79 @@
             }
         }
 
+        // ===============================================================
+        //                  إدارة المستخدمين (نوع الحساب)
+        // ===============================================================
+        const ROLE_LABELS = {
+            'customer': 'زبون',
+            'restaurant_owner': 'صاحب مطعم',
+            'admin': 'أدمن'
+        };
+
+        async function loadUsers() {
+            const box = document.getElementById('users-list');
+            if (!box) return;
+            try {
+                const snap = await getDocs(collection(db, "users"));
+                if (snap.empty) {
+                    box.innerHTML = `<p class="text-center text-gray-400 py-6">لا يوجد مستخدمون</p>`;
+                    return;
+                }
+
+                box.innerHTML = "";
+                snap.forEach((d) => {
+                    const u = d.data();
+                    const uid = d.id;
+                    const currentRole = u.role || 'غير محدد';
+                    const isYou = uid === auth.currentUser?.uid;
+
+                    const row = document.createElement('div');
+                    row.className = "flex flex-col sm:flex-row sm:items-center justify-between gap-2 border border-gray-200 rounded-xl p-3 bg-gray-50";
+                    row.innerHTML = `
+                        <div class="min-w-0">
+                            <p class="font-semibold text-gray-800 text-sm truncate">${u.email || '(بدون إيميل)'} ${isYou ? '<span class="text-xs text-safra-gold">(أنت)</span>' : ''}</p>
+                            <p class="text-xs text-gray-400 font-mono truncate">${uid}</p>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <select data-uid="${uid}" class="role-select text-xs border rounded-lg px-2 py-1.5">
+                                <option value="customer" ${currentRole === 'customer' ? 'selected' : ''}>زبون</option>
+                                <option value="restaurant_owner" ${currentRole === 'restaurant_owner' ? 'selected' : ''}>صاحب مطعم</option>
+                                <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>أدمن</option>
+                            </select>
+                            <button data-uid="${uid}" class="act-save-role bg-safra-gold text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-safra-gold-dark transition">حفظ</button>
+                        </div>
+                    `;
+                    box.appendChild(row);
+                });
+
+                box.querySelectorAll('.act-save-role').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const uid = btn.dataset.uid;
+                        const select = box.querySelector(`.role-select[data-uid="${uid}"]`);
+                        saveUserRole(uid, select.value, btn);
+                    });
+                });
+            } catch (error) {
+                console.error("خطأ في جلب المستخدمين:", error);
+                box.innerHTML = `<p class="text-red-500 text-sm text-center py-4">تعذر تحميل المستخدمين: ${error.message}</p>`;
+            }
+        }
+
+        async function saveUserRole(uid, newRole, btn) {
+            const original = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '...';
+            try {
+                await updateDoc(doc(db, "users", uid), { role: newRole });
+                btn.textContent = '✅';
+                setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 1200);
+            } catch (error) {
+                alert("خطأ أثناء تحديث نوع الحساب: " + error.message);
+                btn.textContent = original;
+                btn.disabled = false;
+            }
+        }
+
         window.logout = function() {
             signOut(auth).then(() => {
                 window.location.replace("Auth.html");
@@ -106,46 +449,115 @@
         }
     </script>
 </head>
-<body class="bg-gray-50 font-sans min-h-screen text-gray-800">
+<body class="app-wide bg-safra-cream font-sans min-h-screen text-gray-800">
 
-    <div id="global-loader" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
-        <i class="fa-solid fa-spinner fa-spin text-4xl text-amber-600 mb-4"></i>
+    <div id="global-loader" class="app-fullscreen-overlay bg-white z-50 flex flex-col items-center justify-center">
+        <i class="fa-solid fa-spinner fa-spin text-4xl text-safra-gold mb-4"></i>
         <p class="text-gray-600 font-medium">جاري تحميل لوحة الإدارة...</p>
     </div>
 
     <div id="admin-content" class="hidden min-h-screen flex flex-col">
-        <header class="bg-white shadow-sm py-4 px-6 flex justify-between items-center border-b border-gray-100">
-            <h1 class="text-lg font-bold text-amber-600">لوحة الإدارة - سفرة (الطلبات)</h1>
-            <div class="flex items-center gap-4">
-                <a href="index.html" class="text-gray-600 text-sm hover:text-amber-600">الرئيسية</a>
-                <button onclick="logout()" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-red-100 transition">تسجيل خروج</button>
+        <header class="bg-white shadow-sm py-3 sm:py-4 px-4 sm:px-6 flex flex-wrap items-center justify-between gap-2 border-b border-gray-100" style="padding-top: calc(0.75rem + env(safe-area-inset-top));">
+            <div class="flex items-center gap-2 min-w-0">
+                <img src="logo.png" alt="سفرة" class="h-8 w-8 sm:h-9 sm:w-9 object-contain rounded-full shrink-0">
+                <h1 class="text-sm sm:text-lg font-bold text-safra-gold truncate">لوحة الإدارة</h1>
+            </div>
+            <div class="flex items-center gap-3 sm:gap-4">
+                <a href="index.html" class="text-gray-600 text-xs sm:text-sm hover:text-safra-gold">الرئيسية</a>
+                <button onclick="logout()" class="bg-red-50 text-red-600 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-red-100 transition">تسجيل خروج</button>
             </div>
         </header>
 
-        <main class="max-w-5xl mx-auto p-6 w-full">
-            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-lg font-bold text-gray-800">سجل الطلبات الواردة</h2>
-                </div>
+        <main class="p-4 sm:p-6 w-full">
 
-                <div class="overflow-x-auto">
-                    <table class="w-full text-right border-collapse">
-                        <thead>
-                            <tr class="border-b border-gray-200 text-gray-500 text-sm">
-                                <th class="py-3 px-4 font-semibold">العنوان</th>
-                                <th class="py-3 px-4 font-semibold">الأصناف والوجبات</th>
-                                <th class="py-3 px-4 font-semibold">التوصيل</th>
-                                <th class="py-3 px-4 font-semibold">معرف الطلب</th>
-                            </tr>
-                        </thead>
-                        <tbody id="restaurants-table-body">
-                            <tr>
-                                <td colspan="4" class="text-center py-6 text-gray-400">جاري التحميل...</td>
-                            </tr>
-                        </tbody>
-                    </table>
+            <div class="flex items-center gap-2 mb-5">
+                <button id="btn-tab-orders" onclick="showTab('orders')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-safra-gold text-white">الطلبات</button>
+                <button id="btn-tab-subscriptions" onclick="showTab('subscriptions')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">الاشتراكات</button>
+                <button id="btn-tab-users" onclick="showTab('users')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">المستخدمين</button>
+            </div>
+
+            <!-- ===== تبويب: الطلبات ===== -->
+            <div id="tab-orders">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-lg font-bold text-gray-800">سجل الطلبات الواردة</h2>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right border-collapse">
+                            <thead>
+                                <tr class="border-b border-gray-200 text-gray-500 text-sm">
+                                    <th class="py-3 px-4 font-semibold">العنوان</th>
+                                    <th class="py-3 px-4 font-semibold">الأصناف والوجبات</th>
+                                    <th class="py-3 px-4 font-semibold">التوصيل</th>
+                                    <th class="py-3 px-4 font-semibold">معرف الطلب</th>
+                                </tr>
+                            </thead>
+                            <tbody id="restaurants-table-body">
+                                <tr>
+                                    <td colspan="4" class="text-center py-6 text-gray-400">جاري التحميل...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
+
+            <!-- ===== تبويب: الاشتراكات ===== -->
+            <div id="tab-subscriptions" class="hidden space-y-6">
+
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-gray-800">طلبات الاشتراك (CliQ)</h2>
+                        <span class="text-xs text-gray-400 font-mono">رقم CliQ: 0787000190</span>
+                    </div>
+                    <div id="subscriptions-list" class="space-y-3">
+                        <p class="text-center text-gray-400 py-6">جاري التحميل...</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">إدارة خطط الاشتراك</h2>
+                    <div id="plans-list" class="space-y-2 mb-4">
+                        <p class="text-gray-400 text-sm text-center py-3">جاري التحميل...</p>
+                    </div>
+
+                    <form id="plan-form" onsubmit="addPlan(event)" class="grid sm:grid-cols-2 gap-3 border-t border-gray-100 pt-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">اسم الخطة</label>
+                            <input type="text" id="plan-name" required class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="مثال: الاشتراك الشهري">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">السعر (د.أ)</label>
+                            <input type="number" step="0.01" id="plan-price" required class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">مدة الاشتراك (بالأيام)</label>
+                            <input type="number" id="plan-duration" required class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="مثال: 30">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">وصف مختصر (اختياري)</label>
+                            <input type="text" id="plan-desc" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                        <button type="submit" class="sm:col-span-2 bg-safra-gold text-white py-2 rounded-lg text-sm font-semibold hover:bg-safra-gold-dark transition">إضافة خطة جديدة</button>
+                    </form>
+                </div>
+
+            </div>
+
+            <!-- ===== تبويب: المستخدمين ===== -->
+            <div id="tab-users" class="hidden">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-lg font-bold text-gray-800">إدارة نوع الحساب</h2>
+                        <span class="text-xs text-gray-400">زبون / صاحب مطعم / أدمن</span>
+                    </div>
+                    <div id="users-list" class="space-y-3">
+                        <p class="text-center text-gray-400 py-6">جاري التحميل...</p>
+                    </div>
+                </div>
+            </div>
+
         </main>
     </div>
 

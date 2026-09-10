@@ -6,8 +6,23 @@
     <title>إدارة الصور - سفرة</title>
     <!-- تضمين مكتبة Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'safra-dark': '#0b3b2c',
+              'safra-green': '#2e6f40',
+              'safra-cream': '#fbf9f5',
+              'safra-gold': '#d97706',
+              'safra-gold-dark': '#b45309',
+            }
+          }
+        }
+      }
+    </script>
 </head>
-<body class="bg-gray-100 min-h-screen p-6">
+<body class="bg-safra-cream min-h-screen p-6">
 
     <div class="max-w-4xl mx-auto bg-white shadow-md rounded-lg p-6 border border-gray-200">
         
@@ -32,7 +47,7 @@
                         <option value="dishes">صور الوجبات</option>
                     </select>
                 </div>
-                <button type="submit" id="uploadBtn" class="bg-amber-600 text-white px-4 py-2 rounded hover:bg-amber-700 transition text-sm font-semibold">رفع الصورة</button>
+                <button type="submit" id="uploadBtn" class="bg-safra-gold text-white px-4 py-2 rounded hover:bg-safra-gold-dark transition text-sm font-semibold">رفع الصورة</button>
             </form>
             <p id="uploadStatus" class="text-sm mt-2 text-gray-600"></p>
         </div>

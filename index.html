@@ -2,101 +2,58 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>منصة سفرة - اكتشف أشهى المطاعم</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- تضمين فايربيس -->
-    <script type="module">
-        import { db } from "./firebase-config.js";
-        import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        // جلب المطاعم وعرضها بتصميم بطاقات حديثة
-        async function loadRestaurants() {
-            const grid = document.getElementById('restaurants-grid');
-            grid.innerHTML = `
-                <div class="col-span-full text-center py-12">
-                    <i class="fa-solid fa-spinner fa-spin text-3xl text-amber-600 mb-2"></i>
-                    <p class="text-gray-500">جاري تحميل أشهى المطاعم...</p>
-                </div>
-            `;
-
-            try {
-                const querySnapshot = await getDocs(collection(db, "restaurants"));
-                if (querySnapshot.empty) {
-                    grid.innerHTML = `
-                        <div class="col-span-full text-center py-12 bg-white rounded-2xl shadow-sm border border-gray-100">
-                            <i class="fa-solid fa-utensils text-4xl text-gray-300 mb-3"></i>
-                            <p class="text-gray-500 font-medium">لا توجد مطاعم متاحة حالياً.</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                grid.innerHTML = "";
-                querySnapshot.forEach((docSnap) => {
-                    const r = docSnap.data();
-                    const rId = docSnap.id;
-                    
-                    grid.innerHTML += `
-                        <div onclick="window.location.href='صفحة_المطعم.html?id=${rId}'" class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition border border-gray-100 cursor-pointer group">
-                            <div class="relative h-48 bg-gray-200 overflow-hidden">
-                                <img src="${r.imageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'}" alt="${r.name}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
-                                <span class="absolute top-3 right-3 bg-white/90 backdrop-blur-sm text-xs font-bold px-2.5 py-1 rounded-full text-emerald-600 shadow-sm">
-                                    ${r.status || 'نشط'}
-                                </span>
-                            </div>
-                            <div class="p-4">
-                                <h3 class="font-bold text-lg text-gray-800 mb-1 group-hover:text-amber-600 transition">${r.name}</h3>
-                                <p class="text-gray-500 text-sm mb-3 line-clamp-1">${r.description || 'مطعم مأكولات متنوعة'}</p>
-                                <div class="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100">
-                                    <span class="flex items-center gap-1 text-amber-500 font-bold"><i class="fa-solid fa-star"></i> 4.8</span>
-                                    <span class="flex items-center gap-1"><i class="fa-regular fa-clock"></i> 30-40 دقيقة</span>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                });
-            } catch (err) {
-                console.error(err);
-                grid.innerHTML = `<p class="col-span-full text-center text-red-500">حدث خطأ أثناء تحميل المطاعم.</p>`;
-            }
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>سفرة</title>
+    <meta http-equiv="refresh" content="0; url=المطاعم.html">
+    <link rel="canonical" href="المطاعم.html">
+    <style>
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0b3b2c;
+            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
         }
-
-        window.addEventListener('DOMContentLoaded', loadRestaurants);
-    </script>
+        .splash {
+            text-align: center;
+            color: #ffffff;
+        }
+        .splash img {
+            width: 96px;
+            height: 96px;
+            border-radius: 20px;
+            margin-bottom: 16px;
+        }
+        .spinner {
+            width: 32px;
+            height: 32px;
+            margin: 16px auto 0;
+            border: 3px solid rgba(255,255,255,0.25);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        p {
+            margin-top: 12px;
+            opacity: 0.85;
+        }
+    </style>
 </head>
-<body class="bg-gray-50 min-h-screen text-gray-800 font-sans">
-
-    <!-- الهيدر المشترك: بيتحمّل تلقائيًا من shared-header.js -->
-    <div id="app-header"></div>
-    <script type="module" src="shared-header.js"></script>
-
-    <!-- قسم الهيرو والبحث الترحيبي -->
-    <section class="bg-gradient-to-r from-amber-600 to-amber-700 text-white py-16 px-4 text-center">
-        <div class="max-w-3xl mx-auto">
-            <h1 class="text-3xl sm:text-4xl font-extrabold mb-4">اطلب وجبتك المفضلة من أفضل المطاعم</h1>
-            <p class="text-amber-100 text-sm sm:text-base mb-8">توصيل سريع، أكل ساخن، وبأفضل الأسعار حتى باب بيتك.</p>
-            <div class="bg-white p-2 rounded-full shadow-lg flex items-center max-w-xl mx-auto">
-                <i class="fa-solid fa-magnifying-glass text-gray-400 mr-3 ml-2"></i>
-                <input type="text" placeholder="ابحث عن مطعم أو وجبة معينة..." class="w-full bg-transparent border-none focus:outline-none text-gray-800 text-sm px-2">
-                <button class="bg-amber-600 text-white px-6 py-3 rounded-full text-sm font-bold hover:bg-amber-700 transition">ابحث</button>
-            </div>
-        </div>
-    </section>
-
-    <!-- محتوى المطاعم -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div class="flex justify-between items-center mb-8">
-            <h2 class="text-2xl font-bold text-gray-800">المطاعم المتاحة</h2>
-            <span class="text-sm text-gray-500 font-medium">أفضل الأماكن بالقرب منك</span>
-        </div>
-
-        <!-- شبكة عرض المطاعم -->
-        <div id="restaurants-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <!-- المطاعم ستظهر هنا تلقائياً -->
-        </div>
-    </main>
-
+<body>
+    <div class="splash">
+        <img src="logo.png" alt="سفرة" onerror="this.style.display='none'">
+        <div class="spinner"></div>
+        <p>جارِ التحويل...</p>
+    </div>
+    <script>
+        // تحويل فوري عن طريق JavaScript (احتياطي في حال meta refresh ما اشتغل)
+        window.location.replace("المطاعم.html");
+    </script>
 </body>
 </html>

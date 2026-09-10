@@ -2,106 +2,437 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>لوحة تحكم الطلبات - سفرة</title>
+    <link rel="stylesheet" href="app-shell.css">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'safra-dark': '#0b3b2c',
+              'safra-green': '#2e6f40',
+              'safra-cream': '#fbf9f5',
+              'safra-gold': '#d97706',
+              'safra-gold-dark': '#b45309',
+            }
+          }
+        }
+      }
+    </script>
 </head>
-<body class="bg-gray-100 min-h-screen p-6">
+<body class="app-wide bg-safra-cream min-h-screen p-4 sm:p-6">
 
-    <div class="max-w-4xl mx-auto bg-white rounded-lg shadow-md p-6">
-        <h1 class="text-2xl font-bold text-amber-600 mb-6">إدارة طلبات العملاء</h1>
+    <div class="bg-white rounded-lg shadow-md p-4 sm:p-6" style="margin-top: env(safe-area-inset-top);">
+        <div class="flex items-center gap-3 mb-6">
+            <img src="logo.png" alt="سفرة" class="h-9 w-9 sm:h-10 sm:w-10 object-contain rounded-full shrink-0">
+            <h1 class="text-lg sm:text-2xl font-bold text-safra-gold">إدارة طلبات العملاء</h1>
+        </div>
         
+        <div id="filter-bar" class="flex flex-wrap gap-2 mb-4"></div>
+
         <div id="orders-list" class="space-y-4">
             <p class="text-gray-500">جاري جلب الطلبات...</p>
         </div>
     </div>
 
     <script type="module">
-        import { db } from "./firebase-config.js";
-        import { collection, getDocs, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { auth, db } from "./firebase-config.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { collection, query, where, getDocs, doc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { initPushNotifications } from "./push-notifications.js";
+
+        // تفعيل الإشعارات الفورية (Push) لموظف/صاحب لوحة إدارة الطلبات
+        initPushNotifications();
 
         const ordersListDiv = document.getElementById('orders-list');
+        const filterBarDiv = document.getElementById('filter-bar');
 
-        async function fetchOrders() {
+        // ===== حالة الفلترة الحالية =====
+        let currentFilter = 'الكل';
+        let allOrdersCache = []; // آخر نسخة من الطلبات (تُحدَّث فورياً من onSnapshot)
+        let knownOrderIds = new Set(); // لمعرفة الطلبات الجديدة اللي لسا ما ظهرت
+        let isFirstLoad = true;
+
+        const FILTERS = ['الكل', 'قيد المعالجة', 'تم القبول', 'قيد التنفيذ', 'تم الشحن', 'تم التسليم', 'مرفوض'];
+
+        function renderFilterBar() {
+            filterBarDiv.innerHTML = FILTERS.map(f => {
+                const count = f === 'الكل'
+                    ? allOrdersCache.length
+                    : allOrdersCache.filter(o => (o.status || 'قيد المعالجة') === f).length;
+                const active = f === currentFilter;
+                return `<button onclick="setFilter('${f}')" class="px-3 py-1.5 rounded-full text-xs font-semibold border transition ${active ? 'bg-safra-gold text-white border-safra-gold' : 'bg-white text-gray-600 border-gray-300 hover:border-safra-gold'}">${f} (${count})</button>`;
+            }).join('');
+        }
+
+        window.setFilter = function(f) {
+            currentFilter = f;
+            renderFilterBar();
+            renderOrders();
+        }
+
+        // ===== حماية الصفحة: لازم تسجيل دخول، وجلب المطعم المرتبط بالمستخدم =====
+        // (بدون هذا، استعلام الطلبات كان يجيب كل الطلبات بدون فلترة، وهذا يتعارض
+        // مع firestore.rules اللي بتشترط قراءة الطلبات فقط لصاحب المطعم المرتبط بيها)
+        let myRestaurantId = null;
+
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                window.location.href = "Auth.html";
+                return;
+            }
             try {
-                const querySnapshot = await getDocs(collection(db, "orders"));
-                ordersListDiv.innerHTML = "";
-                
-                if (querySnapshot.empty) {
-                    ordersListDiv.innerHTML = "<p class='text-gray-500'>لا توجد طلبات حالياً.</p>";
+                const q = query(collection(db, "restaurants"), where("ownerEmail", "==", user.email));
+                const snap = await getDocs(q);
+                if (snap.empty) {
+                    ordersListDiv.innerHTML = "<p class='text-gray-500'>لا يوجد مطعم مرتبط بهذا الحساب.</p>";
                     return;
                 }
-
-                querySnapshot.forEach((docSnap) => {
-                    const order = docSnap.data();
-                    const orderId = docSnap.id;
-
-                    const email = order.userEmail || order.email || 'غير متوفر';
-                    const total = order.total !== undefined ? order.total : 'غير متوفر';
-                    const status = order.status || 'قيد المعالجة';
-
-                    // قراءة عناصر المنيو بشكل دقيق مطابق لبيانات فايربيس
-                    let itemsHtml = '<ul class="list-disc list-inside text-sm text-gray-700 mt-1 space-y-1">';
-                    if (order.items && Array.isArray(order.items) && order.items.length > 0) {
-                        order.items.forEach(item => {
-                            const itemName = item.name || 'وجبة';
-                            const itemQty = item.qty || 1;
-                            const itemPrice = item.price ? ` - السعر: ${item.price} د.أ` : '';
-                            itemsHtml += `<li><span class="font-medium">${itemName}</span> (الكمية: ${itemQty})${itemPrice}</li>`;
-                        });
-                    } else {
-                        itemsHtml += '<li class="text-gray-400">لا توجد أصناف مسجلة</li>';
-                    }
-                    itemsHtml += '</ul>';
-
-                    const orderCard = document.createElement('div');
-                    orderCard.className = "border border-gray-200 rounded-lg p-4 flex justify-between items-center bg-gray-50 shadow-sm";
-                    orderCard.innerHTML = `
-                        <div class="flex-1">
-                            <p class="text-sm font-bold text-gray-800">رقم الطلب: <span class="text-gray-500 font-normal">${orderId}</span></p>
-                            <p class="text-sm text-gray-600">العميل: ${email}</p>
-                            <p class="text-sm text-gray-600">الإجمالي: <span class="font-semibold text-amber-600">${total} د.أ</span></p>
-                            
-                            <div class="mt-3 bg-white p-3 rounded border border-gray-200">
-                                <p class="text-xs font-bold text-gray-700 mb-1">الوجبات المطلوبة:</p>
-                                ${itemsHtml}
-                            </div>
-
-                            <p class="text-sm mt-3">الحالة: <span class="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-bold">${status}</span></p>
-                        </div>
-                        <div class="mr-4">
-                            <button onclick="changeStatus('${orderId}')" class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition">
-                                جعلها "تم الشحن"
-                            </button>
-                        </div>
-                    `;
-                    ordersListDiv.appendChild(orderCard);
-                });
+                myRestaurantId = snap.docs[0].id;
+                listenToOrders();
             } catch (error) {
-                console.error("خطأ في جلب الطلبات: ", error);
-                ordersListDiv.innerHTML = `<p class='text-red-500'>حدث خطأ أثناء تحميل الطلبات: ${error.message}</p>`;
+                console.error("تعذر تحميل بيانات المطعم:", error);
+                ordersListDiv.innerHTML = `<p class='text-red-500'>حدث خطأ أثناء تحميل بيانات المطعم: ${error.message}</p>`;
+            }
+        });
+
+        // ===== تنبيه فريق المطعم عند حلول موعد الطلب المسبق =====
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        function playAlertSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                if (ctx.state === 'suspended') { ctx.resume(); }
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.connect(g);
+                g.connect(ctx.destination);
+                o.type = 'sine';
+                o.frequency.value = 880;
+                g.gain.setValueAtTime(0.2, ctx.currentTime);
+                o.start();
+                o.stop(ctx.currentTime + 0.5);
+            } catch (e) { /* تجاهل لو المتصفح ما يدعم الصوت */ }
+        }
+
+        // نغمتين متتاليتين (أوضح للمنبه المستمر من نغمة وحدة)
+        function playAlarmBeep() {
+            playAlertSound();
+            setTimeout(playAlertSound, 350);
+        }
+
+        function showNewOrderAlert(orderId) {
+            const banner = document.createElement('div');
+            banner.className = "app-toast bg-safra-green text-white px-4 py-3 rounded-lg shadow-lg text-sm font-semibold text-center";
+            banner.innerText = `🔔 طلب جديد وصل! رقم ${orderId}`;
+            document.body.appendChild(banner);
+            setTimeout(() => banner.remove(), 8000);
+
+            playAlertSound();
+
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('سفرة - طلب جديد', {
+                    body: `وصل طلب جديد رقم ${orderId}`,
+                    icon: 'logo.png'
+                });
             }
         }
 
-        async function updateOrderStatus(orderId, newStatus) {
+        // لون وخلفية كل حالة
+        const STATUS_STYLES = {
+            'قيد المعالجة': 'bg-yellow-100 text-yellow-800',
+            'تم القبول': 'bg-blue-100 text-blue-800',
+            'قيد التنفيذ': 'bg-purple-100 text-purple-800',
+            'تم الشحن': 'bg-indigo-100 text-indigo-800',
+            'تم التسليم': 'bg-green-100 text-green-800',
+            'مرفوض': 'bg-red-100 text-red-800',
+        };
+        function statusClass(status) {
+            return STATUS_STYLES[status] || 'bg-gray-100 text-gray-800';
+        }
+
+        function showScheduleAlert(orderId) {
+            const banner = document.createElement('div');
+            banner.className = "app-toast bg-red-600 text-white px-4 py-3 rounded-lg shadow-lg text-sm font-semibold text-center";
+            banner.innerText = `⏰ حان موعد تجهيز الطلب المسبق رقم ${orderId} الآن!`;
+            document.body.appendChild(banner);
+            setTimeout(() => banner.remove(), 8000);
+
+            playAlertSound();
+
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('سفرة - تنبيه طلب مسبق', {
+                    body: `حان موعد تجهيز الطلب رقم ${orderId}`,
+                    icon: 'logo.png'
+                });
+            }
+        }
+
+        let scheduleWatcher = null;
+        function startScheduleWatcher(scheduledOrders) {
+            if (scheduleWatcher) clearInterval(scheduleWatcher);
+            if (!scheduledOrders.length) return;
+
+            const checkNow = async () => {
+                const now = new Date();
+                for (const o of scheduledOrders) {
+                    if (o.notified || !o.scheduledFor) continue;
+                    if (now >= o.scheduledFor) {
+                        o.notified = true;
+                        showScheduleAlert(o.id);
+                        try {
+                            await updateDoc(doc(db, "orders", o.id), {
+                                status: "قيد المعالجة",
+                                scheduleNotified: true
+                            });
+                            // onSnapshot رح يحدّث القائمة تلقائياً
+                        } catch (e) {
+                            console.error("تعذر تحديث حالة الطلب المسبق:", e);
+                        }
+                    }
+                }
+            };
+
+            checkNow();
+            scheduleWatcher = setInterval(checkNow, 15000);
+        }
+        // ===== منبه مستمر: يظل يرن لحد ما صاحب المطعم يقبل الطلب أو يرفضه =====
+        let alarmInterval = null;
+        let alarmBanner = null;
+
+        function pendingOrdersCount() {
+            return allOrdersCache.filter(o => (o.status || 'قيد المعالجة') === 'قيد المعالجة').length;
+        }
+
+        function updateAlarmBanner() {
+            if (!alarmBanner) return;
+            const n = pendingOrdersCount();
+            alarmBanner.innerText = `🔔 لديك ${n} طلب${n > 1 ? 'ات' : ''} بانتظار الرد - اضغط قبول أو رفض لإيقاف المنبه`;
+        }
+
+        function startAlarm() {
+            if (alarmInterval) { updateAlarmBanner(); return; } // شغّال مسبقاً، بس حدّث العداد
+            alarmBanner = document.createElement('div');
+            alarmBanner.id = 'alarm-banner';
+            alarmBanner.className = "fixed top-0 left-0 right-0 z-50 bg-red-600 text-white text-center py-3 font-bold text-sm shadow-lg animate-pulse";
+            document.body.appendChild(alarmBanner);
+            document.body.style.paddingTop = '52px';
+            updateAlarmBanner();
+
+            playAlarmBeep();
+            if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+
+            alarmInterval = setInterval(() => {
+                playAlarmBeep();
+                if (navigator.vibrate) navigator.vibrate([300, 150, 300]);
+                updateAlarmBanner();
+            }, 3000);
+        }
+
+        function stopAlarm() {
+            if (alarmInterval) {
+                clearInterval(alarmInterval);
+                alarmInterval = null;
+            }
+            if (alarmBanner) {
+                alarmBanner.remove();
+                alarmBanner = null;
+                document.body.style.paddingTop = '';
+            }
+        }
+
+        function checkAlarmState() {
+            if (pendingOrdersCount() > 0) {
+                startAlarm();
+            } else {
+                stopAlarm();
+            }
+        }
+        // ===== نهاية منطق التنبيه =====
+
+        // ===== استماع فوري (Real-time) لطلبات المطعم: أي تغيير بفايربيس بينعكس فوراً بدون Refresh =====
+        function listenToOrders() {
+            if (!myRestaurantId) return;
+            const q = query(collection(db, "orders"), where("restaurantId", "==", myRestaurantId));
+            onSnapshot(q, (querySnapshot) => {
+                const orders = [];
+                querySnapshot.forEach((docSnap) => {
+                    orders.push({ id: docSnap.id, ...docSnap.data() });
+                });
+
+                // كشف الطلبات الجديدة اللي لسا ما شفناها (بعد أول تحميل فقط)
+                if (!isFirstLoad) {
+                    orders.forEach(o => {
+                        if (!knownOrderIds.has(o.id)) {
+                            showNewOrderAlert(o.id);
+                        }
+                    });
+                }
+                knownOrderIds = new Set(orders.map(o => o.id));
+                isFirstLoad = false;
+
+                allOrdersCache = orders;
+                checkAlarmState();
+                renderFilterBar();
+                renderOrders();
+            }, (error) => {
+                console.error("خطأ في متابعة الطلبات: ", error);
+                ordersListDiv.innerHTML = `<p class='text-red-500'>حدث خطأ أثناء تحميل الطلبات: ${error.message}</p>`;
+            });
+        }
+
+        function renderOrders() {
+            ordersListDiv.innerHTML = "";
+            const scheduledOrders = [];
+
+            const filtered = currentFilter === 'الكل'
+                ? allOrdersCache
+                : allOrdersCache.filter(o => (o.status || 'قيد المعالجة') === currentFilter);
+
+            if (filtered.length === 0) {
+                ordersListDiv.innerHTML = "<p class='text-gray-500'>لا توجد طلبات في هذا التصنيف.</p>";
+            }
+
+            filtered.forEach((order) => {
+                const orderId = order.id;
+
+                const email = order.userEmail || order.email || 'غير متوفر';
+                const total = order.total !== undefined ? order.total : 'غير متوفر';
+                const status = order.status || 'قيد المعالجة';
+
+                // شارة الطلب المسبق (المجدول) + تجميعه لمراقبة الموعد
+                let scheduleHtml = '';
+                if (order.isScheduled && order.scheduledFor?.toDate) {
+                    const schedDate = order.scheduledFor.toDate();
+                    scheduleHtml = `<p class="text-xs font-bold text-red-600 mt-1">🕒 طلب مسبق - موعد التجهيز: ${schedDate.toLocaleString('ar-EG')}</p>`;
+                    if (!order.scheduleNotified) {
+                        scheduledOrders.push({ id: orderId, scheduledFor: schedDate, notified: false });
+                    }
+                }
+
+                // سبب الرفض (لو موجود)
+                let rejectionHtml = '';
+                if (status === 'مرفوض' && order.rejectionReason) {
+                    rejectionHtml = `<p class="text-xs text-red-600 mt-1">سبب الرفض: ${order.rejectionReason}</p>`;
+                }
+
+                // قراءة عناصر المنيو بشكل دقيق مطابق لبيانات فايربيس
+                let itemsHtml = '<ul class="list-disc list-inside text-sm text-gray-700 mt-1 space-y-1">';
+                if (order.items && Array.isArray(order.items) && order.items.length > 0) {
+                    order.items.forEach(item => {
+                        const itemName = item.name || 'وجبة';
+                        const itemQty = item.qty || 1;
+                        const itemPrice = item.price ? ` - السعر: ${item.price} د.أ` : '';
+                        itemsHtml += `<li><span class="font-medium">${itemName}</span> (الكمية: ${itemQty})${itemPrice}</li>`;
+                    });
+                } else {
+                    itemsHtml += '<li class="text-gray-400">لا توجد أصناف مسجلة</li>';
+                }
+                itemsHtml += '</ul>';
+
+                const orderCard = document.createElement('div');
+                orderCard.className = "border border-gray-200 rounded-lg p-4 flex justify-between items-center bg-gray-50 shadow-sm";
+                orderCard.innerHTML = `
+                    <div class="flex-1">
+                        <p class="text-sm font-bold text-gray-800">رقم الطلب: <span class="text-gray-500 font-normal">${orderId}</span></p>
+                        <p class="text-sm text-gray-600">العميل: ${email}</p>
+                        <p class="text-sm text-gray-600">الإجمالي: <span class="font-semibold text-safra-gold">${total} د.أ</span></p>
+                        ${scheduleHtml}
+                        
+                        <div class="mt-3 bg-white p-3 rounded border border-gray-200">
+                            <p class="text-xs font-bold text-gray-700 mb-1">الوجبات المطلوبة:</p>
+                            ${itemsHtml}
+                        </div>
+
+                        <p class="text-sm mt-3">الحالة: <span class="px-2 py-1 ${statusClass(status)} rounded text-xs font-bold">${status}</span></p>
+                        ${rejectionHtml}
+                    </div>
+                    <div class="mr-4 flex flex-col gap-2">
+                        ${status === 'قيد المعالجة' ? `
+                        <button onclick="acceptOrder('${orderId}')" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition">
+                            قبول الطلب
+                        </button>
+                        <button onclick="rejectOrder('${orderId}')" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-red-700 transition">
+                            رفض الطلب
+                        </button>
+                        ` : ''}
+                        ${status === 'تم القبول' ? `
+                        <button onclick="startPreparing('${orderId}')" class="bg-purple-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-purple-700 transition">
+                            بدء التحضير (قيد التنفيذ)
+                        </button>
+                        ` : ''}
+                        ${status === 'قيد التنفيذ' ? `
+                        <button onclick="markHandedToDriver('${orderId}')" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition">
+                            🚗 تم تسليم الطلب للسائق
+                        </button>
+                        <button onclick="markSelfPickup('${orderId}')" class="bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-teal-700 transition">
+                            🏠 استلمه الزبون من المطعم
+                        </button>
+                        ` : ''}
+                        ${status === 'تم الشحن' ? `
+                        <button onclick="confirmDelivered('${orderId}')" class="bg-green-600 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-green-700 transition">
+                            ✅ تأكيد وصول الطلب للزبون
+                        </button>
+                        ` : ''}
+                        ${status === 'تم التسليم' ? `
+                        <span class="text-xs font-semibold text-green-700">
+                            ✅ الطلب مكتمل
+                        </span>
+                        ` : ''}
+                    </div>
+                `;
+                ordersListDiv.appendChild(orderCard);
+            });
+
+            startScheduleWatcher(scheduledOrders);
+        }
+
+        async function updateOrderStatus(orderId, newStatus, extraFields = {}) {
             try {
                 const orderRef = doc(db, "orders", orderId);
                 await updateDoc(orderRef, {
-                    status: newStatus
+                    status: newStatus,
+                    ...extraFields
                 });
-                alert("تم تحديث حالة الطلب بنجاح إلى: " + newStatus);
-                fetchOrders();
+                // ما في حاجة نعمل fetch يدوي: onSnapshot رح يحدّث القائمة تلقائياً
             } catch (error) {
                 console.error("خطأ أثناء تحديث الحالة: ", error);
                 alert("حدث خطأ أثناء التحديث: " + error.message);
             }
         }
 
-        window.changeStatus = function(orderId) {
-            updateOrderStatus(orderId, "تم الشحن");
+        window.acceptOrder = function(orderId) {
+            updateOrderStatus(orderId, "تم القبول");
         }
 
-        fetchOrders();
+        window.startPreparing = function(orderId) {
+            updateOrderStatus(orderId, "قيد التنفيذ");
+        }
+
+        // السائق استلم الطلب من المطعم → عند الزبون بيصير "طلبك في الطريق إليك"
+        window.markHandedToDriver = function(orderId) {
+            updateOrderStatus(orderId, "تم الشحن", { deliveryMethod: "driver" });
+        }
+
+        // الزبون استلم طلبه بنفسه من المطعم → الطلب بينتهي فورًا (بالهناء والشفاء)
+        window.markSelfPickup = function(orderId) {
+            updateOrderStatus(orderId, "تم التسليم", { deliveryMethod: "selfPickup" });
+        }
+
+        // تأكيد وصول الطلب للزبون بعد ما كان بالطريق مع السائق (بالهناء والشفاء)
+        window.confirmDelivered = function(orderId) {
+            updateOrderStatus(orderId, "تم التسليم");
+        }
+
+        window.rejectOrder = function(orderId) {
+            const reason = prompt("سبب رفض الطلب (اختياري):", "");
+            if (reason === null) return; // المستخدم دوس إلغاء
+            updateOrderStatus(orderId, "مرفوض", reason ? { rejectionReason: reason } : {});
+        }
     </script>
 </body>
 </html>
