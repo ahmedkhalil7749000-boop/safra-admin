@@ -8,20 +8,24 @@
 
 import { auth } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { initPushNotifications } from "./push-notifications.js";
-
-// تفعيل نظام الإشعارات الفورية (Push) لكل صفحة تستخدم الهيدر المشترك
-initPushNotifications();
 
 // -------- شكل الهيدر: عدّل هون لو بدك تغيّر الشعار/الروابط/الألوان --------
 const headerHTML = `
     <header class="bg-white sticky top-0 z-50 shadow-sm border-b border-gray-100">
-        <div class="mx-auto px-4 h-16 flex justify-between items-center">
-            <a href="index.html" class="text-lg font-black text-safra-dark tracking-tight flex items-center gap-2">
-                <img src="logo.png" alt="سفرة" class="h-9 w-9 object-contain rounded-full">
-                سفرة
-            </a>
-            <div id="auth-actions" class="flex items-center gap-3"></div>
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex justify-between items-center">
+            <div class="flex items-center gap-8">
+                <a href="index.html" class="text-2xl font-black text-amber-600 tracking-tight flex items-center gap-2">
+                    🍽️ سفرة
+                </a>
+                <nav class="hidden md:flex items-center gap-6 text-sm font-semibold text-gray-600">
+                    <a href="index.html" class="hover:text-amber-600 transition">الرئيسية</a>
+                    <a href="المطاعم.html" class="hover:text-amber-600 transition">المطاعم</a>
+                    <a href="cart.html" class="hover:text-amber-600 transition">السلة</a>
+                    <a href="orders.html" class="hover:text-amber-600 transition">طلباتي</a>
+                    <a href="لوحة_المطعم.html" class="hover:text-amber-600 transition">لوحة المطعم</a>
+                </nav>
+            </div>
+            <div id="auth-actions" class="flex items-center gap-4"></div>
         </div>
     </header>
 `;
@@ -46,16 +50,14 @@ onAuthStateChanged(auth, (user) => {
 
     if (user) {
         authActions.innerHTML = `
-            <div class="flex items-center gap-2">
-                <span class="text-xs font-medium text-gray-500 max-w-[110px] truncate">${user.email}</span>
-                <button onclick="handleLogout()" class="bg-red-50 text-red-600 w-8 h-8 flex items-center justify-center rounded-full text-sm hover:bg-red-100 transition" title="تسجيل خروج">
-                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
-                </button>
+            <div class="flex items-center gap-3">
+                <span class="text-sm font-medium text-gray-700 hidden sm:inline">${user.email}</span>
+                <button onclick="handleLogout()" class="bg-red-50 text-red-600 px-3 py-1.5 rounded-full text-sm font-semibold hover:bg-red-100 transition">تسجيل خروج</button>
             </div>
         `;
     } else {
         authActions.innerHTML = `
-            <a href="Auth.html" class="bg-safra-gold text-white px-3 py-1.5 rounded-full text-xs sm:text-sm font-semibold hover:bg-safra-gold-dark transition shadow-sm">تسجيل الدخول</a>
+            <a href="Auth.html" class="bg-amber-600 text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-amber-700 transition shadow-sm">تسجيل الدخول / إنشاء حساب</a>
         `;
     }
 });
