@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>تفاصيل المطعم - سفرة</title>
+    <link rel="stylesheet" href="app-shell.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'safra-dark': '#0b3b2c',
+              'safra-green': '#2e6f40',
+              'safra-cream': '#fbf9f5',
+              'safra-gold': '#d97706',
+              'safra-gold-dark': '#b45309',
+            }
+          }
+        }
+      }
+    </script>
+</head>
+<body class="app-narrow bg-safra-cream min-h-screen">
+    <!-- الهيدر المشترك: بيتحمّل تلقائيًا من shared-header.js -->
+    <div id="app-header"></div>
+    <script type="module" src="shared-header.js"></script>
+
+    <div class="p-4">
+        <a href="restaurants.html" class="text-sm text-gray-500 hover:text-safra-gold inline-block mb-3">→ رجوع للمطاعم</a>
+
+        <div id="loading" class="text-center text-gray-500 py-10">جاري تحميل بيانات المطعم...</div>
+
+        <div id="closed-banner" class="hidden bg-red-50 border border-red-300 text-red-700 text-sm rounded-lg p-3 mb-4 text-center font-semibold">
+            🔴 هذا المطعم مغلق حالياً ولا يستقبل طلبات جديدة. جرّب ترجع لاحقاً.
+        </div>
+
+        <div id="restaurant-info" class="hidden bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 mb-6">
+            <img id="r-image" src="" alt="" class="w-full h-40 object-cover">
+            <div class="p-3">
+                <h1 id="r-name" class="text-lg font-bold text-safra-dark"></h1>
+                <p id="r-description" class="text-gray-500 text-sm mt-1"></p>
+                <div class="flex flex-wrap gap-3 text-xs text-gray-600 mt-2">
+                    <span id="r-rating"></span>
+                    <span id="r-time"></span>
+                    <span id="r-fee"></span>
+                </div>
+            </div>
+        </div>
+
+        <h2 class="text-lg font-bold text-safra-dark mb-3">المنيو</h2>
+        <div id="menu-list" class="grid grid-cols-1 gap-3"></div>
+
+        <!-- قسم التقييمات والمراجعات -->
+        <h2 class="text-lg font-bold text-safra-dark mb-3 mt-8">التقييمات والمراجعات</h2>
+
+        <div id="review-form-box" class="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6"></div>
+
+        <div id="reviews-loading" class="text-center text-gray-400 text-sm py-4">جاري تحميل التقييمات...</div>
+        <div id="reviews-empty" class="hidden text-center text-gray-500 text-sm py-4">لا يوجد تقييمات لهذا المطعم بعد. كن أول من يقيّمه!</div>
+        <div id="reviews-list" class="space-y-3 mb-6"></div>
+    </div>
+
+    <!-- شريط التنقل السفلي -->
+    <div id="app-bottom-nav"></div>
+    <script type="module" src="shared-bottom-nav.js"></script>
+
+    <script type="module">
+        import { db, auth } from "./firebase-config.js";
+        import {
+            doc, getDoc, updateDoc, collection, query, where, getDocs, addDoc, orderBy, serverTimestamp
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { addToCart as addToCartService } from "./cart-service.js";
+
+        const params = new URLSearchParams(window.location.search);
+        const restaurantId = params.get('id');
+
+        const loading = document.getElementById('loading');
+        const infoBox = document.getElementById('restaurant-info');
+        const closedBanner = document.getElementById('closed-banner');
+        const menuList = document.getElementById('menu-list');
+
+        let isRestaurantClosed = false;
+
+        const reviewFormBox = document.getElementById('review-form-box');
+        const reviewsLoading = document.getElementById('reviews-loading');
+        const reviewsEmpty = document.getElementById('reviews-empty');
+        const reviewsList = document.getElementById('reviews-list');
+
+        let currentUser = null;
+        let selectedStars = 0;
+
+        async function addToCart(restaurantId, item) {
+            if (isRestaurantClosed) {
+                alert('عذرًا، هذا المطعم مغلق حالياً ولا يستقبل طلبات جديدة.');
+                return;
+            }
+            await addToCartService(restaurantId, { ...item, qty: 1 });
+            alert(`تمت إضافة "${item.name}" للسلة`);
+        }
+
+        function starsHTML(rating, size = 'text-sm') {
+            let html = '';
+            for (let i = 1; i <= 5; i++) {
+                html += `<i class="fa-solid fa-star ${size} ${i <= Math.round(rating) ? 'text-safra-gold' : 'text-gray-300'}"></i>`;
+            }
+            return html;
+        }
+
+        function timeAgo(ts) {
+            if (!ts || !ts.toDate) return '';
+            const date = ts.toDate();
+            const diffMs = Date.now() - date.getTime();
+            const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+            if (days <= 0) return 'اليوم';
+            if (days === 1) return 'قبل يوم';
+            if (days < 30) return `قبل ${days} يوم`;
+            return date.toLocaleDateString('ar-EG');
+        }
+
+        // -------- رسم نموذج إضافة تقييم --------
+        function renderReviewForm() {
+            if (!currentUser) {
+                reviewFormBox.innerHTML = `
+                    <p class="text-sm text-gray-600 text-center">
+                        <a href="Auth.html" class="text-safra-gold font-semibold hover:underline">سجّل دخول</a>
+                        عشان تقدر تقيّم هذا المطعم.
+                    </p>
+                `;
+                return;
+            }
+
+            reviewFormBox.innerHTML = `
+                <h3 class="font-bold text-safra-dark mb-2 text-sm">أضف تقييمك</h3>
+                <div id="star-picker" class="flex gap-1 mb-3 text-2xl cursor-pointer"></div>
+                <textarea id="review-comment" rows="2" placeholder="شاركنا رأيك بالأكل والخدمة (اختياري)..."
+                    class="w-full border border-gray-300 rounded-lg p-2 text-sm focus:outline-none focus:ring-2 focus:ring-safra-gold"></textarea>
+                <button id="submit-review-btn" class="mt-3 bg-safra-gold text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-safra-gold-dark transition">
+                    إرسال التقييم
+                </button>
+                <p id="review-msg" class="text-xs mt-2"></p>
+            `;
+
+            const starPicker = document.getElementById('star-picker');
+            selectedStars = 0;
+            function drawPicker() {
+                starPicker.innerHTML = '';
+                for (let i = 1; i <= 5; i++) {
+                    const star = document.createElement('i');
+                    star.className = `fa-solid fa-star ${i <= selectedStars ? 'text-safra-gold' : 'text-gray-300'}`;
+                    star.addEventListener('click', () => { selectedStars = i; drawPicker(); });
+                    starPicker.appendChild(star);
+                }
+            }
+            drawPicker();
+
+            document.getElementById('submit-review-btn').addEventListener('click', submitReview);
+        }
+
+        async function submitReview() {
+            const msg = document.getElementById('review-msg');
+            if (selectedStars < 1) {
+                msg.textContent = 'اختر عدد النجوم أولاً.';
+                msg.className = 'text-xs mt-2 text-red-500';
+                return;
+            }
+
+            const comment = document.getElementById('review-comment').value.trim();
+            const btn = document.getElementById('submit-review-btn');
+            btn.disabled = true;
+            btn.textContent = 'جاري الإرسال...';
+
+            try {
+                await addDoc(collection(db, "reviews"), {
+                    restaurantId,
+                    customerId: currentUser.uid,
+                    customerEmail: currentUser.email,
+                    rating: selectedStars,
+                    comment,
+                    createdAt: serverTimestamp()
+                });
+
+                await recalcAndSaveRating();
+                await loadReviews();
+
+                msg.textContent = 'تم إرسال تقييمك، شكرًا إلك!';
+                msg.className = 'text-xs mt-2 text-safra-green font-semibold';
+                selectedStars = 0;
+                renderReviewForm();
+            } catch (err) {
+                msg.textContent = 'صار خطأ أثناء إرسال التقييم: ' + err.message;
+                msg.className = 'text-xs mt-2 text-red-500';
+                btn.disabled = false;
+                btn.textContent = 'إرسال التقييم';
+            }
+        }
+
+        // -------- إعادة حساب متوسط التقييم وتحديث وثيقة المطعم --------
+        async function recalcAndSaveRating() {
+            const q = query(collection(db, "reviews"), where("restaurantId", "==", restaurantId));
+            const snapshot = await getDocs(q);
+            const ratings = snapshot.docs.map(d => d.data().rating).filter(r => typeof r === 'number');
+            const count = ratings.length;
+            const avg = count ? (ratings.reduce((a, b) => a + b, 0) / count) : 0;
+
+            document.getElementById('r-rating').innerHTML = count
+                ? `${starsHTML(avg)} <span class="text-gray-500">(${avg.toFixed(1)} · ${count} تقييم)</span>`
+                : `<span class="text-gray-400">لا يوجد تقييمات بعد</span>`;
+
+            try {
+                await updateDoc(doc(db, "restaurants", restaurantId), {
+                    rating: Number(avg.toFixed(1)),
+                    reviewsCount: count
+                });
+            } catch (err) {
+                console.warn('تعذّر تحديث متوسط التقييم بوثيقة المطعم:', err.message);
+            }
+
+            return { avg, count };
+        }
+
+        // -------- عرض قائمة التقييمات --------
+        async function loadReviews() {
+            reviewsLoading.classList.remove('hidden');
+            reviewsEmpty.classList.add('hidden');
+            reviewsList.innerHTML = '';
+
+            try {
+                const q = query(
+                    collection(db, "reviews"),
+                    where("restaurantId", "==", restaurantId),
+                    orderBy("createdAt", "desc")
+                );
+                const snapshot = await getDocs(q);
+                reviewsLoading.classList.add('hidden');
+
+                if (snapshot.empty) {
+                    reviewsEmpty.classList.remove('hidden');
+                    return;
+                }
+
+                snapshot.forEach((docSnap) => {
+                    const rv = docSnap.data();
+                    const card = document.createElement('div');
+                    card.className = "bg-white rounded-lg shadow-sm border border-gray-200 p-3";
+                    card.innerHTML = `
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="font-semibold text-gray-800 text-sm">${(rv.customerEmail || 'زبون').split('@')[0]}</span>
+                            <span class="text-xs text-gray-400">${timeAgo(rv.createdAt)}</span>
+                        </div>
+                        <div class="mb-1">${starsHTML(rv.rating)}</div>
+                        ${rv.comment ? `<p class="text-sm text-gray-600">${rv.comment}</p>` : ''}
+                    `;
+                    reviewsList.appendChild(card);
+                });
+            } catch (err) {
+                reviewsLoading.classList.add('hidden');
+                // لو ما في index مركّب على Firestore بعد بيرجع خطأ - نعرضه بشكل مبسط
+                reviewsList.innerHTML = `<p class="text-sm text-red-500">تعذّر تحميل التقييمات: ${err.message}</p>`;
+            }
+        }
+
+        async function loadRestaurant() {
+            if (!restaurantId) {
+                loading.innerText = "ما في مطعم محدد. ارجع لصفحة المطاعم واختر واحد.";
+                return;
+            }
+
+            try {
+                const restaurantDoc = await getDoc(doc(db, "restaurants", restaurantId));
+                if (!restaurantDoc.exists()) {
+                    loading.innerText = "هذا المطعم غير موجود.";
+                    return;
+                }
+
+                const r = restaurantDoc.data();
+                isRestaurantClosed = r.status === 'متوقف';
+                closedBanner.classList.toggle('hidden', !isRestaurantClosed);
+                document.getElementById('r-image').src = r.image || 'https://via.placeholder.com/800x300?text=No+Image';
+                document.getElementById('r-name').innerText = r.name;
+                document.getElementById('r-description').innerText = r.description || '';
+                document.getElementById('r-rating').innerHTML = r.reviewsCount
+                    ? `${starsHTML(r.rating || 0)} <span class="text-gray-500">(${(r.rating ?? 0).toFixed ? r.rating.toFixed(1) : r.rating} · ${r.reviewsCount} تقييم)</span>`
+                    : `<span class="text-gray-400">لا يوجد تقييمات بعد</span>`;
+                document.getElementById('r-time').innerText = `🕒 ${r.deliveryTimeMinutes ?? '-'} دقيقة`;
+                document.getElementById('r-fee').innerText = `🚚 ${r.deliveryFee ?? '-'} د.أ`;
+
+                loading.classList.add('hidden');
+                infoBox.classList.remove('hidden');
+
+                // تم التعديل هنا: المنيو مخزن بتجميعة menuItems بالمستوى الأعلى
+                // (نفس المكان يلي restaurant-dashboard.html بتكتب فيه)، مش كـ subcollection جوا المطعم
+                const menuQuery = query(collection(db, "menuItems"), where("restaurantId", "==", restaurantId));
+                const menuSnapshot = await getDocs(menuQuery);
+
+                if (menuSnapshot.empty) {
+                    menuList.innerHTML = `<p class="text-gray-500 col-span-full">لا يوجد أصناف بالمنيو بعد.</p>`;
+                } else {
+                    menuSnapshot.forEach((itemDoc) => {
+                        const item = itemDoc.data();
+                        // تم التعديل هنا: اسم حقل الصورة الفعلي هو imageUrl (مش image)
+                        const itemImage = item.imageUrl || item.image || 'https://via.placeholder.com/100';
+                        const card = document.createElement('a');
+                        card.href = `meal-details.html?restaurantId=${restaurantId}&itemId=${itemDoc.id}`;
+                        card.className = "bg-white rounded-lg shadow-sm border border-gray-200 p-3 flex gap-3 items-center hover:shadow-md transition";
+                        card.innerHTML = `
+                            <img src="${itemImage}" class="w-20 h-20 object-cover rounded shrink-0">
+                            <div class="flex-1">
+                                <h3 class="font-bold text-gray-800">${item.name}</h3>
+                                <p class="text-xs text-gray-500">${item.description || ''}</p>
+                                <div class="flex justify-between items-center mt-2">
+                                    <span class="font-semibold text-safra-gold">${item.price} د.أ</span>
+                                    <button class="add-btn text-xs px-3 py-1 rounded transition ${isRestaurantClosed ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-safra-gold text-white hover:bg-safra-gold-dark'}">${isRestaurantClosed ? 'المطعم مغلق' : 'أضف للسلة'}</button>
+                                </div>
+                            </div>
+                        `;
+                        card.querySelector('.add-btn').addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            addToCart(restaurantId, { itemId: itemDoc.id, ...item, image: itemImage });
+                        });
+                        menuList.appendChild(card);
+                    });
+                }
+
+                // تحميل التقييمات بعد تحميل بيانات المطعم
+                loadReviews();
+            } catch (error) {
+                loading.innerText = "خطأ بتحميل بيانات المطعم: " + error.message;
+            }
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            renderReviewForm();
+        });
+
+        loadRestaurant();
+    </script>
+</body>
+</html>

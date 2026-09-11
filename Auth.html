@@ -58,7 +58,7 @@
 
         <!-- زر الانتقال السريع المباشر للوحة الإدارة عند النجاح -->
         <div id="admin-redirect-box" class="hidden mt-4 text-center">
-            <a href="لوحة_الإدارة.html" class="block w-full bg-safra-green text-white py-2.5 rounded-lg font-bold hover:bg-safra-dark transition shadow-md">
+            <a href="admin-dashboard.html" class="block w-full bg-safra-green text-white py-2.5 rounded-lg font-bold hover:bg-safra-dark transition shadow-md">
                 🚀 اضغط هنا للدخول إلى لوحة الإدارة فوراً
             </a>
         </div>
@@ -154,7 +154,7 @@
 
                     setTimeout(() => {
                         if (selectedRole === 'restaurant_owner') {
-                            window.location.href = "لوحة_المطعم.html";
+                            window.location.href = "restaurant-dashboard.html";
                         } else {
                             window.location.href = "index.html";
                         }
@@ -168,7 +168,7 @@
                         // هذا هو حساب المشرف فقط: أظهر زر لوحة الإدارة ووجّهه تلقائياً
                         adminRedirectBox.classList.remove('hidden');
                         setTimeout(() => {
-                            window.location.href = "لوحة_الإدارة.html";
+                            window.location.href = "admin-dashboard.html";
                         }, 1000);
                     } else {
                         // نجيب نوع الحساب من تجميعة users ونوجهه حسبه
@@ -177,7 +177,7 @@
 
                         setTimeout(() => {
                             if (role === 'restaurant_owner') {
-                                window.location.href = "لوحة_المطعم.html";
+                                window.location.href = "restaurant-dashboard.html";
                             } else {
                                 window.location.href = "index.html";
                             }

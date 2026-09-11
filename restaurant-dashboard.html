@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>لوحة تحكم المطعم - منصة سفرة</title>
+    <link rel="stylesheet" href="app-shell.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'safra-dark': '#0b3b2c',
+              'safra-green': '#2e6f40',
+              'safra-cream': '#fbf9f5',
+              'safra-gold': '#d97706',
+              'safra-gold-dark': '#b45309',
+            }
+          }
+        }
+      }
+    </script>
+    <!-- تضمين فايربيس (Firebase v10.8.0) -->
+    <script type="module">
+        import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, serverTimestamp, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { initPushNotifications } from "./push-notifications.js";
+        import { auth, db } from "./firebase-config.js";
+
+        // تفعيل الإشعارات الفورية (Push) لصاحب المطعم (تنبيهات الطلبات المسبقة والجديدة)
+        initPushNotifications();
+
+        // ==== رفع الصور عبر imgbb بدل Firebase Storage (لتفادي الاشتراك المدفوع) ====
+        const IMGBB_API_KEY = "7dfc52facabaef7d38eddf1c83976c5d";
+
+        async function uploadToImgbb(file) {
+            const formData = new FormData();
+            formData.append("image", file);
+            const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+                method: "POST",
+                body: formData
+            });
+            const result = await response.json();
+            if (!result.success) {
+                throw new Error((result.error && result.error.message) || "فشل رفع الصورة إلى imgbb");
+            }
+            return result.data.url;
+        }
+
+        let currentUserEmail = null;
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                document.getElementById('user-email').innerText = user.email;
+                currentUserEmail = user.email;
+                await loadMyRestaurant(user.email);
+                await loadSubscriptionBanner(user.uid);
+            } else {
+                window.location.href = "Auth.html";
+            }
+        });
+
+        // ===== شريط حالة الاشتراك (يعرض آخر حالة اشتراك لهذا المستخدم) =====
+        async function loadSubscriptionBanner(uid) {
+            const box = document.getElementById('subscription-banner');
+            if (!box) return;
+            try {
+                // ملاحظة: تفادينا هون استخدام orderBy مع where على حقل مختلف
+                // (بيحتاج فهرس مركّب بفايربيس)، وبدلها بنجيب كل طلبات هالمستخدم
+                // ونرتبها يدويًا بالجافاسكربت — أبسط وما بتحتاج نشر فهرس إضافي.
+                const q = query(collection(db, "subscriptions"), where("ownerUid", "==", uid));
+                const snap = await getDocs(q);
+
+                if (snap.empty) {
+                    box.innerHTML = `
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                            <p class="text-yellow-800 text-sm font-semibold">حسابك غير مفعّل بعد. اشترك الآن لتفعيل مطعمك على المنصة.</p>
+                            <a href="subscription.html" class="bg-safra-gold text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-safra-gold-dark transition whitespace-nowrap">اشترك الآن</a>
+                        </div>`;
+                    return;
+                }
+
+                // اختيار أحدث طلب اشتراك (الأكبر بـ createdAt) يدويًا
+                const docsData = snap.docs.map(d => d.data());
+                docsData.sort((a, b) => {
+                    const ta = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+                    const tb = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+                    return tb - ta;
+                });
+                const sub = docsData[0];
+                if (sub.status === "قيد المراجعة") {
+                    box.innerHTML = `
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800 text-sm font-semibold text-center">
+                            ⏳ طلب اشتراكك قيد المراجعة حاليًا من فريق سفرة.
+                        </div>`;
+                } else if (sub.status === "بانتظار كود التفعيل") {
+                    box.innerHTML = `
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                            <p class="text-blue-800 text-sm font-semibold">راجعنا طلبك! رح نرسلّك كود تفعيل، أدخله من صفحة الاشتراك لتفعيل حسابك فورًا.</p>
+                            <a href="subscription.html" class="bg-safra-green text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-safra-dark transition whitespace-nowrap">إدخال الكود</a>
+                        </div>`;
+                } else if (sub.status === "نشط") {
+                    const end = sub.endDate?.toDate ? sub.endDate.toDate() : new Date(sub.endDate);
+                    if (end && end.getTime() < Date.now()) {
+                        box.innerHTML = `
+                            <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                                <p class="text-orange-800 text-sm font-semibold">انتهت مدة اشتراكك. جدّده الآن حتى يبقى مطعمك مفعّلاً.</p>
+                                <a href="subscription.html" class="bg-safra-gold text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-safra-gold-dark transition whitespace-nowrap">تجديد الاشتراك</a>
+                            </div>`;
+                    } else {
+                        box.innerHTML = `
+                            <div class="bg-green-50 border border-green-200 rounded-lg p-4 text-green-800 text-sm font-semibold text-center">
+                                ✅ اشتراكك فعّال حتى ${end ? end.toLocaleDateString('ar-EG') : '-'}
+                            </div>`;
+                    }
+                } else if (sub.status === "مرفوض") {
+                    box.innerHTML = `
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                            <p class="text-red-800 text-sm font-semibold">تم رفض طلب اشتراكك السابق${sub.adminNote ? ': ' + sub.adminNote : ''}.</p>
+                            <a href="subscription.html" class="bg-safra-gold text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-safra-gold-dark transition whitespace-nowrap">إعادة المحاولة</a>
+                        </div>`;
+                } else {
+                    box.innerHTML = `
+                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                            <p class="text-yellow-800 text-sm font-semibold">اشتراكك منتهي. جدّده للاستمرار باستخدام المنصة.</p>
+                            <a href="subscription.html" class="bg-safra-gold text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-safra-gold-dark transition whitespace-nowrap">تجديد الاشتراك</a>
+                        </div>`;
+                }
+            } catch (error) {
+                console.error("تعذر تحميل حالة الاشتراك:", error);
+            }
+        }
+
+        async function loadMyRestaurant(email) {
+            try {
+                const q = query(collection(db, "restaurants"), where("ownerEmail", "==", email));
+                const querySnapshot = await getDocs(q);
+                
+                const container = document.getElementById('restaurant-info');
+                container.innerHTML = "";
+
+                if (querySnapshot.empty) {
+                    container.innerHTML = `
+                        <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
+                            <p class="text-gray-600 text-center mb-4">لا يوجد مطعم مرتبط بهذا الحساب حالياً. عبّي البيانات تحت لإنشاء مطعمك:</p>
+                            <form id="create-restaurant-form" class="space-y-3 max-w-md mx-auto">
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">اسم المطعم</label>
+                                    <input type="text" id="new-restaurant-name" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-safra-gold" placeholder="مثال: مطعم الأصالة">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">الوصف/التصنيف</label>
+                                    <input type="text" id="new-restaurant-description" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-safra-gold" placeholder="مثال: مأكولات شرقية">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">صورة المطعم (اختياري)</label>
+                                    <input type="file" id="new-restaurant-image" accept="image/*" class="w-full text-sm">
+                                </div>
+                                <button type="submit" class="w-full bg-safra-gold text-white py-2 rounded-lg font-semibold hover:bg-safra-gold-dark transition">إنشاء المطعم</button>
+                                <p id="create-restaurant-message" class="text-center text-sm font-semibold"></p>
+                            </form>
+                        </div>
+                    `;
+
+                    document.getElementById('create-restaurant-form').addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        const msg = document.getElementById('create-restaurant-message');
+                        const name = document.getElementById('new-restaurant-name').value.trim();
+                        const description = document.getElementById('new-restaurant-description').value.trim();
+                        const imageFile = document.getElementById('new-restaurant-image').files[0];
+
+                        if (!name) return;
+                        msg.className = "text-center text-sm font-semibold mt-2 text-blue-600";
+                        msg.innerText = "جاري الإنشاء...";
+
+                        try {
+                            let imageUrl = "";
+                            if (imageFile) {
+                                imageUrl = await uploadToImgbb(imageFile);
+                            }
+
+                            await addDoc(collection(db, "restaurants"), {
+                                name, description, status: "نشط", ownerEmail: currentUserEmail, imageUrl, createdAt: serverTimestamp()
+                            });
+                            msg.className = "text-center text-sm font-semibold mt-2 text-green-600";
+                            msg.innerText = "تم إنشاء المطعم بنجاح!";
+                            await loadMyRestaurant(currentUserEmail);
+                        } catch (error) {
+                            msg.className = "text-center text-sm font-semibold mt-2 text-red-500";
+                            msg.innerText = "خطأ: " + error.message;
+                        }
+                    });
+                    return;
+                }
+
+                querySnapshot.forEach((docSnap) => {
+                    const data = docSnap.data();
+                    const restaurantId = docSnap.id;
+                    container.innerHTML += `
+                        <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
+                            <div id="view-${restaurantId}">
+                                ${data.imageUrl ? `<img src="${data.imageUrl}" class="w-full h-40 object-cover rounded-lg mb-3">` : ''}
+                                <h2 class="text-xl font-bold text-safra-gold mb-2">${data.name || 'مطعمي'}</h2>
+                                <p class="text-gray-600 mb-1"><strong>الوصف/التصنيف:</strong> ${data.description || 'غير متوفر'}</p>
+                                <p class="text-gray-600 mb-3"><strong>الحالة:</strong> <span class="text-green-600 font-semibold">${data.status || 'نشط'}</span></p>
+                                <div class="flex gap-2">
+                                    <button data-id="${restaurantId}" class="edit-restaurant-btn bg-safra-gold text-white px-4 py-2 rounded text-sm hover:bg-safra-gold">تعديل بيانات المطعم</button>
+                                    <button data-id="${restaurantId}" class="manage-items-btn bg-gray-800 text-white px-4 py-2 rounded text-sm hover:bg-gray-900">إدارة الأصناف والوجبات</button>
+                                </div>
+                            </div>
+
+                            <div id="edit-form-${restaurantId}" class="hidden mt-3 border-t pt-3 space-y-3">
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">اسم المطعم</label>
+                                    <input type="text" id="edit-name-${restaurantId}" value="${data.name || ''}" class="w-full px-3 py-2 border rounded-lg">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">الوصف/التصنيف</label>
+                                    <input type="text" id="edit-description-${restaurantId}" value="${data.description || ''}" class="w-full px-3 py-2 border rounded-lg">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">الحالة</label>
+                                    <select id="edit-status-${restaurantId}" class="w-full px-3 py-2 border rounded-lg">
+                                        <option value="نشط" ${data.status === 'نشط' || !data.status ? 'selected' : ''}>نشط</option>
+                                        <option value="متوقف" ${data.status === 'متوقف' ? 'selected' : ''}>متوقف</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">صورة المطعم (اختياري)</label>
+                                    <input type="file" id="edit-image-${restaurantId}" accept="image/*" class="w-full text-sm">
+                                </div>
+                                <div class="flex gap-2">
+                                    <button data-id="${restaurantId}" class="save-restaurant-btn bg-safra-gold text-white px-4 py-2 rounded text-sm">حفظ التعديلات</button>
+                                    <button data-id="${restaurantId}" class="cancel-edit-btn bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm">إلغاء</button>
+                                </div>
+                                <p id="edit-message-${restaurantId}" class="text-sm font-semibold"></p>
+                            </div>
+
+                            <!-- قسم إدارة الأصناف -->
+                            <div id="items-section-${restaurantId}" class="hidden mt-3 border-t pt-3">
+                                <h3 class="font-bold text-gray-800 mb-2">الأصناف والوجبات</h3>
+                                <div id="items-list-${restaurantId}" class="space-y-2 mb-3">
+                                    <p class="text-gray-400 text-sm">جاري التحميل...</p>
+                                </div>
+                                
+                                <!-- نموذج إضافة صنف جديد مع حقل الوصف -->
+                                <form id="add-item-form-${restaurantId}" class="bg-gray-50 p-3 rounded-lg border border-gray-200 space-y-3">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                        <div>
+                                            <label class="block text-xs font-semibold text-gray-600 mb-1">اسم الصنف</label>
+                                            <input type="text" id="item-name-${restaurantId}" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-safra-gold">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs font-semibold text-gray-600 mb-1">السعر (د.أ)</label>
+                                            <input type="number" step="0.01" id="item-price-${restaurantId}" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-safra-gold">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-600 mb-1">وصف الصنف أو المكونات</label>
+                                        <textarea id="item-desc-${restaurantId}" rows="2" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-safra-gold" placeholder="مثال: لحم شهي مع جبنة ومخلل..."></textarea>
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                                        <div>
+                                            <label class="block text-xs font-semibold text-gray-600 mb-1">صورة الصنف (اختياري)</label>
+                                            <input type="file" id="item-image-${restaurantId}" accept="image/*" class="w-full text-xs">
+                                        </div>
+                                        <button type="submit" class="w-full bg-safra-green text-white py-2 rounded text-sm hover:bg-safra-dark font-semibold mt-4">إضافة الوجبة للمنيو</button>
+                                    </div>
+                                </form>
+                                <p id="item-message-${restaurantId}" class="text-sm font-semibold mt-2 text-center"></p>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                // تفعيل الأزرار والتفاعلات
+                container.querySelectorAll('.edit-restaurant-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.dataset.id;
+                        document.getElementById(`view-${id}`).classList.add('hidden');
+                        document.getElementById(`edit-form-${id}`).classList.remove('hidden');
+                    });
+                });
+
+                container.querySelectorAll('.cancel-edit-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.dataset.id;
+                        document.getElementById(`edit-form-${id}`).classList.add('hidden');
+                        document.getElementById(`view-${id}`).classList.remove('hidden');
+                    });
+                });
+
+                container.querySelectorAll('.save-restaurant-btn').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const id = btn.dataset.id;
+                        const msg = document.getElementById(`edit-message-${id}`);
+                        const name = document.getElementById(`edit-name-${id}`).value.trim();
+                        const description = document.getElementById(`edit-description-${id}`).value.trim();
+                        const status = document.getElementById(`edit-status-${id}`).value;
+                        const imageFile = document.getElementById(`edit-image-${id}`).files[0];
+
+                        if (!name) return;
+                        msg.className = "text-sm font-semibold text-blue-600";
+                        msg.innerText = "جاري الحفظ...";
+
+                        try {
+                            const updateData = { name, description, status };
+                            if (imageFile) {
+                                updateData.imageUrl = await uploadToImgbb(imageFile);
+                            }
+                            await updateDoc(doc(db, "restaurants", id), updateData);
+                            await loadMyRestaurant(currentUserEmail);
+                        } catch (error) {
+                            msg.className = "text-sm font-semibold text-red-500";
+                            msg.innerText = "خطأ: " + error.message;
+                        }
+                    });
+                });
+
+                container.querySelectorAll('.manage-items-btn').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const id = btn.dataset.id;
+                        const section = document.getElementById(`items-section-${id}`);
+                        section.classList.toggle('hidden');
+                        if (!section.classList.contains('hidden')) {
+                            await loadMenuItems(id);
+                        }
+                    });
+                });
+
+                // معالجة نموذج إضافة الصنف مع الوصف الجديد
+                container.querySelectorAll('[id^="add-item-form-"]').forEach(form => {
+                    form.addEventListener('submit', async (e) => {
+                        e.preventDefault();
+                        const id = form.id.replace('add-item-form-', '');
+                        const msg = document.getElementById(`item-message-${id}`);
+                        const nameInput = document.getElementById(`item-name-${id}`);
+                        const priceInput = document.getElementById(`item-price-${id}`);
+                        const descInput = document.getElementById(`item-desc-${id}`);
+                        const imageInput = document.getElementById(`item-image-${id}`);
+
+                        const name = nameInput.value.trim();
+                        const price = parseFloat(priceInput.value);
+                        const description = descInput.value.trim();
+                        const imageFile = imageInput.files[0];
+
+                        if (!name || isNaN(price)) return;
+
+                        msg.className = "text-sm font-semibold mt-2 text-blue-600";
+                        msg.innerText = "جاري إضافة الوجبة...";
+
+                        try {
+                            let imageUrl = "";
+                            if (imageFile) {
+                                imageUrl = await uploadToImgbb(imageFile);
+                            }
+
+                            // حفظ الصنف مع الوصف الجديد في قاعدة البيانات
+                            await addDoc(collection(db, "menuItems"), {
+                                restaurantId: id,
+                                name: name,
+                                price: price,
+                                description: description,
+                                imageUrl: imageUrl,
+                                createdAt: serverTimestamp()
+                            });
+
+                            nameInput.value = "";
+                            priceInput.value = "";
+                            descInput.value = "";
+                            imageInput.value = "";
+                            msg.className = "text-sm font-semibold mt-2 text-green-600";
+                            msg.innerText = "تمت إضافة الوجبة بنجاح!";
+                            await loadMenuItems(id);
+                        } catch (error) {
+                            msg.className = "text-sm font-semibold mt-2 text-red-500";
+                            msg.innerText = "خطأ: " + error.message;
+                        }
+                    });
+                });
+            } catch (error) {
+                console.error("خطأ في جلب بيانات المطعم:", error);
+            }
+        }
+
+        async function loadMenuItems(restaurantId) {
+            const listEl = document.getElementById(`items-list-${restaurantId}`);
+            if (!listEl) return;
+            listEl.innerHTML = `<p class="text-gray-400 text-sm">جاري التحميل...</p>`;
+
+            try {
+                const q = query(collection(db, "menuItems"), where("restaurantId", "==", restaurantId));
+                const querySnapshot = await getDocs(q);
+
+                if (querySnapshot.empty) {
+                    listEl.innerHTML = `<p class="text-gray-400 text-sm">لا توجد أصناف مضافة بعد.</p>`;
+                    return;
+                }
+
+                listEl.innerHTML = "";
+                querySnapshot.forEach((itemDoc) => {
+                    const item = itemDoc.data();
+                    listEl.innerHTML += `
+                        <div class="flex justify-between items-center bg-white px-3 py-2 rounded border border-gray-200 shadow-sm">
+                            <div class="flex items-center gap-3">
+                                ${item.imageUrl ? `<img src="${item.imageUrl}" class="w-12 h-12 object-cover rounded">` : ''}
+                                <div>
+                                    <h4 class="font-bold text-sm text-gray-800">${item.name} — <span class="text-safra-gold">${item.price} د.أ</span></h4>
+                                    <p class="text-xs text-gray-500">${item.description || 'بدون وصف'}</p>
+                                </div>
+                            </div>
+                            <button data-item-id="${itemDoc.id}" data-restaurant-id="${restaurantId}" class="delete-item-btn text-red-500 hover:text-red-700 text-xs font-semibold px-2 py-1">حذف</button>
+                        </div>
+                    `;
+                });
+
+                listEl.querySelectorAll('.delete-item-btn').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        try {
+                            await deleteDoc(doc(db, "menuItems", btn.dataset.itemId));
+                            await loadMenuItems(btn.dataset.restaurantId);
+                        } catch (error) {
+                            console.error("خطأ في حذف الصنف:", error);
+                        }
+                    });
+                });
+            } catch (error) {
+                listEl.innerHTML = `<p class="text-red-500 text-sm">خطأ بتحميل الأصناف: ${error.message}</p>`;
+            }
+        }
+
+        window.logout = function() {
+            signOut(auth).then(() => {
+                window.location.href = "Auth.html";
+            });
+        }
+    </script>
+</head>
+<body class="app-wide bg-safra-cream min-h-screen">
+
+    <header class="bg-white shadow p-3 sm:p-4 flex flex-wrap items-center justify-between gap-2 px-4 sm:px-8" style="padding-top: calc(0.75rem + env(safe-area-inset-top));">
+        <div class="flex items-center gap-2 min-w-0">
+            <img src="logo.png" alt="سفرة" class="h-8 w-8 sm:h-9 sm:w-9 object-contain rounded-full shrink-0">
+            <h1 class="text-sm sm:text-lg font-bold text-safra-gold truncate">لوحة تحكم المطعم</h1>
+        </div>
+        <div class="flex items-center gap-2 sm:gap-4 flex-wrap">
+            <a href="adman.html" class="text-xs sm:text-sm text-safra-gold font-semibold hover:text-safra-gold-dark">إدارة الطلبات</a>
+            <a href="subscription.html" class="text-xs sm:text-sm text-safra-gold font-semibold hover:text-safra-gold-dark">اشتراكي</a>
+            <span id="user-email" class="hidden sm:inline text-sm text-gray-700 font-medium"></span>
+            <button onclick="logout()" class="bg-red-500 text-white px-2.5 py-1.5 rounded text-xs sm:text-sm hover:bg-red-600">خروج</button>
+        </div>
+    </header>
+
+    <main class="p-4 sm:p-6">
+        <div id="subscription-banner" class="mb-6"></div>
+        <h2 class="text-lg sm:text-xl font-bold text-gray-800 mb-4">مطعمي</h2>
+        <div id="restaurant-info" class="grid grid-cols-1 gap-4">
+            <p class="text-center text-gray-500">جاري تحميل بيانات مطعمك...</p>
+        </div>
+    </main>
+
+</body>
+</html>

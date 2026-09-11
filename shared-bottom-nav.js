@@ -11,10 +11,10 @@ const currentPage = location.pathname.split("/").pop() || "index.html";
 
 const navItems = [
     { href: "index.html", icon: "fa-house", label: "الرئيسية" },
-    { href: "المطاعم.html", icon: "fa-utensils", label: "المطاعم" },
+    { href: "restaurants.html", icon: "fa-utensils", label: "المطاعم" },
     { href: "cart.html", icon: "fa-cart-shopping", label: "السلة", id: "nav-cart" },
     { href: "orders.html", icon: "fa-receipt", label: "طلباتي" },
-    { href: "حسابي.html", icon: "fa-user", label: "حسابي" },
+    { href: "my-account.html", icon: "fa-user", label: "حسابي" },
 ];
 
 const navHTML = `
