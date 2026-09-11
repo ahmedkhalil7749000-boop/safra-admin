@@ -43,13 +43,31 @@
     </div>
 
     <script type="module">
-        import { db } from "./firebase-config.js";
+        import { auth, db } from "./firebase-config.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import {
             collection, doc, setDoc
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const seedBtn = document.getElementById('seed-btn');
         const logBox = document.getElementById('log');
+
+        let currentUserEmail = null;
+
+        // القواعد بتشترط تسجيل دخول + ownerEmail يطابق إيميل المستخدم الحالي
+        // عشان تقدر تنشئ مطعم، فلازم نتأكد إنه في مستخدم مسجل قبل ما نفعّل الزر
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                currentUserEmail = user.email;
+                seedBtn.disabled = false;
+                seedBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } else {
+                currentUserEmail = null;
+                seedBtn.disabled = true;
+                seedBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                log("لازم تسجّل دخول أولاً من صفحة Auth.html قبل التعبئة.", "text-red-500 font-semibold");
+            }
+        });
 
         function log(msg, color = "text-gray-700") {
             const line = document.createElement('div');
@@ -155,6 +173,11 @@
         ];
 
         seedBtn.addEventListener('click', async () => {
+            if (!currentUserEmail) {
+                log("لازم تسجّل دخول أولاً.", "text-red-500 font-semibold");
+                return;
+            }
+
             seedBtn.disabled = true;
             seedBtn.classList.add('opacity-50', 'cursor-not-allowed');
             logBox.innerHTML = '';
@@ -162,11 +185,14 @@
 
             try {
                 for (const r of restaurants) {
-                    await setDoc(doc(db, "restaurants", r.id), r.data);
+                    // ownerEmail لازم يطابق إيميل المستخدم المسجل دخول حالياً حسب قواعد الأمان
+                    await setDoc(doc(db, "restaurants", r.id), { ...r.data, ownerEmail: currentUserEmail });
                     log(`✅ تمت إضافة مطعم: ${r.data.name}`, "text-green-600");
 
                     for (const item of r.menu) {
-                        await setDoc(doc(db, "restaurants", r.id, "menu", item.id), item);
+                        // الأصناف تُخزَّن بمجموعة menuItems العليا (مش subcollection) مع
+                        // حقل restaurantId، لأن هذا ما تتوقعه صفحات المطعم والمنيو الحالية
+                        await setDoc(doc(db, "menuItems", `${r.id}_${item.id}`), { ...item, restaurantId: r.id });
                         log(`   ↳ صنف: ${item.name}`, "text-gray-500");
                     }
                 }

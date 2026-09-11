@@ -121,7 +121,7 @@
             }
 
             try {
-                const itemDoc = await getDoc(doc(db, "restaurants", restaurantId, "menu", itemId));
+                const itemDoc = await getDoc(doc(db, "menuItems", itemId));
                 if (!itemDoc.exists()) {
                     showError("هذه الوجبة غير موجودة.");
                     return;
