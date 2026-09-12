@@ -150,8 +150,30 @@
                                     <input type="text" id="new-restaurant-name" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-safra-gold" placeholder="مثال: مطعم الأصالة">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">الوصف/التصنيف</label>
-                                    <input type="text" id="new-restaurant-description" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-safra-gold" placeholder="مثال: مأكولات شرقية">
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">الوصف</label>
+                                    <input type="text" id="new-restaurant-description" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-safra-gold" placeholder="مثال: مأكولات شرقية بيتية">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">التصنيف</label>
+                                    <select id="new-restaurant-category" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-safra-gold">
+                                        <option value="">اختر التصنيف</option>
+                                        <option value="طبيخ">طبيخ</option>
+                                        <option value="حلويات">حلويات</option>
+                                        <option value="مقبلات">مقبلات</option>
+                                        <option value="معجنات">معجنات</option>
+                                        <option value="فطور">فطور</option>
+                                        <option value="سلطات">سلطات</option>
+                                        <option value="مشروبات">مشروبات</option>
+                                        <option value="مونة">مونة</option>
+                                        <option value="بوكسات مناسبات">بوكسات مناسبات</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">الحالة</label>
+                                    <select id="new-restaurant-status" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-safra-gold">
+                                        <option value="نشط" selected>نشط</option>
+                                        <option value="متوقف">متوقف</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-700 mb-1">صورة المطعم (اختياري)</label>
@@ -168,9 +190,16 @@
                         const msg = document.getElementById('create-restaurant-message');
                         const name = document.getElementById('new-restaurant-name').value.trim();
                         const description = document.getElementById('new-restaurant-description').value.trim();
+                        const category = document.getElementById('new-restaurant-category').value;
+                        const status = document.getElementById('new-restaurant-status').value;
                         const imageFile = document.getElementById('new-restaurant-image').files[0];
 
                         if (!name) return;
+                        if (!category) {
+                            msg.className = "text-center text-sm font-semibold mt-2 text-red-500";
+                            msg.innerText = "لازم تختاري تصنيف المطعم.";
+                            return;
+                        }
                         msg.className = "text-center text-sm font-semibold mt-2 text-blue-600";
                         msg.innerText = "جاري الإنشاء...";
 
@@ -181,7 +210,7 @@
                             }
 
                             await addDoc(collection(db, "restaurants"), {
-                                name, description, status: "نشط", ownerEmail: currentUserEmail, imageUrl, createdAt: serverTimestamp()
+                                name, description, category, status, ownerEmail: currentUserEmail, imageUrl, createdAt: serverTimestamp()
                             });
                             msg.className = "text-center text-sm font-semibold mt-2 text-green-600";
                             msg.innerText = "تم إنشاء المطعم بنجاح!";
@@ -202,7 +231,8 @@
                             <div id="view-${restaurantId}">
                                 ${data.imageUrl ? `<img src="${data.imageUrl}" class="w-full h-40 object-cover rounded-lg mb-3">` : ''}
                                 <h2 class="text-xl font-bold text-safra-gold mb-2">${data.name || 'مطعمي'}</h2>
-                                <p class="text-gray-600 mb-1"><strong>الوصف/التصنيف:</strong> ${data.description || 'غير متوفر'}</p>
+                                <p class="text-gray-600 mb-1"><strong>الوصف:</strong> ${data.description || 'غير متوفر'}</p>
+                                <p class="text-gray-600 mb-1"><strong>التصنيف:</strong> ${data.category || 'غير محدد'}</p>
                                 <p class="text-gray-600 mb-3"><strong>الحالة:</strong> <span class="text-green-600 font-semibold">${data.status || 'نشط'}</span></p>
                                 <div class="flex gap-2">
                                     <button data-id="${restaurantId}" class="edit-restaurant-btn bg-safra-gold text-white px-4 py-2 rounded text-sm hover:bg-safra-gold">تعديل بيانات المطعم</button>
@@ -216,8 +246,23 @@
                                     <input type="text" id="edit-name-${restaurantId}" value="${data.name || ''}" class="w-full px-3 py-2 border rounded-lg">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">الوصف/التصنيف</label>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">الوصف</label>
                                     <input type="text" id="edit-description-${restaurantId}" value="${data.description || ''}" class="w-full px-3 py-2 border rounded-lg">
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">التصنيف</label>
+                                    <select id="edit-category-${restaurantId}" class="w-full px-3 py-2 border rounded-lg">
+                                        <option value="" ${!data.category ? 'selected' : ''}>اختر التصنيف</option>
+                                        <option value="طبيخ" ${data.category === 'طبيخ' ? 'selected' : ''}>طبيخ</option>
+                                        <option value="حلويات" ${data.category === 'حلويات' ? 'selected' : ''}>حلويات</option>
+                                        <option value="مقبلات" ${data.category === 'مقبلات' ? 'selected' : ''}>مقبلات</option>
+                                        <option value="معجنات" ${data.category === 'معجنات' ? 'selected' : ''}>معجنات</option>
+                                        <option value="فطور" ${data.category === 'فطور' ? 'selected' : ''}>فطور</option>
+                                        <option value="سلطات" ${data.category === 'سلطات' ? 'selected' : ''}>سلطات</option>
+                                        <option value="مشروبات" ${data.category === 'مشروبات' ? 'selected' : ''}>مشروبات</option>
+                                        <option value="مونة" ${data.category === 'مونة' ? 'selected' : ''}>مونة</option>
+                                        <option value="بوكسات مناسبات" ${data.category === 'بوكسات مناسبات' ? 'selected' : ''}>بوكسات مناسبات</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-700 mb-1">الحالة</label>
@@ -297,6 +342,7 @@
                         const msg = document.getElementById(`edit-message-${id}`);
                         const name = document.getElementById(`edit-name-${id}`).value.trim();
                         const description = document.getElementById(`edit-description-${id}`).value.trim();
+                        const category = document.getElementById(`edit-category-${id}`).value;
                         const status = document.getElementById(`edit-status-${id}`).value;
                         const imageFile = document.getElementById(`edit-image-${id}`).files[0];
 
@@ -305,7 +351,7 @@
                         msg.innerText = "جاري الحفظ...";
 
                         try {
-                            const updateData = { name, description, status };
+                            const updateData = { name, description, category, status };
                             if (imageFile) {
                                 updateData.imageUrl = await uploadToImgbb(imageFile);
                             }
