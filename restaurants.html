@@ -215,7 +215,6 @@
         .resto-meta span { display: flex; align-items: center; gap: 3px; font-weight: 600; }
         .resto-meta i { font-size: 10px; }
         .resto-cat-tag {
-            margin-inline-start: auto;
             font-size: 9px; font-weight: 700; color: var(--r-roof);
             background: color-mix(in srgb, var(--r-roof) 12%, white);
             padding: 2px 8px; border-radius: 9999px;
@@ -426,6 +425,14 @@
             return r.status === 'متوقف';
         }
 
+        // بيرجع مصفوفة تصنيفات المطعم، بتوافق مع المطاعم القديمة يلي عندها
+        // حقل category مفرد بدل categories (توافق مع بيانات قديمة)
+        function restaurantCategories(r) {
+            if (Array.isArray(r.categories) && r.categories.length) return r.categories;
+            if (r.category) return [r.category];
+            return [];
+        }
+
         // ألوان أسقف كروت المطاعم حسب التصنيف (نفس روح ألوان قرية سفرة)
         const categoryRoofColors = {
             "طبيخ": { roof: "#a3703c", lt: "#c99a63" },
@@ -444,7 +451,8 @@
 
         function renderCard(id, r) {
             const closed = isRestaurantClosed(r);
-            const rc = roofColorFor(r.category);
+            const cats = restaurantCategories(r);
+            const rc = roofColorFor(cats[0]);
             const card = document.createElement('a');
             card.href = `restaurant-page.html?id=${id}`;
             card.className = "resto-card block";
@@ -465,7 +473,9 @@
                         <div class="resto-meta">
                             <span><i class="fa-regular fa-clock"></i> ${r.deliveryTimeMinutes ?? '-'} د</span>
                             <span><i class="fa-solid fa-truck-fast"></i> ${r.deliveryFee ?? '-'} د.أ</span>
-                            <span class="resto-cat-tag">${r.category || ''}</span>
+                        </div>
+                        <div class="flex flex-wrap gap-1 mt-1.5">
+                            ${cats.map(c => `<span class="resto-cat-tag">${c}</span>`).join('')}
                         </div>
                     </div>
                 </div>
@@ -476,7 +486,7 @@
         function applyFilters() {
             const term = searchInput.value.trim().toLowerCase();
             const filtered = allRestaurants.filter(({ data }) => {
-                const matchesCategory = activeCategory === 'all' || data.category === activeCategory;
+                const matchesCategory = activeCategory === 'all' || restaurantCategories(data).includes(activeCategory);
                 const matchesSearch = !term || (data.name || '').toLowerCase().includes(term);
                 return matchesCategory && matchesSearch;
             });
@@ -516,10 +526,13 @@
                 // حساب حالة كل تصنيف (مفتوح/مغلق) وتحديث بيوت القرية
                 const statusMap = {};
                 allRestaurants.forEach(({ data }) => {
-                    if (!data.category) return;
+                    const cats = restaurantCategories(data);
+                    if (!cats.length) return;
                     const isOpen = data.status !== 'متوقف';
-                    if (!(data.category in statusMap)) statusMap[data.category] = false;
-                    if (isOpen) statusMap[data.category] = true;
+                    cats.forEach(cat => {
+                        if (!(cat in statusMap)) statusMap[cat] = false;
+                        if (isOpen) statusMap[cat] = true;
+                    });
                 });
                 window.setCategoryStatus && window.setCategoryStatus(statusMap);
 

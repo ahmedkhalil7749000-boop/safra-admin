@@ -21,6 +21,25 @@
         }
       }
     </script>
+    <style>
+        .category-chip-group { display: flex; flex-wrap: wrap; gap: 6px; }
+        .category-chip {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 6px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600;
+            border: 1.5px solid #e5e7eb; background: #f9fafb; color: #4b5563;
+            cursor: pointer; user-select: none; transition: all .15s ease;
+        }
+        .category-chip:hover { border-color: #d97706; }
+        .category-chip.checked {
+            background: #d97706; border-color: #b45309; color: #fff;
+            box-shadow: 0 2px 6px rgba(217,119,6,.35);
+        }
+        .item-category-badge {
+            display: inline-flex; align-items: center; gap: 3px;
+            padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 700;
+            background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;
+        }
+    </style>
     <!-- تضمين فايربيس (Firebase v10.8.0) -->
     <script type="module">
         import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
@@ -46,6 +65,52 @@
                 throw new Error((result.error && result.error.message) || "فشل رفع الصورة إلى imgbb");
             }
             return result.data.url;
+        }
+
+        // ==== قائمة التصنيفات الموحّدة (تستخدم لتصنيف المطعم وتصنيف كل صنف بالمنيو) ====
+        const CATEGORY_LIST = [
+            { key: "طبيخ", icon: "🍲" },
+            { key: "حلويات", icon: "🍰" },
+            { key: "مقبلات", icon: "🥗" },
+            { key: "معجنات", icon: "🥐" },
+            { key: "فطور", icon: "🍳" },
+            { key: "سلطات", icon: "🥬" },
+            { key: "مشروبات", icon: "🥤" },
+            { key: "مونة", icon: "🫙" },
+            { key: "بوكسات مناسبات", icon: "🎁" },
+        ];
+
+        // بيرجع مصفوفة تصنيفات المطعم بشكل موحّد، حتى لو المطعم قديم ومخزن فيه
+        // حقل category المفرد بدل categories (توافق مع بيانات قديمة)
+        function restaurantCategories(data) {
+            if (Array.isArray(data.categories) && data.categories.length) return data.categories;
+            if (data.category) return [data.category];
+            return [];
+        }
+
+        // برسم مجموعة "چيبس" قابلة للتحديد المتعدد جوا عنصر بمعرّف containerId
+        function renderCategoryChips(containerId, selected = []) {
+            const box = document.getElementById(containerId);
+            if (!box) return;
+            box.innerHTML = CATEGORY_LIST.map(c => `
+                <label class="category-chip ${selected.includes(c.key) ? 'checked' : ''}">
+                    <input type="checkbox" value="${c.key}" ${selected.includes(c.key) ? 'checked' : ''} class="hidden">
+                    <span>${c.icon} ${c.key}</span>
+                </label>
+            `).join('');
+            box.querySelectorAll('.category-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    chip.classList.toggle('checked');
+                    chip.querySelector('input').checked = chip.classList.contains('checked');
+                });
+            });
+        }
+
+        // بيرجع مصفوفة القيم المحددة جوا مجموعة چيبس بمعرّف containerId
+        function getCheckedCategories(containerId) {
+            const box = document.getElementById(containerId);
+            if (!box) return [];
+            return [...box.querySelectorAll('input[type="checkbox"]:checked')].map(i => i.value);
         }
 
         let currentUserEmail = null;
@@ -154,19 +219,8 @@
                                     <input type="text" id="new-restaurant-description" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-safra-gold" placeholder="مثال: مأكولات شرقية بيتية">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">التصنيف</label>
-                                    <select id="new-restaurant-category" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-safra-gold">
-                                        <option value="">اختر التصنيف</option>
-                                        <option value="طبيخ">طبيخ</option>
-                                        <option value="حلويات">حلويات</option>
-                                        <option value="مقبلات">مقبلات</option>
-                                        <option value="معجنات">معجنات</option>
-                                        <option value="فطور">فطور</option>
-                                        <option value="سلطات">سلطات</option>
-                                        <option value="مشروبات">مشروبات</option>
-                                        <option value="مونة">مونة</option>
-                                        <option value="بوكسات مناسبات">بوكسات مناسبات</option>
-                                    </select>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">التصنيفات <span class="text-gray-400 font-normal">(اختر كل يلي بتقدّميه — ممكن أكتر من وحدة)</span></label>
+                                    <div id="new-restaurant-categories" class="category-chip-group"></div>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-700 mb-1">الحالة</label>
@@ -185,19 +239,21 @@
                         </div>
                     `;
 
+                    renderCategoryChips('new-restaurant-categories');
+
                     document.getElementById('create-restaurant-form').addEventListener('submit', async (e) => {
                         e.preventDefault();
                         const msg = document.getElementById('create-restaurant-message');
                         const name = document.getElementById('new-restaurant-name').value.trim();
                         const description = document.getElementById('new-restaurant-description').value.trim();
-                        const category = document.getElementById('new-restaurant-category').value;
+                        const categories = getCheckedCategories('new-restaurant-categories');
                         const status = document.getElementById('new-restaurant-status').value;
                         const imageFile = document.getElementById('new-restaurant-image').files[0];
 
                         if (!name) return;
-                        if (!category) {
+                        if (categories.length === 0) {
                             msg.className = "text-center text-sm font-semibold mt-2 text-red-500";
-                            msg.innerText = "لازم تختاري تصنيف المطعم.";
+                            msg.innerText = "لازم تختاري تصنيف واحد على الأقل للمطعم.";
                             return;
                         }
                         msg.className = "text-center text-sm font-semibold mt-2 text-blue-600";
@@ -210,7 +266,7 @@
                             }
 
                             await addDoc(collection(db, "restaurants"), {
-                                name, description, category, status, ownerEmail: currentUserEmail, imageUrl, createdAt: serverTimestamp()
+                                name, description, categories, status, ownerEmail: currentUserEmail, imageUrl, createdAt: serverTimestamp()
                             });
                             msg.className = "text-center text-sm font-semibold mt-2 text-green-600";
                             msg.innerText = "تم إنشاء المطعم بنجاح!";
@@ -232,7 +288,12 @@
                                 ${data.imageUrl ? `<img src="${data.imageUrl}" class="w-full h-40 object-cover rounded-lg mb-3">` : ''}
                                 <h2 class="text-xl font-bold text-safra-gold mb-2">${data.name || 'مطعمي'}</h2>
                                 <p class="text-gray-600 mb-1"><strong>الوصف:</strong> ${data.description || 'غير متوفر'}</p>
-                                <p class="text-gray-600 mb-1"><strong>التصنيف:</strong> ${data.category || 'غير محدد'}</p>
+                                <div class="mb-2 flex flex-wrap gap-1.5 items-center">
+                                    <strong class="text-gray-600">التصنيفات:</strong>
+                                    ${restaurantCategories(data).length
+                                        ? restaurantCategories(data).map(c => `<span class="item-category-badge">${(CATEGORY_LIST.find(x => x.key === c) || {}).icon || ''} ${c}</span>`).join('')
+                                        : '<span class="text-gray-400">غير محدد</span>'}
+                                </div>
                                 <p class="text-gray-600 mb-3"><strong>الحالة:</strong> <span class="text-green-600 font-semibold">${data.status || 'نشط'}</span></p>
                                 <div class="flex gap-2">
                                     <button data-id="${restaurantId}" class="edit-restaurant-btn bg-safra-gold text-white px-4 py-2 rounded text-sm hover:bg-safra-gold">تعديل بيانات المطعم</button>
@@ -250,19 +311,8 @@
                                     <input type="text" id="edit-description-${restaurantId}" value="${data.description || ''}" class="w-full px-3 py-2 border rounded-lg">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">التصنيف</label>
-                                    <select id="edit-category-${restaurantId}" class="w-full px-3 py-2 border rounded-lg">
-                                        <option value="" ${!data.category ? 'selected' : ''}>اختر التصنيف</option>
-                                        <option value="طبيخ" ${data.category === 'طبيخ' ? 'selected' : ''}>طبيخ</option>
-                                        <option value="حلويات" ${data.category === 'حلويات' ? 'selected' : ''}>حلويات</option>
-                                        <option value="مقبلات" ${data.category === 'مقبلات' ? 'selected' : ''}>مقبلات</option>
-                                        <option value="معجنات" ${data.category === 'معجنات' ? 'selected' : ''}>معجنات</option>
-                                        <option value="فطور" ${data.category === 'فطور' ? 'selected' : ''}>فطور</option>
-                                        <option value="سلطات" ${data.category === 'سلطات' ? 'selected' : ''}>سلطات</option>
-                                        <option value="مشروبات" ${data.category === 'مشروبات' ? 'selected' : ''}>مشروبات</option>
-                                        <option value="مونة" ${data.category === 'مونة' ? 'selected' : ''}>مونة</option>
-                                        <option value="بوكسات مناسبات" ${data.category === 'بوكسات مناسبات' ? 'selected' : ''}>بوكسات مناسبات</option>
-                                    </select>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-1">التصنيفات <span class="text-gray-400 font-normal">(ممكن أكتر من وحدة)</span></label>
+                                    <div id="edit-categories-${restaurantId}" class="category-chip-group"></div>
                                 </div>
                                 <div>
                                     <label class="block text-sm font-semibold text-gray-700 mb-1">الحالة</label>
@@ -305,6 +355,13 @@
                                         <label class="block text-xs font-semibold text-gray-600 mb-1">وصف الصنف أو المكونات</label>
                                         <textarea id="item-desc-${restaurantId}" rows="2" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-safra-gold" placeholder="مثال: لحم شهي مع جبنة ومخلل..."></textarea>
                                     </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-600 mb-1">تصنيف الصنف</label>
+                                        <select id="item-category-${restaurantId}" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-safra-gold">
+                                            <option value="">اختر تصنيف الصنف</option>
+                                            ${CATEGORY_LIST.map(c => `<option value="${c.key}">${c.icon} ${c.key}</option>`).join('')}
+                                        </select>
+                                    </div>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
                                         <div>
                                             <label class="block text-xs font-semibold text-gray-600 mb-1">صورة الصنف (اختياري)</label>
@@ -317,6 +374,8 @@
                             </div>
                         </div>
                     `;
+
+                    renderCategoryChips(`edit-categories-${restaurantId}`, restaurantCategories(data));
                 });
 
                 // تفعيل الأزرار والتفاعلات
@@ -342,16 +401,21 @@
                         const msg = document.getElementById(`edit-message-${id}`);
                         const name = document.getElementById(`edit-name-${id}`).value.trim();
                         const description = document.getElementById(`edit-description-${id}`).value.trim();
-                        const category = document.getElementById(`edit-category-${id}`).value;
+                        const categories = getCheckedCategories(`edit-categories-${id}`);
                         const status = document.getElementById(`edit-status-${id}`).value;
                         const imageFile = document.getElementById(`edit-image-${id}`).files[0];
 
                         if (!name) return;
+                        if (categories.length === 0) {
+                            msg.className = "text-sm font-semibold text-red-500";
+                            msg.innerText = "لازم تختاري تصنيف واحد على الأقل للمطعم.";
+                            return;
+                        }
                         msg.className = "text-sm font-semibold text-blue-600";
                         msg.innerText = "جاري الحفظ...";
 
                         try {
-                            const updateData = { name, description, category, status };
+                            const updateData = { name, description, categories, status };
                             if (imageFile) {
                                 updateData.imageUrl = await uploadToImgbb(imageFile);
                             }
@@ -384,14 +448,21 @@
                         const nameInput = document.getElementById(`item-name-${id}`);
                         const priceInput = document.getElementById(`item-price-${id}`);
                         const descInput = document.getElementById(`item-desc-${id}`);
+                        const categoryInput = document.getElementById(`item-category-${id}`);
                         const imageInput = document.getElementById(`item-image-${id}`);
 
                         const name = nameInput.value.trim();
                         const price = parseFloat(priceInput.value);
                         const description = descInput.value.trim();
+                        const category = categoryInput.value;
                         const imageFile = imageInput.files[0];
 
                         if (!name || isNaN(price)) return;
+                        if (!category) {
+                            msg.className = "text-sm font-semibold mt-2 text-red-500";
+                            msg.innerText = "لازم تختار تصنيف الصنف.";
+                            return;
+                        }
 
                         msg.className = "text-sm font-semibold mt-2 text-blue-600";
                         msg.innerText = "جاري إضافة الوجبة...";
@@ -402,12 +473,13 @@
                                 imageUrl = await uploadToImgbb(imageFile);
                             }
 
-                            // حفظ الصنف مع الوصف الجديد في قاعدة البيانات
+                            // حفظ الصنف مع الوصف والتصنيف الجديد في قاعدة البيانات
                             await addDoc(collection(db, "menuItems"), {
                                 restaurantId: id,
                                 name: name,
                                 price: price,
                                 description: description,
+                                category: category,
                                 imageUrl: imageUrl,
                                 createdAt: serverTimestamp()
                             });
@@ -415,6 +487,7 @@
                             nameInput.value = "";
                             priceInput.value = "";
                             descInput.value = "";
+                            categoryInput.value = "";
                             imageInput.value = "";
                             msg.className = "text-sm font-semibold mt-2 text-green-600";
                             msg.innerText = "تمت إضافة الوجبة بنجاح!";
@@ -453,7 +526,8 @@
                                 ${item.imageUrl ? `<img src="${item.imageUrl}" class="w-12 h-12 object-cover rounded">` : ''}
                                 <div>
                                     <h4 class="font-bold text-sm text-gray-800">${item.name} — <span class="text-safra-gold">${item.price} د.أ</span></h4>
-                                    <p class="text-xs text-gray-500">${item.description || 'بدون وصف'}</p>
+                                    <p class="text-xs text-gray-500 mb-1">${item.description || 'بدون وصف'}</p>
+                                    ${item.category ? `<span class="item-category-badge">${(CATEGORY_LIST.find(c => c.key === item.category) || {}).icon || ''} ${item.category}</span>` : ''}
                                 </div>
                             </div>
                             <button data-item-id="${itemDoc.id}" data-restaurant-id="${restaurantId}" class="delete-item-btn text-red-500 hover:text-red-700 text-xs font-semibold px-2 py-1">حذف</button>

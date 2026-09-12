@@ -1,0 +1,138 @@
+[debug] [2026-09-12T13:33:47.145Z] ----------------------------------------------------------------------
+[debug] [2026-09-12T13:33:47.151Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js deploy --only hosting firestore functions
+[debug] [2026-09-12T13:33:47.152Z] CLI Version:   15.30.0
+[debug] [2026-09-12T13:33:47.152Z] Platform:      win32
+[debug] [2026-09-12T13:33:47.153Z] Node Version:  v24.19.0
+[debug] [2026-09-12T13:33:47.153Z] Detected Agent: unknown
+[debug] [2026-09-12T13:33:47.153Z] Time:          Sat Sep 12 2026 16:33:47 GMT+0300 (GMT+03:00)
+[debug] [2026-09-12T13:33:47.153Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-09-12T13:33:50.614Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-09-12T13:33:50.615Z] > authorizing via signed-in user (aejjjj81@gmail.com)
+[debug] [2026-09-12T13:33:50.615Z] [iam] checking project safra-project-3 for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update"]
+[debug] [2026-09-12T13:33:50.645Z] Checked if tokens are valid: true, expires at: 1789222247188
+[debug] [2026-09-12T13:33:50.645Z] Checked if tokens are valid: true, expires at: 1789222247188
+[debug] [2026-09-12T13:33:50.647Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/safra-project-3:testIamPermissions [none]
+[debug] [2026-09-12T13:33:50.647Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/safra-project-3:testIamPermissions  x-goog-user-project=safra-project-3
+[debug] [2026-09-12T13:33:50.648Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/safra-project-3:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-09-12T13:33:51.187Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/safra-project-3:testIamPermissions 200
+[debug] [2026-09-12T13:33:51.187Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/safra-project-3:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","datastore.indexes.create","datastore.indexes.delete","datastore.indexes.list","datastore.indexes.update","firebase.projects.get","firebasehosting.sites.update"]}
+[debug] [2026-09-12T13:33:51.188Z] Checked if tokens are valid: true, expires at: 1789222247188
+[debug] [2026-09-12T13:33:51.188Z] Checked if tokens are valid: true, expires at: 1789222247188
+[debug] [2026-09-12T13:33:51.189Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/safra-project-3/serviceAccounts/safra-project-3@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2026-09-12T13:33:51.189Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/safra-project-3/serviceAccounts/safra-project-3@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2026-09-12T13:33:52.341Z] <<< [apiv2][status] POST https://iam.googleapis.com/v1/projects/safra-project-3/serviceAccounts/safra-project-3@appspot.gserviceaccount.com:testIamPermissions 200
+[debug] [2026-09-12T13:33:52.342Z] <<< [apiv2][body] POST https://iam.googleapis.com/v1/projects/safra-project-3/serviceAccounts/safra-project-3@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}
+[debug] [2026-09-12T13:33:52.343Z] Checked if tokens are valid: true, expires at: 1789222247188
+[debug] [2026-09-12T13:33:52.343Z] Checked if tokens are valid: true, expires at: 1789222247188
+[debug] [2026-09-12T13:33:52.344Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/safra-project-3 [none]
+[debug] [2026-09-12T13:33:52.885Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/safra-project-3 200
+[debug] [2026-09-12T13:33:52.886Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/safra-project-3 {"projectId":"safra-project-3","projectNumber":"352714677428","displayName":"safra-project-3","name":"projects/safra-project-3","resources":{"hostingSite":"safra-project-3"},"state":"ACTIVE","labels":{"firebase":"enabled"},"etag":"1_c5c60e77-b3df-40b2-8732-7fd5c8592f0c"}
+[info] 
+[info] === Deploying to 'safra-project-3'...
+[info] 
+[info] i  deploying firestore, functions, hosting 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[info] i  firestore: ensuring required API firestore.googleapis.com is enabled... 
+[debug] [2026-09-12T13:33:52.897Z] Checked if tokens are valid: true, expires at: 1789222247188
+[debug] [2026-09-12T13:33:52.897Z] Checked if tokens are valid: true, expires at: 1789222247188
+[debug] [2026-09-12T13:33:52.897Z] >>> [apiv2][query] GET https://firestore.googleapis.com/v1/projects/safra-project-3/databases/(default) [none]
+[debug] [2026-09-12T13:33:54.041Z] <<< [apiv2][status] GET https://firestore.googleapis.com/v1/projects/safra-project-3/databases/(default) 200
+[debug] [2026-09-12T13:33:54.041Z] <<< [apiv2][body] GET https://firestore.googleapis.com/v1/projects/safra-project-3/databases/(default) {"name":"projects/safra-project-3/databases/(default)","uid":"4b861673-9c4c-479f-87ce-9985553af28c","createTime":"2026-09-01T11:42:50.873479Z","updateTime":"2026-09-01T11:42:50.873479Z","locationId":"nam5","type":"FIRESTORE_NATIVE","concurrencyMode":"PESSIMISTIC","versionRetentionPeriod":"3600s","earliestVersionTime":"2026-09-12T12:33:55.821032Z","appEngineIntegrationMode":"DISABLED","keyPrefix":"s","pointInTimeRecoveryEnablement":"POINT_IN_TIME_RECOVERY_DISABLED","deleteProtectionState":"DELETE_PROTECTION_DISABLED","databaseEdition":"STANDARD","freeTier":true,"realtimeUpdatesMode":"REALTIME_UPDATES_MODE_ENABLED","enhancedTextSearchQueryMode":"ENHANCED_QUERY_MODE_ENABLED","etag":"IPfzo4WU6ZYDMOzw5Oan0ZYD"}
+[info] i  firestore: reading indexes from firestore.indexes.json... 
+[info] i  cloud.firestore: checking firestore.rules for compilation errors... 
+[debug] [2026-09-12T13:33:54.051Z] Checked if tokens are valid: true, expires at: 1789222247188
+[debug] [2026-09-12T13:33:54.051Z] Checked if tokens are valid: true, expires at: 1789222247188
+[debug] [2026-09-12T13:33:54.051Z] >>> [apiv2][query] POST https://firebaserules.googleapis.com/v1/projects/safra-project-3:test [none]
+[debug] [2026-09-12T13:33:54.051Z] >>> [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/safra-project-3:test [omitted]
+[debug] [2026-09-12T13:33:54.682Z] <<< [apiv2][status] POST https://firebaserules.googleapis.com/v1/projects/safra-project-3:test 200
+[debug] [2026-09-12T13:33:54.683Z] <<< [apiv2][body] POST https://firebaserules.googleapis.com/v1/projects/safra-project-3:test {}
+[info] +  cloud.firestore: rules file firestore.rules compiled successfully 
+[debug] [2026-09-12T13:33:54.687Z] Checked if tokens are valid: true, expires at: 1789222247188
+[debug] [2026-09-12T13:33:54.687Z] Checked if tokens are valid: true, expires at: 1789222247188
+[debug] [2026-09-12T13:33:54.688Z] >>> [apiv2][query] GET https://cloudresourcemanager.googleapis.com/v1/projects/safra-project-3 [none]
+[debug] [2026-09-12T13:33:54.934Z] <<< [apiv2][status] GET https://cloudresourcemanager.googleapis.com/v1/projects/safra-project-3 200
+[debug] [2026-09-12T13:33:54.934Z] <<< [apiv2][body] GET https://cloudresourcemanager.googleapis.com/v1/projects/safra-project-3 {"projectNumber":"352714677428","projectId":"safra-project-3","lifecycleState":"ACTIVE","name":"safra-project-3","labels":{"firebase":"enabled","firebase-core":"disabled"},"createTime":"2026-09-01T11:36:13.934Z"}
+[info] i  functions: preparing codebase default for deployment 
+[info] i  functions: ensuring required API cloudfunctions.googleapis.com is enabled... 
+[info] i  functions: ensuring required API cloudbuild.googleapis.com is enabled... 
+[info] i  artifactregistry: ensuring required API artifactregistry.googleapis.com is enabled... 
+[debug] [2026-09-12T13:33:54.942Z] Checked if tokens are valid: true, expires at: 1789222247188
+[debug] [2026-09-12T13:33:54.943Z] Checked if tokens are valid: true, expires at: 1789222247188
+[debug] [2026-09-12T13:33:54.943Z] >>> [apiv2][query] GET https://firebase.googleapis.com/v1beta1/projects/safra-project-3/adminSdkConfig [none]
+[debug] [2026-09-12T13:33:55.233Z] <<< [apiv2][status] GET https://firebase.googleapis.com/v1beta1/projects/safra-project-3/adminSdkConfig 200
+[debug] [2026-09-12T13:33:55.233Z] <<< [apiv2][body] GET https://firebase.googleapis.com/v1beta1/projects/safra-project-3/adminSdkConfig {"projectId":"safra-project-3","storageBucket":"safra-project-3.firebasestorage.app"}
+[debug] [2026-09-12T13:33:55.234Z] Checked if tokens are valid: true, expires at: 1789222247188
+[debug] [2026-09-12T13:33:55.234Z] Checked if tokens are valid: true, expires at: 1789222247188
+[debug] [2026-09-12T13:33:55.234Z] >>> [apiv2][query] GET https://runtimeconfig.googleapis.com/v1beta1/projects/safra-project-3/configs [none]
+[debug] [2026-09-12T13:33:55.791Z] <<< [apiv2][status] GET https://runtimeconfig.googleapis.com/v1beta1/projects/safra-project-3/configs 200
+[debug] [2026-09-12T13:33:55.791Z] <<< [apiv2][body] GET https://runtimeconfig.googleapis.com/v1beta1/projects/safra-project-3/configs {}
+[debug] [2026-09-12T13:33:55.813Z] Validating nodejs source
+[warn] !  functions: Runtime Node.js 20 was deprecated on 2026-04-30 and will be decommissioned on 2026-10-30, after which you will not be able to deploy without upgrading. Consider upgrading now to avoid disruption. See https://cloud.google.com/functions/docs/runtime-support for full details on the lifecycle policy 
+[warn] !  functions: Couldn't find firebase-functions package in your source code. Have you run 'npm install'? 
+[debug] [2026-09-12T13:33:55.817Z] getFunctionsSDKVersion encountered error: Cannot find module 'firebase-functions'
+Require stack:
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\functions\runtimes\node\versioning.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\functions\runtimes\node\index.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\functions\runtimes\index.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\functions\prepare.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\emulator\functionsEmulatorShared.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\frameworks\index.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\hosting\prepare.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\hosting\index.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\index.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\checkValidTargetFilters.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\commands\deploy.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\commands\index.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\index.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\cli.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js {"code":"MODULE_NOT_FOUND","requireStack":["C:\\Users\\PC\\AppData\\Roaming\\npm\\node_modules\\firebase-tools\\lib\\deploy\\functions\\runtimes\\node\\versioning.js","C:\\Users\\PC\\AppData\\Roaming\\npm\\node_modules\\firebase-tools\\lib\\deploy\\functions\\runtimes\\node\\index.js","C:\\Users\\PC\\AppData\\Roaming\\npm\\node_modules\\firebase-tools\\lib\\deploy\\functions\\runtimes\\index.js","C:\\Users\\PC\\AppData\\Roaming\\npm\\node_modules\\firebase-tools\\lib\\deploy\\functions\\prepare.js","C:\\Users\\PC\\AppData\\Roaming\\npm\\node_modules\\firebase-tools\\lib\\emulator\\functionsEmulatorShared.js","C:\\Users\\PC\\AppData\\Roaming\\npm\\node_modules\\firebase-tools\\lib\\frameworks\\index.js","C:\\Users\\PC\\AppData\\Roaming\\npm\\node_modules\\firebase-tools\\lib\\deploy\\hosting\\prepare.js","C:\\Users\\PC\\AppData\\Roaming\\npm\\node_modules\\firebase-tools\\lib\\deploy\\hosting\\index.js","C:\\Users\\PC\\AppData\\Roaming\\npm\\node_modules\\firebase-tools\\lib\\deploy\\index.js","C:\\Users\\PC\\AppData\\Roaming\\npm\\node_modules\\firebase-tools\\lib\\checkValidTargetFilters.js","C:\\Users\\PC\\AppData\\Roaming\\npm\\node_modules\\firebase-tools\\lib\\commands\\deploy.js","C:\\Users\\PC\\AppData\\Roaming\\npm\\node_modules\\firebase-tools\\lib\\commands\\index.js","C:\\Users\\PC\\AppData\\Roaming\\npm\\node_modules\\firebase-tools\\lib\\index.js","C:\\Users\\PC\\AppData\\Roaming\\npm\\node_modules\\firebase-tools\\lib\\bin\\cli.js","C:\\Users\\PC\\AppData\\Roaming\\npm\\node_modules\\firebase-tools\\lib\\bin\\firebase.js"]}
+[debug] [2026-09-12T13:33:55.818Z] checkFunctionsSDKVersion encountered error: Invalid Version:  {}
+[debug] [2026-09-12T13:33:55.819Z] > [functions] package.json contents: {
+  "name": "functions",
+  "description": "Cloud Functions لمشروع سفرة - نظام الإشعارات",
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-admin": "^12.1.0",
+    "firebase-functions": "^5.0.0"
+  },
+  "devDependencies": {
+    "firebase-functions-test": "^3.1.0"
+  },
+  "private": true
+}
+[debug] [2026-09-12T13:33:55.819Z] Building nodejs source
+[info] i  functions: Loading and analyzing source code for codebase default to determine what to deploy 
+[debug] [2026-09-12T13:33:55.821Z] Could not parse firebase-functions version '' into semver.
+[debug] [2026-09-12T13:33:55.823Z] Could not find functions.yaml. Must use http discovery
+[debug] [2026-09-12T13:33:55.847Z] Error: Cannot find module 'firebase-functions'
+Require stack:
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\functions\runtimes\node\index.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\functions\runtimes\index.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\functions\prepare.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\emulator\functionsEmulatorShared.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\frameworks\index.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\hosting\prepare.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\hosting\index.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\index.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\checkValidTargetFilters.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\commands\deploy.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\commands\index.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\index.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\cli.js
+- C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1517:15)
+    at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+    at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1122:12)
+    at require.resolve (node:internal/modules/helpers:171:31)
+    at Delegate.findFunctionsBinary (C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\functions\runtimes\node\index.js:98:33)
+    at Delegate.spawnFunctionsProcess (C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\functions\runtimes\node\index.js:128:30)
+    at Delegate.serveAdmin (C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\functions\runtimes\node\index.js:149:35)
+    at Delegate.discoverBuild (C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\functions\runtimes\node\index.js:192:41)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async loadCodebases (C:\Users\PC\AppData\Roaming\npm\node_modules\firebase-tools\lib\deploy\functions\prepare.js:532:33)
+[error] 
+[error] Error: An unexpected error has occurred.
