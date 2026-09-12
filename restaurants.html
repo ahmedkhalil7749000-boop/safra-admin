@@ -163,61 +163,63 @@
             40% { transform: translateX(2.5px); } 60% { transform: translateX(-1.5px); } 80% { transform: translateX(1.5px); }
         }
 
-        /* ============ كروت المطاعم — تصميم احترافي نظيف ============ */
-        .resto-card { display: block; }
+        /* ============ كروت المطاعم — تصميم v2: صورة كبيرة + شارات ============ */
+        .resto-card { display: block; text-decoration: none; color: inherit; }
         .resto-house {
             background: #ffffff;
-            border-radius: 14px;
+            border-radius: 12px;
             overflow: hidden;
-            border: 1px solid rgba(11,59,44,.07);
-            box-shadow: 0 1px 2px rgba(11,59,44,.06), 0 8px 20px -8px rgba(11,59,44,.18);
-            transition: transform .25s ease, box-shadow .25s ease;
+            border: 1px solid rgba(11,59,44,.08);
+            transition: transform .2s ease, box-shadow .2s ease;
             position: relative;
         }
         .resto-card:hover .resto-house {
-            transform: translateY(-3px);
-            box-shadow: 0 4px 8px rgba(11,59,44,.08), 0 16px 28px -10px rgba(11,59,44,.26);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px -10px rgba(11,59,44,.28);
         }
-        .resto-accent { height: 3px; width: 100%; background: var(--r-roof); }
-        .resto-photo-wrap { position: relative; overflow: hidden; }
+        .resto-photo-wrap { position: relative; aspect-ratio: 4 / 3; overflow: hidden; }
         .resto-photo-wrap img {
-            display: block; width: 100%; height: 104px; object-fit: cover;
+            width: 100%; height: 100%; object-fit: cover; display: block;
             transition: transform .5s ease;
         }
         .resto-card:hover .resto-photo-wrap img { transform: scale(1.06); }
-        .resto-photo-wrap::after {
-            content: ""; position: absolute; inset: 0;
-            background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,.35) 100%);
-            pointer-events: none;
+        .resto-status-badge {
+            position: absolute; top: 8px; right: 8px; z-index: 2;
+            font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 9999px;
+            background: #dcfce7; color: #166534;
         }
         .resto-rating-pill {
-            position: absolute; top: 7px; right: 7px; z-index: 2;
+            position: absolute; bottom: 8px; right: 8px; z-index: 2;
             display: flex; align-items: center; gap: 3px;
-            background: rgba(255,255,255,.95); backdrop-filter: blur(2px);
-            font-size: 10px; font-weight: 700; color: #1f2937;
+            background: rgba(0,0,0,.6); color: #fff;
+            font-size: 10px; font-weight: 700;
             padding: 2.5px 7px; border-radius: 9999px;
-            box-shadow: 0 1px 3px rgba(0,0,0,.15);
         }
-        .resto-rating-pill i { color: #f59e0b; font-size: 10px; }
-        .resto-category-tag {
-            position: absolute; bottom: 6px; right: 7px; z-index: 2;
-            font-size: 9px; font-weight: 700; color: #fff;
-            padding: 2px 8px; border-radius: 9999px;
-            background: var(--r-roof);
-            box-shadow: 0 1px 3px rgba(0,0,0,.2);
+        .resto-rating-pill i { color: #facc15; font-size: 10px; }
+        .resto-closed-overlay {
+            position: absolute; inset: 0; z-index: 1;
+            background: rgba(0,0,0,.4);
+            display: flex; align-items: center; justify-content: center;
         }
-        .resto-body { padding: 8px 10px 10px; }
+        .resto-closed-overlay span {
+            background: #dc2626; color: #fff; font-size: 10px; font-weight: 700;
+            padding: 3px 10px; border-radius: 9999px;
+        }
+        .resto-body { padding: 9px 11px 11px; }
         .resto-body h3 { font-size: 13px; }
         .resto-meta {
-            display: flex; align-items: center; gap: 10px;
-            margin-top: 7px; padding-top: 7px;
-            border-top: 1px solid rgba(11,59,44,.06);
+            display: flex; align-items: center; gap: 9px;
+            margin-top: 6px;
+            font-size: 10px; color: #9ca3af;
         }
-        .resto-meta span {
-            display: flex; align-items: center; gap: 3px;
-            font-size: 10px; color: #6b7280; font-weight: 600;
+        .resto-meta span { display: flex; align-items: center; gap: 3px; font-weight: 600; }
+        .resto-meta i { font-size: 10px; }
+        .resto-cat-tag {
+            margin-inline-start: auto;
+            font-size: 9px; font-weight: 700; color: var(--r-roof);
+            background: color-mix(in srgb, var(--r-roof) 12%, white);
+            padding: 2px 8px; border-radius: 9999px;
         }
-        .resto-meta i { font-size: 10px; color: var(--r-roof); }
     </style>
 </head>
 <body class="app-narrow bg-safra-cream min-h-screen">
@@ -447,17 +449,15 @@
             card.href = `restaurant-page.html?id=${id}`;
             card.className = "resto-card block";
             card.innerHTML = `
-                <div class="resto-house${closed ? ' grayscale opacity-75' : ''}" style="--r-roof:${rc.roof};">
-                    <div class="resto-accent"></div>
+                <div class="resto-house" style="--r-roof:${rc.roof};">
                     <div class="resto-photo-wrap">
                         <img src="${r.imageUrl || 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80'}">
-                        <span class="resto-rating-pill"><i class="fa-solid fa-star"></i> ${r.reviewsCount ? (r.rating ?? 0) : 'جديد'}</span>
                         ${closed ? `
-                            <div class="absolute inset-0 bg-black/45 flex items-center justify-center z-10">
-                                <span class="bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full">مغلق حالياً</span>
+                            <div class="resto-closed-overlay">
+                                <span>مغلق حالياً</span>
                             </div>
-                        ` : ''}
-                        <span class="resto-category-tag">${r.category || ''}</span>
+                        ` : `<span class="resto-status-badge">مفتوح</span>`}
+                        <span class="resto-rating-pill"><i class="fa-solid fa-star"></i> ${r.reviewsCount ? (r.rating ?? 0) : 'جديد'}</span>
                     </div>
                     <div class="resto-body">
                         <h3 class="font-bold text-gray-800 truncate">${r.name || ''}</h3>
@@ -465,6 +465,7 @@
                         <div class="resto-meta">
                             <span><i class="fa-regular fa-clock"></i> ${r.deliveryTimeMinutes ?? '-'} د</span>
                             <span><i class="fa-solid fa-truck-fast"></i> ${r.deliveryFee ?? '-'} د.أ</span>
+                            <span class="resto-cat-tag">${r.category || ''}</span>
                         </div>
                     </div>
                 </div>
