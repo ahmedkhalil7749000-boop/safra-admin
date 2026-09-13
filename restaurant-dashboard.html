@@ -5,40 +5,173 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>لوحة تحكم المطعم - منصة سفرة</title>
     <link rel="stylesheet" href="app-shell.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Zain:wght@700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
         theme: {
           extend: {
             colors: {
-              'safra-dark': '#0b3b2c',
-              'safra-green': '#2e6f40',
-              'safra-cream': '#fbf9f5',
-              'safra-gold': '#d97706',
-              'safra-gold-dark': '#b45309',
+              'safra-dark': '#173628',
+              'safra-green': '#2f6b45',
+              'safra-cream': '#faf6ee',
+              'safra-gold': '#b5651d',
+              'safra-gold-dark': '#8f4e14',
+              'safra-ink': '#231f18',
+            },
+            fontFamily: {
+              sans: ['"IBM Plex Sans Arabic"', 'Tahoma', 'sans-serif'],
+              display: ['"Zain"', '"IBM Plex Sans Arabic"', 'sans-serif'],
             }
           }
         }
       }
     </script>
     <style>
-        .category-chip-group { display: flex; flex-wrap: wrap; gap: 6px; }
+        :root {
+            --ink: #231f18;
+            --ink-soft: #6b6255;
+            --line: #e7ddc9;
+            --panel: #ffffff;
+            --sand: #f3ecdd;
+            --green: #2f6b45;
+            --green-deep: #173628;
+            --green-tint: #eaf2ea;
+            --green-line: #cfe1d2;
+            --saffron: #b5651d;
+            --saffron-deep: #8f4e14;
+            --saffron-tint: #fbf0e2;
+            --saffron-line: #ecd7b8;
+            --info: #2b6c7a;
+            --info-tint: #e9f3f4;
+            --info-line: #c7e0e3;
+            --red: #ad3b2d;
+            --red-tint: #fbeae7;
+            --red-line: #eec9c1;
+        }
+        * { font-family: 'IBM Plex Sans Arabic', Tahoma, sans-serif; }
+        body { color: var(--ink); }
+
+        /* ===== لوحة/بطاقة أساسية ===== */
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 20px;
+            box-shadow: 0 1px 2px rgba(35,31,24,.04), 0 14px 30px -22px rgba(35,31,24,.28);
+        }
+        .subpanel {
+            background: var(--sand);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+        }
+        .hairline { border-top: 1px solid var(--line); }
+
+        /* ===== أزرار ===== */
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+            font-weight: 600; font-size: 13.5px; border-radius: 12px; padding: 10px 18px;
+            transition: background-color .15s ease, border-color .15s ease, color .15s ease, transform .1s ease;
+            cursor: pointer; border: 1.5px solid transparent; line-height: 1.2; white-space: nowrap;
+        }
+        .btn:active { transform: translateY(1px); }
+        .btn-sm { padding: 7px 13px; font-size: 12.5px; border-radius: 10px; }
+        .btn-primary { background: var(--saffron); color: #fff; }
+        .btn-primary:hover { background: var(--saffron-deep); }
+        .btn-dark { background: var(--green-deep); color: #fff; }
+        .btn-dark:hover { background: #0f281d; }
+        .btn-outline { background: var(--panel); color: var(--ink); border-color: var(--line); }
+        .btn-outline:hover { border-color: var(--green); color: var(--green-deep); }
+        .btn-ghost { background: transparent; color: var(--ink-soft); }
+        .btn-ghost:hover { background: var(--sand); color: var(--ink); }
+        .btn-danger-ghost { background: transparent; color: var(--red); }
+        .btn-danger-ghost:hover { background: var(--red-tint); }
+        .btn-block { width: 100%; }
+        .btn[disabled] { opacity: .55; cursor: not-allowed; }
+        .icon { width: 15px; height: 15px; flex-shrink: 0; }
+        .icon-sm { width: 13px; height: 13px; }
+
+        /* ===== حقول الإدخال ===== */
+        .field-label { display: block; font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+        .field-hint { color: var(--ink-soft); font-weight: 400; font-size: 12px; }
+        .field {
+            width: 100%; padding: 10px 13px; border-radius: 12px; font-size: 14px;
+            border: 1.5px solid var(--line); background: var(--panel); color: var(--ink);
+            transition: border-color .15s ease, box-shadow .15s ease;
+        }
+        .field:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-tint); }
+        .field-file { width: 100%; font-size: 12.5px; color: var(--ink-soft); }
+
+        /* ===== شرائح التصنيف (متعدد الاختيار) ===== */
+        .category-chip-group { display: flex; flex-wrap: wrap; gap: 8px; }
         .category-chip {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 7px 14px 7px 8px; border-radius: 9999px; font-size: 13px; font-weight: 600;
+            border: 1.5px solid var(--line); background: var(--panel); color: var(--ink-soft);
+            cursor: pointer; user-select: none; transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+        }
+        .category-chip:hover { border-color: var(--green); }
+        .category-chip .chip-icon { font-size: 15px; line-height: 1; }
+        .category-chip .chip-check {
+            width: 15px; height: 15px; border-radius: 9999px; border: 1.5px solid var(--line);
+            display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+            background: var(--panel); transition: all .15s ease;
+        }
+        .category-chip .chip-check svg { width: 9px; height: 9px; display: none; }
+        .category-chip.checked { border-color: var(--green); background: var(--green-tint); color: var(--green-deep); }
+        .category-chip.checked .chip-check { background: var(--green); border-color: var(--green); }
+        .category-chip.checked .chip-check svg { display: block; }
+
+        /* ===== شارات ===== */
+        .badge {
             display: inline-flex; align-items: center; gap: 4px;
-            padding: 6px 12px; border-radius: 9999px; font-size: 12px; font-weight: 600;
-            border: 1.5px solid #e5e7eb; background: #f9fafb; color: #4b5563;
-            cursor: pointer; user-select: none; transition: all .15s ease;
+            padding: 3px 10px; border-radius: 9999px; font-size: 11.5px; font-weight: 700;
         }
-        .category-chip:hover { border-color: #d97706; }
-        .category-chip.checked {
-            background: #d97706; border-color: #b45309; color: #fff;
-            box-shadow: 0 2px 6px rgba(217,119,6,.35);
+        .badge-cat { background: var(--green-tint); color: var(--green-deep); border: 1px solid var(--green-line); }
+        .badge-muted { background: var(--sand); color: var(--ink-soft); border: 1px solid var(--line); }
+        .badge-live { background: var(--green-tint); color: var(--green-deep); }
+        .badge-paused { background: var(--sand); color: var(--ink-soft); }
+        .badge svg { width: 10px; height: 10px; }
+
+        /* ===== بطاقات تنبيه/حالة ===== */
+        .status-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 16px; border: 1px solid var(--line); }
+        .status-icon { width: 34px; height: 34px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #fff; }
+        .status-icon svg { width: 17px; height: 17px; }
+        .status-text { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 600; line-height: 1.55; }
+        .status-warn { background: var(--saffron-tint); border-color: var(--saffron-line); }
+        .status-warn .status-icon { background: var(--saffron); }
+        .status-warn .status-text { color: var(--saffron-deep); }
+        .status-info { background: var(--info-tint); border-color: var(--info-line); }
+        .status-info .status-icon { background: var(--info); }
+        .status-info .status-text { color: var(--info); }
+        .status-success { background: var(--green-tint); border-color: var(--green-line); }
+        .status-success .status-icon { background: var(--green); }
+        .status-success .status-text { color: var(--green-deep); }
+        .status-danger { background: var(--red-tint); border-color: var(--red-line); }
+        .status-danger .status-icon { background: var(--red); }
+        .status-danger .status-text { color: var(--red); }
+
+        /* ===== صف صنف بالمنيو ===== */
+        .item-row {
+            display: flex; justify-content: space-between; align-items: center; gap: 10px;
+            background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px;
         }
-        .item-category-badge {
-            display: inline-flex; align-items: center; gap: 3px;
-            padding: 2px 8px; border-radius: 9999px; font-size: 11px; font-weight: 700;
-            background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;
+
+        /* ===== نص حالة (نجاح/خطأ/جاري) ===== */
+        .form-msg { font-size: 13px; font-weight: 600; }
+        .form-msg.busy { color: var(--info); }
+        .form-msg.ok { color: var(--green); }
+        .form-msg.err { color: var(--red); }
+
+        .spinner {
+            width: 14px; height: 14px; border-radius: 9999px; display: inline-block;
+            border: 2px solid currentColor; border-inline-start-color: transparent;
+            animation: spin .7s linear infinite; vertical-align: -2px;
         }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .empty-state { text-align: center; padding: 28px 16px; color: var(--ink-soft); font-size: 13.5px; }
     </style>
     <!-- تضمين فايربيس (Firebase v10.8.0) -->
     <script type="module">
@@ -80,6 +213,20 @@
             { key: "بوكسات مناسبات", icon: "🎁" },
         ];
 
+        // ==== مجموعة أيقونات SVG بسيطة موحّدة (بدل الاعتماد الكامل على الإيموجي بعناصر الواجهة) ====
+        const ICONS = {
+            check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
+            edit: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>`,
+            list: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>`,
+            trash: `<svg class="icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"></path></svg>`,
+            plus: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
+            clock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"></circle><polyline points="12 7 12 12 15.5 14"></polyline></svg>`,
+            alert: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"></path><path d="M12 17h.01"></path><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"></path></svg>`,
+            refresh: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>`,
+            key: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"></circle><path d="m21 2-9.6 9.6"></path><path d="m15.5 7.5 3 3L22 7l-3-3"></path></svg>`,
+            close: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="M6 6l12 12"></path></svg>`,
+        };
+
         // بيرجع مصفوفة تصنيفات المطعم بشكل موحّد، حتى لو المطعم قديم ومخزن فيه
         // حقل category المفرد بدل categories (توافق مع بيانات قديمة)
         function restaurantCategories(data) {
@@ -95,13 +242,18 @@
             box.innerHTML = CATEGORY_LIST.map(c => `
                 <label class="category-chip ${selected.includes(c.key) ? 'checked' : ''}">
                     <input type="checkbox" value="${c.key}" ${selected.includes(c.key) ? 'checked' : ''} class="hidden">
-                    <span>${c.icon} ${c.key}</span>
+                    <span class="chip-check">${ICONS.check}</span>
+                    <span class="chip-icon">${c.icon}</span>
+                    <span>${c.key}</span>
                 </label>
             `).join('');
             box.querySelectorAll('.category-chip').forEach(chip => {
-                chip.addEventListener('click', () => {
-                    chip.classList.toggle('checked');
-                    chip.querySelector('input').checked = chip.classList.contains('checked');
+                const input = chip.querySelector('input');
+                // مهم: بنسمع لحدث change على الـ checkbox نفسه (بيصير مرة وحدة بالضبط لكل ضغطة)
+                // مش لحدث click على الـ label، لأن المتصفح بيولّد كليك تاني تلقائي عالـ checkbox
+                // جوا الـ label، فكان عم يصير تبديل مرتين (توجل مرتين) وبالتالي التصنيف ما كان يتغيّر.
+                input.addEventListener('change', () => {
+                    chip.classList.toggle('checked', input.checked);
                 });
             });
         }
@@ -139,9 +291,12 @@
 
                 if (snap.empty) {
                     box.innerHTML = `
-                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-                            <p class="text-yellow-800 text-sm font-semibold">حسابك غير مفعّل بعد. اشترك الآن لتفعيل مطعمك على المنصة.</p>
-                            <a href="subscription.html" class="bg-safra-gold text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-safra-gold-dark transition whitespace-nowrap">اشترك الآن</a>
+                        <div class="status-card status-warn flex-col sm:flex-row !items-stretch sm:!items-center">
+                            <div class="flex items-center gap-3">
+                                <span class="status-icon">${ICONS.key}</span>
+                                <p class="status-text">حسابك غير مفعّل بعد. اشتركي الآن لتفعيل مطعمك على المنصة.</p>
+                            </div>
+                            <a href="subscription.html" class="btn btn-primary btn-sm shrink-0">اشترك الآن</a>
                         </div>`;
                     return;
                 }
@@ -156,40 +311,54 @@
                 const sub = docsData[0];
                 if (sub.status === "قيد المراجعة") {
                     box.innerHTML = `
-                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-yellow-800 text-sm font-semibold text-center">
-                            ⏳ طلب اشتراكك قيد المراجعة حاليًا من فريق سفرة.
+                        <div class="status-card status-warn">
+                            <span class="status-icon">${ICONS.clock}</span>
+                            <p class="status-text">طلب اشتراكك قيد المراجعة حاليًا من فريق سفرة.</p>
                         </div>`;
                 } else if (sub.status === "بانتظار كود التفعيل") {
                     box.innerHTML = `
-                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-                            <p class="text-blue-800 text-sm font-semibold">راجعنا طلبك! رح نرسلّك كود تفعيل، أدخله من صفحة الاشتراك لتفعيل حسابك فورًا.</p>
-                            <a href="subscription.html" class="bg-safra-green text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-safra-dark transition whitespace-nowrap">إدخال الكود</a>
+                        <div class="status-card status-info flex-col sm:flex-row !items-stretch sm:!items-center">
+                            <div class="flex items-center gap-3">
+                                <span class="status-icon">${ICONS.key}</span>
+                                <p class="status-text">راجعنا طلبك! رح نرسلّك كود تفعيل، أدخليه من صفحة الاشتراك لتفعيل حسابك فورًا.</p>
+                            </div>
+                            <a href="subscription.html" class="btn btn-dark btn-sm shrink-0">إدخال الكود</a>
                         </div>`;
                 } else if (sub.status === "نشط") {
                     const end = sub.endDate?.toDate ? sub.endDate.toDate() : new Date(sub.endDate);
                     if (end && end.getTime() < Date.now()) {
                         box.innerHTML = `
-                            <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-                                <p class="text-orange-800 text-sm font-semibold">انتهت مدة اشتراكك. جدّده الآن حتى يبقى مطعمك مفعّلاً.</p>
-                                <a href="subscription.html" class="bg-safra-gold text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-safra-gold-dark transition whitespace-nowrap">تجديد الاشتراك</a>
+                            <div class="status-card status-warn flex-col sm:flex-row !items-stretch sm:!items-center">
+                                <div class="flex items-center gap-3">
+                                    <span class="status-icon">${ICONS.refresh}</span>
+                                    <p class="status-text">انتهت مدة اشتراكك. جدّديه الآن حتى يضل مطعمك مفعّلاً.</p>
+                                </div>
+                                <a href="subscription.html" class="btn btn-primary btn-sm shrink-0">تجديد الاشتراك</a>
                             </div>`;
                     } else {
                         box.innerHTML = `
-                            <div class="bg-green-50 border border-green-200 rounded-lg p-4 text-green-800 text-sm font-semibold text-center">
-                                ✅ اشتراكك فعّال حتى ${end ? end.toLocaleDateString('ar-EG') : '-'}
+                            <div class="status-card status-success">
+                                <span class="status-icon">${ICONS.check}</span>
+                                <p class="status-text">اشتراكك فعّال حتى ${end ? end.toLocaleDateString('ar-EG') : '-'}</p>
                             </div>`;
                     }
                 } else if (sub.status === "مرفوض") {
                     box.innerHTML = `
-                        <div class="bg-red-50 border border-red-200 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-                            <p class="text-red-800 text-sm font-semibold">تم رفض طلب اشتراكك السابق${sub.adminNote ? ': ' + sub.adminNote : ''}.</p>
-                            <a href="subscription.html" class="bg-safra-gold text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-safra-gold-dark transition whitespace-nowrap">إعادة المحاولة</a>
+                        <div class="status-card status-danger flex-col sm:flex-row !items-stretch sm:!items-center">
+                            <div class="flex items-center gap-3">
+                                <span class="status-icon">${ICONS.close}</span>
+                                <p class="status-text">تم رفض طلب اشتراكك السابق${sub.adminNote ? ': ' + sub.adminNote : ''}.</p>
+                            </div>
+                            <a href="subscription.html" class="btn btn-primary btn-sm shrink-0">إعادة المحاولة</a>
                         </div>`;
                 } else {
                     box.innerHTML = `
-                        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
-                            <p class="text-yellow-800 text-sm font-semibold">اشتراكك منتهي. جدّده للاستمرار باستخدام المنصة.</p>
-                            <a href="subscription.html" class="bg-safra-gold text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-safra-gold-dark transition whitespace-nowrap">تجديد الاشتراك</a>
+                        <div class="status-card status-warn flex-col sm:flex-row !items-stretch sm:!items-center">
+                            <div class="flex items-center gap-3">
+                                <span class="status-icon">${ICONS.refresh}</span>
+                                <p class="status-text">اشتراكك منتهي. جدّديه للاستمرار باستخدام المنصة.</p>
+                            </div>
+                            <a href="subscription.html" class="btn btn-primary btn-sm shrink-0">تجديد الاشتراك</a>
                         </div>`;
                 }
             } catch (error) {
@@ -207,34 +376,37 @@
 
                 if (querySnapshot.empty) {
                     container.innerHTML = `
-                        <div class="bg-white p-6 rounded-lg shadow border border-gray-200">
-                            <p class="text-gray-600 text-center mb-4">لا يوجد مطعم مرتبط بهذا الحساب حالياً. عبّي البيانات تحت لإنشاء مطعمك:</p>
-                            <form id="create-restaurant-form" class="space-y-3 max-w-md mx-auto">
+                        <div class="panel p-6 sm:p-7">
+                            <div class="text-center mb-5">
+                                <p class="font-display font-extrabold" style="font-size: 18px; color: var(--green-deep);">ولا مطعم مسجّل باسمك لسا</p>
+                                <p class="text-sm mt-1" style="color: var(--ink-soft);">عبّي بيانات مطعمك تحت، وخليه جاهز للزبائن بدقيقتين.</p>
+                            </div>
+                            <form id="create-restaurant-form" class="space-y-4 max-w-md mx-auto">
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">اسم المطعم</label>
-                                    <input type="text" id="new-restaurant-name" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-safra-gold" placeholder="مثال: مطعم الأصالة">
+                                    <label class="field-label">اسم المطعم</label>
+                                    <input type="text" id="new-restaurant-name" required class="field" placeholder="مثال: مطعم الأصالة">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">الوصف</label>
-                                    <input type="text" id="new-restaurant-description" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-safra-gold" placeholder="مثال: مأكولات شرقية بيتية">
+                                    <label class="field-label">الوصف</label>
+                                    <input type="text" id="new-restaurant-description" class="field" placeholder="مثال: مأكولات شرقية بيتية">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">التصنيفات <span class="text-gray-400 font-normal">(اختر كل يلي بتقدّميه — ممكن أكتر من وحدة)</span></label>
+                                    <label class="field-label">التصنيفات <span class="field-hint">(اختاري كل يلي بتقدّميه — ممكن أكتر من وحدة)</span></label>
                                     <div id="new-restaurant-categories" class="category-chip-group"></div>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">الحالة</label>
-                                    <select id="new-restaurant-status" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-safra-gold">
+                                    <label class="field-label">الحالة</label>
+                                    <select id="new-restaurant-status" class="field">
                                         <option value="نشط" selected>نشط</option>
                                         <option value="متوقف">متوقف</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">صورة المطعم (اختياري)</label>
-                                    <input type="file" id="new-restaurant-image" accept="image/*" class="w-full text-sm">
+                                    <label class="field-label">صورة المطعم <span class="field-hint">(اختياري)</span></label>
+                                    <input type="file" id="new-restaurant-image" accept="image/*" class="field-file">
                                 </div>
-                                <button type="submit" class="w-full bg-safra-gold text-white py-2 rounded-lg font-semibold hover:bg-safra-gold-dark transition">إنشاء المطعم</button>
-                                <p id="create-restaurant-message" class="text-center text-sm font-semibold"></p>
+                                <button type="submit" class="btn btn-primary btn-block">إنشاء المطعم</button>
+                                <p id="create-restaurant-message" class="form-msg text-center"></p>
                             </form>
                         </div>
                     `;
@@ -252,11 +424,11 @@
 
                         if (!name) return;
                         if (categories.length === 0) {
-                            msg.className = "text-center text-sm font-semibold mt-2 text-red-500";
+                            msg.className = "form-msg err text-center mt-2";
                             msg.innerText = "لازم تختاري تصنيف واحد على الأقل للمطعم.";
                             return;
                         }
-                        msg.className = "text-center text-sm font-semibold mt-2 text-blue-600";
+                        msg.className = "form-msg busy text-center mt-2";
                         msg.innerText = "جاري الإنشاء...";
 
                         try {
@@ -268,11 +440,11 @@
                             await addDoc(collection(db, "restaurants"), {
                                 name, description, categories, status, ownerEmail: currentUserEmail, imageUrl, createdAt: serverTimestamp()
                             });
-                            msg.className = "text-center text-sm font-semibold mt-2 text-green-600";
+                            msg.className = "form-msg ok text-center mt-2";
                             msg.innerText = "تم إنشاء المطعم بنجاح!";
                             await loadMyRestaurant(currentUserEmail);
                         } catch (error) {
-                            msg.className = "text-center text-sm font-semibold mt-2 text-red-500";
+                            msg.className = "form-msg err text-center mt-2";
                             msg.innerText = "خطأ: " + error.message;
                         }
                     });
@@ -282,95 +454,100 @@
                 querySnapshot.forEach((docSnap) => {
                     const data = docSnap.data();
                     const restaurantId = docSnap.id;
+                    const isActive = (data.status || 'نشط') === 'نشط';
                     container.innerHTML += `
-                        <div class="bg-white p-5 rounded-lg shadow border border-gray-200">
+                        <div class="panel overflow-hidden">
                             <div id="view-${restaurantId}">
-                                ${data.imageUrl ? `<img src="${data.imageUrl}" class="w-full h-40 object-cover rounded-lg mb-3">` : ''}
-                                <h2 class="text-xl font-bold text-safra-gold mb-2">${data.name || 'مطعمي'}</h2>
-                                <p class="text-gray-600 mb-1"><strong>الوصف:</strong> ${data.description || 'غير متوفر'}</p>
-                                <div class="mb-2 flex flex-wrap gap-1.5 items-center">
-                                    <strong class="text-gray-600">التصنيفات:</strong>
-                                    ${restaurantCategories(data).length
-                                        ? restaurantCategories(data).map(c => `<span class="item-category-badge">${(CATEGORY_LIST.find(x => x.key === c) || {}).icon || ''} ${c}</span>`).join('')
-                                        : '<span class="text-gray-400">غير محدد</span>'}
-                                </div>
-                                <p class="text-gray-600 mb-3"><strong>الحالة:</strong> <span class="text-green-600 font-semibold">${data.status || 'نشط'}</span></p>
-                                <div class="flex gap-2">
-                                    <button data-id="${restaurantId}" class="edit-restaurant-btn bg-safra-gold text-white px-4 py-2 rounded text-sm hover:bg-safra-gold">تعديل بيانات المطعم</button>
-                                    <button data-id="${restaurantId}" class="manage-items-btn bg-gray-800 text-white px-4 py-2 rounded text-sm hover:bg-gray-900">إدارة الأصناف والوجبات</button>
+                                ${data.imageUrl
+                                    ? `<div class="relative"><img src="${data.imageUrl}" class="w-full h-44 object-cover"><span class="badge ${isActive ? 'badge-live' : 'badge-paused'} absolute top-3 right-3">${isActive ? ICONS.check : ''} ${data.status || 'نشط'}</span></div>`
+                                    : ''}
+                                <div class="p-5">
+                                    ${!data.imageUrl ? `<span class="badge ${isActive ? 'badge-live' : 'badge-paused'} mb-2">${isActive ? ICONS.check : ''} ${data.status || 'نشط'}</span>` : ''}
+                                    <h2 class="font-display font-extrabold" style="font-size: 20px; color: var(--green-deep);">${data.name || 'مطعمي'}</h2>
+                                    <p class="text-sm mt-1" style="color: var(--ink-soft);">${data.description || 'لسا ما ضفتي وصف لمطعمك.'}</p>
+                                    <div class="mt-3 flex flex-wrap gap-1.5 items-center">
+                                        ${restaurantCategories(data).length
+                                            ? restaurantCategories(data).map(c => `<span class="badge badge-cat">${(CATEGORY_LIST.find(x => x.key === c) || {}).icon || ''} ${c}</span>`).join('')
+                                            : '<span class="text-sm" style="color: var(--ink-soft);">ما في تصنيفات محددة بعد</span>'}
+                                    </div>
+                                    <div class="flex gap-2 mt-5">
+                                        <button data-id="${restaurantId}" class="edit-restaurant-btn btn btn-outline btn-sm">${ICONS.edit} تعديل بيانات المطعم</button>
+                                        <button data-id="${restaurantId}" class="manage-items-btn btn btn-dark btn-sm">${ICONS.list} إدارة الأصناف والوجبات</button>
+                                    </div>
                                 </div>
                             </div>
 
-                            <div id="edit-form-${restaurantId}" class="hidden mt-3 border-t pt-3 space-y-3">
+                            <div id="edit-form-${restaurantId}" class="hidden hairline p-5 space-y-4">
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">اسم المطعم</label>
-                                    <input type="text" id="edit-name-${restaurantId}" value="${data.name || ''}" class="w-full px-3 py-2 border rounded-lg">
+                                    <label class="field-label">اسم المطعم</label>
+                                    <input type="text" id="edit-name-${restaurantId}" value="${data.name || ''}" class="field">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">الوصف</label>
-                                    <input type="text" id="edit-description-${restaurantId}" value="${data.description || ''}" class="w-full px-3 py-2 border rounded-lg">
+                                    <label class="field-label">الوصف</label>
+                                    <input type="text" id="edit-description-${restaurantId}" value="${data.description || ''}" class="field">
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">التصنيفات <span class="text-gray-400 font-normal">(ممكن أكتر من وحدة)</span></label>
+                                    <label class="field-label">التصنيفات <span class="field-hint">(ممكن أكتر من وحدة)</span></label>
                                     <div id="edit-categories-${restaurantId}" class="category-chip-group"></div>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">الحالة</label>
-                                    <select id="edit-status-${restaurantId}" class="w-full px-3 py-2 border rounded-lg">
+                                    <label class="field-label">الحالة</label>
+                                    <select id="edit-status-${restaurantId}" class="field">
                                         <option value="نشط" ${data.status === 'نشط' || !data.status ? 'selected' : ''}>نشط</option>
                                         <option value="متوقف" ${data.status === 'متوقف' ? 'selected' : ''}>متوقف</option>
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-sm font-semibold text-gray-700 mb-1">صورة المطعم (اختياري)</label>
-                                    <input type="file" id="edit-image-${restaurantId}" accept="image/*" class="w-full text-sm">
+                                    <label class="field-label">صورة المطعم <span class="field-hint">(اختياري)</span></label>
+                                    <input type="file" id="edit-image-${restaurantId}" accept="image/*" class="field-file">
                                 </div>
                                 <div class="flex gap-2">
-                                    <button data-id="${restaurantId}" class="save-restaurant-btn bg-safra-gold text-white px-4 py-2 rounded text-sm">حفظ التعديلات</button>
-                                    <button data-id="${restaurantId}" class="cancel-edit-btn bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm">إلغاء</button>
+                                    <button data-id="${restaurantId}" class="save-restaurant-btn btn btn-primary">حفظ التعديلات</button>
+                                    <button data-id="${restaurantId}" class="cancel-edit-btn btn btn-ghost">إلغاء</button>
                                 </div>
-                                <p id="edit-message-${restaurantId}" class="text-sm font-semibold"></p>
+                                <p id="edit-message-${restaurantId}" class="form-msg"></p>
                             </div>
 
                             <!-- قسم إدارة الأصناف -->
-                            <div id="items-section-${restaurantId}" class="hidden mt-3 border-t pt-3">
-                                <h3 class="font-bold text-gray-800 mb-2">الأصناف والوجبات</h3>
-                                <div id="items-list-${restaurantId}" class="space-y-2 mb-3">
-                                    <p class="text-gray-400 text-sm">جاري التحميل...</p>
+                            <div id="items-section-${restaurantId}" class="hidden hairline p-5">
+                                <h3 class="font-bold mb-3" style="color: var(--ink);">الأصناف والوجبات</h3>
+                                <div id="items-list-${restaurantId}" class="space-y-2 mb-4">
+                                    <div class="empty-state flex items-center justify-center gap-2"><span class="spinner"></span> جاري التحميل...</div>
                                 </div>
-                                
+
                                 <!-- نموذج إضافة صنف جديد مع حقل الوصف -->
-                                <form id="add-item-form-${restaurantId}" class="bg-gray-50 p-3 rounded-lg border border-gray-200 space-y-3">
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <form id="add-item-form-${restaurantId}" class="subpanel p-4 space-y-3">
+                                    <p class="font-semibold text-sm flex items-center gap-1.5" style="color: var(--ink);">${ICONS.plus} إضافة صنف جديد</p>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <div>
-                                            <label class="block text-xs font-semibold text-gray-600 mb-1">اسم الصنف</label>
-                                            <input type="text" id="item-name-${restaurantId}" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-safra-gold">
+                                            <label class="field-label">اسم الصنف</label>
+                                            <input type="text" id="item-name-${restaurantId}" required class="field">
                                         </div>
                                         <div>
-                                            <label class="block text-xs font-semibold text-gray-600 mb-1">السعر (د.أ)</label>
-                                            <input type="number" step="0.01" id="item-price-${restaurantId}" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-safra-gold">
+                                            <label class="field-label">السعر (د.أ)</label>
+                                            <input type="number" step="0.01" id="item-price-${restaurantId}" required class="field">
                                         </div>
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-semibold text-gray-600 mb-1">وصف الصنف أو المكونات</label>
-                                        <textarea id="item-desc-${restaurantId}" rows="2" class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-safra-gold" placeholder="مثال: لحم شهي مع جبنة ومخلل..."></textarea>
+                                        <label class="field-label">وصف الصنف أو المكونات</label>
+                                        <textarea id="item-desc-${restaurantId}" rows="2" class="field" placeholder="مثال: لحم شهي مع جبنة ومخلل..."></textarea>
                                     </div>
                                     <div>
-                                        <label class="block text-xs font-semibold text-gray-600 mb-1">تصنيف الصنف</label>
-                                        <select id="item-category-${restaurantId}" required class="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-safra-gold">
-                                            <option value="">اختر تصنيف الصنف</option>
+                                        <label class="field-label">تصنيف الصنف</label>
+                                        <select id="item-category-${restaurantId}" required class="field">
+                                            <option value="">اختاري تصنيف الصنف</option>
                                             ${CATEGORY_LIST.map(c => `<option value="${c.key}">${c.icon} ${c.key}</option>`).join('')}
                                         </select>
                                     </div>
-                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 items-center">
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
                                         <div>
-                                            <label class="block text-xs font-semibold text-gray-600 mb-1">صورة الصنف (اختياري)</label>
-                                            <input type="file" id="item-image-${restaurantId}" accept="image/*" class="w-full text-xs">
+                                            <label class="field-label">صورة الصنف <span class="field-hint">(اختياري)</span></label>
+                                            <input type="file" id="item-image-${restaurantId}" accept="image/*" class="field-file">
                                         </div>
-                                        <button type="submit" class="w-full bg-safra-green text-white py-2 rounded text-sm hover:bg-safra-dark font-semibold mt-4">إضافة الوجبة للمنيو</button>
+                                        <button type="submit" class="btn btn-primary btn-block">إضافة الوجبة للمنيو</button>
                                     </div>
                                 </form>
-                                <p id="item-message-${restaurantId}" class="text-sm font-semibold mt-2 text-center"></p>
+                                <p id="item-message-${restaurantId}" class="form-msg text-center mt-2"></p>
                             </div>
                         </div>
                     `;
@@ -407,11 +584,11 @@
 
                         if (!name) return;
                         if (categories.length === 0) {
-                            msg.className = "text-sm font-semibold text-red-500";
+                            msg.className = "form-msg err";
                             msg.innerText = "لازم تختاري تصنيف واحد على الأقل للمطعم.";
                             return;
                         }
-                        msg.className = "text-sm font-semibold text-blue-600";
+                        msg.className = "form-msg busy";
                         msg.innerText = "جاري الحفظ...";
 
                         try {
@@ -422,7 +599,7 @@
                             await updateDoc(doc(db, "restaurants", id), updateData);
                             await loadMyRestaurant(currentUserEmail);
                         } catch (error) {
-                            msg.className = "text-sm font-semibold text-red-500";
+                            msg.className = "form-msg err";
                             msg.innerText = "خطأ: " + error.message;
                         }
                     });
@@ -459,12 +636,12 @@
 
                         if (!name || isNaN(price)) return;
                         if (!category) {
-                            msg.className = "text-sm font-semibold mt-2 text-red-500";
+                            msg.className = "form-msg err mt-2";
                             msg.innerText = "لازم تختار تصنيف الصنف.";
                             return;
                         }
 
-                        msg.className = "text-sm font-semibold mt-2 text-blue-600";
+                        msg.className = "form-msg busy mt-2";
                         msg.innerText = "جاري إضافة الوجبة...";
 
                         try {
@@ -489,11 +666,11 @@
                             descInput.value = "";
                             categoryInput.value = "";
                             imageInput.value = "";
-                            msg.className = "text-sm font-semibold mt-2 text-green-600";
+                            msg.className = "form-msg ok mt-2";
                             msg.innerText = "تمت إضافة الوجبة بنجاح!";
                             await loadMenuItems(id);
                         } catch (error) {
-                            msg.className = "text-sm font-semibold mt-2 text-red-500";
+                            msg.className = "form-msg err mt-2";
                             msg.innerText = "خطأ: " + error.message;
                         }
                     });
@@ -506,14 +683,14 @@
         async function loadMenuItems(restaurantId) {
             const listEl = document.getElementById(`items-list-${restaurantId}`);
             if (!listEl) return;
-            listEl.innerHTML = `<p class="text-gray-400 text-sm">جاري التحميل...</p>`;
+            listEl.innerHTML = `<div class="empty-state flex items-center justify-center gap-2"><span class="spinner"></span> جاري التحميل...</div>`;
 
             try {
                 const q = query(collection(db, "menuItems"), where("restaurantId", "==", restaurantId));
                 const querySnapshot = await getDocs(q);
 
                 if (querySnapshot.empty) {
-                    listEl.innerHTML = `<p class="text-gray-400 text-sm">لا توجد أصناف مضافة بعد.</p>`;
+                    listEl.innerHTML = `<div class="empty-state">لا توجد أصناف مضافة بعد. ضيفي أول صنف من النموذج تحت.</div>`;
                     return;
                 }
 
@@ -521,23 +698,23 @@
                 querySnapshot.forEach((itemDoc) => {
                     const item = itemDoc.data();
                     listEl.innerHTML += `
-                        <div class="flex justify-between items-center bg-white px-3 py-2 rounded border border-gray-200 shadow-sm gap-2">
+                        <div class="item-row">
                             <div class="flex items-center gap-3 min-w-0">
-                                ${item.imageUrl ? `<img src="${item.imageUrl}" class="w-12 h-12 object-cover rounded shrink-0">` : ''}
+                                ${item.imageUrl ? `<img src="${item.imageUrl}" class="w-12 h-12 object-cover rounded-lg shrink-0">` : ''}
                                 <div class="min-w-0">
-                                    <h4 class="font-bold text-sm text-gray-800 truncate">${item.name} — <span class="text-safra-gold">${item.price} د.أ</span></h4>
-                                    <p class="text-xs text-gray-500 mb-1 truncate">${item.description || 'بدون وصف'}</p>
+                                    <h4 class="font-bold text-sm truncate" style="color: var(--ink);">${item.name} <span style="color: var(--ink-soft); font-weight: 500;">—</span> <span style="color: var(--saffron);">${item.price} د.أ</span></h4>
+                                    <p class="text-xs mb-1.5 truncate" style="color: var(--ink-soft);">${item.description || 'بدون وصف'}</p>
                                     <div class="flex items-center gap-1.5 flex-wrap">
-                                        <select data-item-id="${itemDoc.id}" class="item-category-select text-[11px] border border-gray-300 rounded-full px-2 py-0.5">
+                                        <select data-item-id="${itemDoc.id}" class="item-category-select text-[11px] font-medium rounded-full px-2 py-1" style="border: 1.5px solid var(--line); background: var(--panel); color: var(--ink);">
                                             <option value="" ${!item.category ? 'selected' : ''}>بدون تصنيف</option>
                                             ${CATEGORY_LIST.map(c => `<option value="${c.key}" ${item.category === c.key ? 'selected' : ''}>${c.icon} ${c.key}</option>`).join('')}
                                         </select>
-                                        <button data-item-id="${itemDoc.id}" data-restaurant-id="${restaurantId}" class="save-item-category-btn text-[11px] font-semibold text-safra-green hover:underline">حفظ التصنيف</button>
+                                        <button data-item-id="${itemDoc.id}" data-restaurant-id="${restaurantId}" class="save-item-category-btn text-[11px] font-semibold" style="color: var(--green);">حفظ التصنيف</button>
                                         <span data-msg-for="${itemDoc.id}" class="text-[11px] font-semibold"></span>
                                     </div>
                                 </div>
                             </div>
-                            <button data-item-id="${itemDoc.id}" data-restaurant-id="${restaurantId}" class="delete-item-btn text-red-500 hover:text-red-700 text-xs font-semibold px-2 py-1 shrink-0">حذف</button>
+                            <button data-item-id="${itemDoc.id}" data-restaurant-id="${restaurantId}" class="delete-item-btn btn btn-ghost btn-sm shrink-0" style="color: var(--red); padding: 8px;">${ICONS.trash}</button>
                         </div>
                     `;
                 });
@@ -549,18 +726,18 @@
                         const msgEl = listEl.querySelector(`[data-msg-for="${itemId}"]`);
                         const newCategory = select.value;
                         if (!newCategory) {
-                            msgEl.className = "text-[11px] font-semibold text-red-500";
+                            msgEl.className = "form-msg err text-[11px]";
                             msgEl.innerText = "اختر تصنيف أولاً";
                             return;
                         }
-                        msgEl.className = "text-[11px] font-semibold text-blue-600";
+                        msgEl.className = "form-msg busy text-[11px]";
                         msgEl.innerText = "جاري الحفظ...";
                         try {
                             await updateDoc(doc(db, "menuItems", itemId), { category: newCategory });
-                            msgEl.className = "text-[11px] font-semibold text-green-600";
+                            msgEl.className = "form-msg ok text-[11px]";
                             msgEl.innerText = "تم ✓";
                         } catch (error) {
-                            msgEl.className = "text-[11px] font-semibold text-red-500";
+                            msgEl.className = "form-msg err text-[11px]";
                             msgEl.innerText = "خطأ: " + error.message;
                         }
                     });
@@ -577,7 +754,7 @@
                     });
                 });
             } catch (error) {
-                listEl.innerHTML = `<p class="text-red-500 text-sm">خطأ بتحميل الأصناف: ${error.message}</p>`;
+                listEl.innerHTML = `<p class="form-msg err">خطأ بتحميل الأصناف: ${error.message}</p>`;
             }
         }
 
@@ -588,26 +765,34 @@
         }
     </script>
 </head>
-<body class="app-wide bg-safra-cream min-h-screen">
+<body class="app-wide min-h-screen" style="background: var(--sand);">
 
-    <header class="bg-white shadow p-3 sm:p-4 flex flex-wrap items-center justify-between gap-2 px-4 sm:px-8" style="padding-top: calc(0.75rem + env(safe-area-inset-top));">
-        <div class="flex items-center gap-2 min-w-0">
-            <img src="logo.png" alt="سفرة" class="h-8 w-8 sm:h-9 sm:w-9 object-contain rounded-full shrink-0">
-            <h1 class="text-sm sm:text-lg font-bold text-safra-gold truncate">لوحة تحكم المطعم</h1>
+    <header class="bg-white flex flex-wrap items-center justify-between gap-3 px-4 sm:px-8" style="padding: 14px 16px calc(14px + env(safe-area-inset-top)); border-bottom: 1px solid var(--line);">
+        <div class="flex items-center gap-2.5 min-w-0">
+            <img src="logo.png" alt="سفرة" class="h-9 w-9 object-contain rounded-full shrink-0" style="border: 1.5px solid var(--line);">
+            <div class="min-w-0 leading-tight">
+                <p class="font-display font-extrabold truncate" style="font-size: 19px; color: var(--green-deep);">سفرة</p>
+                <p class="text-[11px] truncate" style="color: var(--ink-soft);">لوحة تحكم الشريك</p>
+            </div>
         </div>
-        <div class="flex items-center gap-2 sm:gap-4 flex-wrap">
-            <a href="adman.html" class="text-xs sm:text-sm text-safra-gold font-semibold hover:text-safra-gold-dark">إدارة الطلبات</a>
-            <a href="subscription.html" class="text-xs sm:text-sm text-safra-gold font-semibold hover:text-safra-gold-dark">اشتراكي</a>
-            <span id="user-email" class="hidden sm:inline text-sm text-gray-700 font-medium"></span>
-            <button onclick="logout()" class="bg-red-500 text-white px-2.5 py-1.5 rounded text-xs sm:text-sm hover:bg-red-600">خروج</button>
+        <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            <a href="adman.html" class="btn btn-ghost btn-sm">إدارة الطلبات</a>
+            <a href="subscription.html" class="btn btn-ghost btn-sm">اشتراكي</a>
+            <span id="user-email" class="hidden sm:inline text-xs font-medium ms-1" style="color: var(--ink-soft);"></span>
+            <button onclick="logout()" class="btn btn-danger-ghost btn-sm">خروج</button>
         </div>
     </header>
 
     <main class="p-4 sm:p-6">
-        <div id="subscription-banner" class="mb-6"></div>
-        <h2 class="text-lg sm:text-xl font-bold text-gray-800 mb-4">مطعمي</h2>
+        <div id="subscription-banner" class="mb-5"></div>
+        <div class="mb-4">
+            <h2 class="font-display font-extrabold" style="font-size: 22px; color: var(--green-deep);">مطعمي</h2>
+            <p class="text-sm" style="color: var(--ink-soft);">بيانات مطعمك، تصنيفاته، وقائمة الأصناف من مكان وحد.</p>
+        </div>
         <div id="restaurant-info" class="grid grid-cols-1 gap-4">
-            <p class="text-center text-gray-500">جاري تحميل بيانات مطعمك...</p>
+            <div class="panel p-6 flex items-center justify-center gap-2 text-sm" style="color: var(--ink-soft);">
+                <span class="spinner"></span> جاري تحميل بيانات مطعمك...
+            </div>
         </div>
     </main>
 
