@@ -1,5 +1,7 @@
 {
   "projects": {
-    "default": "safra-project-3"
-  }
+    "defavlt": "safra-project-3"
+  },
+  "targets": {},
+  "etags": {}
 }
