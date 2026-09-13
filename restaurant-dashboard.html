@@ -391,6 +391,10 @@
                                     <input type="text" id="new-restaurant-description" class="field" placeholder="مثال: مأكولات شرقية بيتية">
                                 </div>
                                 <div>
+                                    <label class="field-label">رقم الواتساب <span class="field-hint">(لتنبيهك بالطلبات الجديدة)</span></label>
+                                    <input type="tel" id="new-restaurant-phone" class="field" placeholder="مثال: 962791234567" dir="ltr">
+                                </div>
+                                <div>
                                     <label class="field-label">التصنيفات <span class="field-hint">(اختاري كل يلي بتقدّميه — ممكن أكتر من وحدة)</span></label>
                                     <div id="new-restaurant-categories" class="category-chip-group"></div>
                                 </div>
@@ -418,6 +422,7 @@
                         const msg = document.getElementById('create-restaurant-message');
                         const name = document.getElementById('new-restaurant-name').value.trim();
                         const description = document.getElementById('new-restaurant-description').value.trim();
+                        const phone = document.getElementById('new-restaurant-phone').value.trim().replace(/[^0-9]/g, '');
                         const categories = getCheckedCategories('new-restaurant-categories');
                         const status = document.getElementById('new-restaurant-status').value;
                         const imageFile = document.getElementById('new-restaurant-image').files[0];
@@ -438,7 +443,7 @@
                             }
 
                             await addDoc(collection(db, "restaurants"), {
-                                name, description, categories, status, ownerEmail: currentUserEmail, imageUrl, createdAt: serverTimestamp()
+                                name, description, phone, categories, status, ownerEmail: currentUserEmail, imageUrl, createdAt: serverTimestamp()
                             });
                             msg.className = "form-msg ok text-center mt-2";
                             msg.innerText = "تم إنشاء المطعم بنجاح!";
@@ -485,6 +490,10 @@
                                 <div>
                                     <label class="field-label">الوصف</label>
                                     <input type="text" id="edit-description-${restaurantId}" value="${data.description || ''}" class="field">
+                                </div>
+                                <div>
+                                    <label class="field-label">رقم الواتساب <span class="field-hint">(لتنبيهك بالطلبات الجديدة)</span></label>
+                                    <input type="tel" id="edit-phone-${restaurantId}" value="${data.phone || ''}" class="field" placeholder="مثال: 962791234567" dir="ltr">
                                 </div>
                                 <div>
                                     <label class="field-label">التصنيفات <span class="field-hint">(ممكن أكتر من وحدة)</span></label>
@@ -578,6 +587,7 @@
                         const msg = document.getElementById(`edit-message-${id}`);
                         const name = document.getElementById(`edit-name-${id}`).value.trim();
                         const description = document.getElementById(`edit-description-${id}`).value.trim();
+                        const phone = document.getElementById(`edit-phone-${id}`).value.trim().replace(/[^0-9]/g, '');
                         const categories = getCheckedCategories(`edit-categories-${id}`);
                         const status = document.getElementById(`edit-status-${id}`).value;
                         const imageFile = document.getElementById(`edit-image-${id}`).files[0];
@@ -592,7 +602,7 @@
                         msg.innerText = "جاري الحفظ...";
 
                         try {
-                            const updateData = { name, description, categories, status };
+                            const updateData = { name, description, phone, categories, status };
                             if (imageFile) {
                                 updateData.imageUrl = await uploadToImgbb(imageFile);
                             }

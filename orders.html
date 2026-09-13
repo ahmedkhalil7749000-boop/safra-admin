@@ -79,7 +79,7 @@
     <script type="module">
         import { auth, db } from "./firebase-config.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { collection, query, where, doc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { collection, query, where, doc, getDoc, updateDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const loginWarning = document.getElementById('login-warning');
         const loading = document.getElementById('loading');
@@ -87,6 +87,75 @@
         const ordersList = document.getElementById('orders-list');
         const historyTitle = document.getElementById('history-title');
         const activeOrderWrap = document.getElementById('active-order-wrap');
+
+        // ===== حالة زر تنبيه المطعم عبر واتساب =====
+        const WHATSAPP_DELAY_MS = 60 * 1000; // دقيقة وحدة من إنشاء الطلب
+        let currentActiveOrder = null;       // { id, data, createdMillis } لآخر طلب نشط معروض حاليًا
+        const restaurantPhoneCache = {};     // كاش لأرقام هواتف المطاعم حتى ما نجيبها من فايرستور كل مرة
+        const autoNotifiedOrders = new Set(); // الطلبات يلي طلعلها Toast التطمين التلقائي (4ب) مرة وحدة
+
+        // Toast صغير داخل الصفحة (تأكيدات/تطمينات بدون Push)
+        function showToast(title, body) {
+            const toast = document.createElement('div');
+            toast.className = "fixed top-4 inset-x-4 sm:inset-x-auto sm:right-4 bg-safra-dark text-white px-4 py-3 rounded-lg shadow-lg z-[100] text-sm max-w-sm";
+            toast.innerHTML = `<p class="font-bold mb-0.5">${title}</p><p class="text-gray-200">${body}</p>`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 6000);
+        }
+
+        // بتتفحص كل فترة قصيرة إذا لازم يظهر زر الواتساب، وبتطلق Toast التطمين التلقائي مرة وحدة لكل طلب
+        function checkWhatsappVisibility() {
+            if (!currentActiveOrder) return;
+            const { id, data, createdMillis } = currentActiveOrder;
+            const btnWrap = document.getElementById(`whatsapp-alert-${id}`);
+            if (!btnWrap) return; // الكارد مش معروض حاليًا (تغيّر الطلب النشط)
+
+            const status = data.status || 'قيد المعالجة';
+            const elapsed = Date.now() - createdMillis;
+            const eligible = status === 'قيد المعالجة' && createdMillis > 0 && elapsed >= WHATSAPP_DELAY_MS;
+
+            btnWrap.classList.toggle('hidden', !eligible);
+
+            if (eligible && !autoNotifiedOrders.has(id)) {
+                autoNotifiedOrders.add(id);
+                showToast('طلبك وصل للمطعم', 'بننتظر تأكيده منه، رح نعلمك أول ما يوافق عليه.');
+            }
+        }
+        setInterval(checkWhatsappVisibility, 5000);
+
+        // تفويض النقر على زر الواتساب (الكارد بينعاد بناؤه كل مرة، فالتفويض أبسط من إعادة ربط كل مرة)
+        activeOrderWrap.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.whatsapp-alert-btn');
+            if (!btn) return;
+            const orderId = btn.dataset.orderId;
+            if (!currentActiveOrder || currentActiveOrder.id !== orderId) return;
+
+            const restaurantId = currentActiveOrder.data.restaurantId;
+            if (!restaurantId) return;
+
+            let phone = restaurantPhoneCache[restaurantId];
+            if (phone === undefined) {
+                try {
+                    const rSnap = await getDoc(doc(db, "restaurants", restaurantId));
+                    phone = rSnap.exists() ? (rSnap.data().phone || '') : '';
+                } catch (err) {
+                    console.error('تعذر جلب رقم هاتف المطعم:', err.message);
+                    phone = '';
+                }
+                restaurantPhoneCache[restaurantId] = phone;
+            }
+
+            if (!phone) {
+                showToast('تعذّر التواصل', 'ما في رقم واتساب مسجّل لهذا المطعم حاليًا.');
+                return;
+            }
+
+            const shortId = orderId.substring(0, 6);
+            const text = encodeURIComponent(`مرحبًا، طلب رقم #${shortId} متأخر، الرجاء فتح تطبيق سفرة للمتابعة 🙏`);
+            window.open(`https://wa.me/${phone}?text=${text}`, '_blank');
+
+            showToast('تم تنبيه المطعم', 'رح يوصله إشعار على واتساب، رح يرد قريبًا إن شاء الله.');
+        });
 
         // مراحل تتبع الطلب - مطابقة تمامًا للحالات الفعلية اللي بتحدّثها لوحة المطعم (adman.html)
         // لو الطلب استلمه الزبون بنفسه من المطعم، بتقصر السلسلة (بدون مرحلة "بالطريق إليك")
@@ -178,6 +247,14 @@
                     <div class="flex justify-between items-center text-sm mt-5 pt-3 border-t border-gray-100">
                         <span class="text-xs text-gray-400">رقم الطلب #${orderId.substring(0, 6)}</span>
                         <span class="font-bold text-safra-gold">${totalVal} د.أ</span>
+                    </div>
+
+                    <!-- زر تنبيه المطعم عبر واتساب - بيظهر بس لو الطلب ضل "قيد المعالجة" أكثر من دقيقة -->
+                    <div id="whatsapp-alert-${orderId}" class="hidden mt-3">
+                        <button type="button" data-order-id="${orderId}" class="whatsapp-alert-btn w-full flex items-center justify-center gap-2 bg-[#25D366] text-white text-sm font-semibold py-2.5 rounded-lg hover:brightness-95 active:scale-[0.99] transition">
+                            <i class="fa-brands fa-whatsapp text-lg"></i>
+                            تنبيه المطعم إنه ما شاف طلبك بعد
+                        </button>
                     </div>
                 </div>
             `;
@@ -344,8 +421,11 @@
 
                 if (activeIdx !== -1) {
                     const active = orders[activeIdx];
+                    currentActiveOrder = { id: active.id, data: active.data, createdMillis: active.createdMillis };
                     activeOrderWrap.innerHTML = renderActiveOrderCard(active.id, active.data);
+                    checkWhatsappVisibility(); // فحص فوري بدل انتظار أول Interval
                 } else {
+                    currentActiveOrder = null;
                     activeOrderWrap.innerHTML = '';
                 }
 
