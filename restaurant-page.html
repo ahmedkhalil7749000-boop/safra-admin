@@ -95,16 +95,6 @@
             </div>
         </div>
 
-        <!-- إعلانات المنصة (بانر) — مستقلة كليًا عن اشتراك المطعم، يديرها الأدمن -->
-        <div id="ad-banners-section" class="hidden mb-4">
-            <div id="ad-banners-row" class="ad-banner-row"></div>
-        </div>
-
-        <!-- إعلانات المنصة (فيديو) -->
-        <div id="ad-videos-section" class="hidden mb-5">
-            <div id="ad-videos-row" class="ad-video-row"></div>
-        </div>
-
         <h2 class="text-lg font-bold text-safra-dark mb-3">المنيو</h2>
         <div id="menu-tabs" class="hidden flex gap-2 overflow-x-auto pb-2 mb-4 -mx-4 px-4 no-scrollbar"></div>
         <div id="menu-list" class="grid grid-cols-1 gap-3"></div>
@@ -427,58 +417,6 @@
                 return id ? `https://www.youtube.com/embed/${id}?rel=0` : url;
             } catch { return url; }
         }
-        function renderAdBanner(ad) {
-            const tag = ad.linkUrl ? 'a' : 'div';
-            const el = document.createElement(tag);
-            if (ad.linkUrl) { el.href = ad.linkUrl; el.target = '_blank'; el.rel = 'noopener'; }
-            el.className = 'ad-banner-slide';
-            el.innerHTML = `
-                <img src="${ad.mediaUrl}" alt="${ad.title || 'إعلان'}">
-                ${ad.title ? `<span class="ad-banner-name">${ad.title}</span>` : ''}
-            `;
-            return el;
-        }
-        function renderAdVideo(ad) {
-            const tag = ad.linkUrl ? 'a' : 'div';
-            const el = document.createElement(tag);
-            if (ad.linkUrl) { el.href = ad.linkUrl; el.target = '_blank'; el.rel = 'noopener'; }
-            el.className = 'ad-video-card';
-            const embeddable = isAdVideoEmbeddable(ad.mediaUrl);
-            el.innerHTML = `
-                <div class="ad-video-thumb-wrap">
-                    ${embeddable
-                        ? `<iframe src="${adVideoToYoutubeEmbed(ad.mediaUrl)}" loading="lazy" allow="encrypted-media"></iframe>`
-                        : `<video src="${ad.mediaUrl}" muted playsinline preload="metadata"></video><div class="ad-video-play-badge"><i class="fa-solid fa-circle-play"></i></div>`}
-                </div>
-                ${ad.title ? `<p class="ad-video-name">${ad.title}</p>` : ''}
-            `;
-            return el;
-        }
-        async function loadPlatformAds() {
-            try {
-                const snap = await getDocs(collection(db, "platformAds"));
-                const all = [];
-                snap.forEach(d => all.push({ id: d.id, ...d.data() }));
-                const active = all.filter(ad => ad.status === 'نشط' && ad.mediaUrl && (!ad.target || ad.target === 'الكل' || ad.target === 'المطاعم'));
-
-                const banners = active.filter(ad => ad.type === 'بانر');
-                if (banners.length) {
-                    document.getElementById('ad-banners-section').classList.remove('hidden');
-                    const row = document.getElementById('ad-banners-row');
-                    banners.forEach(ad => row.appendChild(renderAdBanner(ad)));
-                }
-
-                const videos = active.filter(ad => ad.type === 'فيديو');
-                if (videos.length) {
-                    document.getElementById('ad-videos-section').classList.remove('hidden');
-                    const row = document.getElementById('ad-videos-row');
-                    videos.forEach(ad => row.appendChild(renderAdVideo(ad)));
-                }
-            } catch (error) {
-                console.error("خطأ أثناء تحميل إعلانات المنصة:", error);
-            }
-        }
-
         async function loadRestaurant() {
             if (!restaurantId) {
                 loading.innerText = "ما في مطعم محدد. ارجع لصفحة المطاعم واختر واحد.";
@@ -533,7 +471,6 @@
         });
 
         loadRestaurant();
-        loadPlatformAds();
     </script>
 </body>
 </html>

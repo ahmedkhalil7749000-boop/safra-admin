@@ -95,13 +95,78 @@
         .skeleton-block { border-radius: 16px; background: #eee7d8; animation: sk-pulse 1.4s ease-in-out infinite; }
         @keyframes sk-pulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
 
-        .hero-cta {
-            background: linear-gradient(135deg, #0b3b2c, #2e6f40);
-            border-radius: 20px; padding: 20px; color: #fff; position: relative; overflow: hidden;
+        /* ============ دعوة أصحاب المطاعم وبيوت الطبخ للانضمام ============ */
+        @keyframes rise-fade { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
+        @keyframes plate-float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-3px) rotate(-6deg); } }
+        @keyframes cta-shimmer { 0% { background-position: 180% 0; } 100% { background-position: -40% 0; } }
+
+        .merchant-hero {
+            position: relative; isolation: isolate; overflow: hidden;
+            background: linear-gradient(155deg, #0b3b2c 0%, #123f2f 48%, #2e6f40 100%);
+            border-radius: 24px; padding: 24px 20px 22px; color: #fff;
+            box-shadow: 0 16px 34px -14px rgba(11,59,44,.6);
         }
-        .hero-cta::after {
-            content: ''; position: absolute; inset: 0;
-            background: radial-gradient(120px 120px at 90% 10%, rgba(217,119,6,.35), transparent 70%);
+        .merchant-hero::before {
+            content: ''; position: absolute; inset: 0; z-index: 0; opacity: .14;
+            background-image: radial-gradient(circle at 1.5px 1.5px, rgba(255,255,255,.6) 1.4px, transparent 1.6px);
+            background-size: 17px 17px;
+        }
+        .merchant-hero::after {
+            content: ''; position: absolute; z-index: 0; width: 230px; height: 230px; border-radius: 50%;
+            top: -80px; left: -70px; filter: blur(2px);
+            background: radial-gradient(circle, rgba(217,119,6,.45), transparent 70%);
+        }
+        .merchant-badge {
+            position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.2);
+            padding: 5px 12px; border-radius: 9999px; font-size: 11.5px; font-weight: 700;
+            backdrop-filter: blur(3px);
+        }
+        .merchant-badge .plate-icon { display: inline-block; animation: plate-float 3.2s ease-in-out infinite; }
+        .merchant-title {
+            position: relative; z-index: 1; font-size: 21px; line-height: 1.35; margin-top: 13px;
+            opacity: 0; animation: rise-fade .55s ease forwards .05s;
+        }
+        .merchant-sub {
+            position: relative; z-index: 1; font-size: 12.5px; opacity: 0; margin-top: 6px; color: rgba(255,255,255,.88);
+            animation: rise-fade .55s ease forwards .15s;
+        }
+        .merchant-points { position: relative; z-index: 1; margin-top: 16px; display: flex; flex-direction: column; gap: 9px; }
+        .merchant-point {
+            display: flex; align-items: center; gap: 9px; font-size: 12.5px; font-weight: 600;
+            opacity: 0; animation: rise-fade .5s ease forwards;
+        }
+        .merchant-point:nth-child(1) { animation-delay: .25s; }
+        .merchant-point:nth-child(2) { animation-delay: .35s; }
+        .merchant-point:nth-child(3) { animation-delay: .45s; }
+        .merchant-point .pt-icon {
+            flex: 0 0 auto; width: 25px; height: 25px; border-radius: 9999px;
+            background: rgba(217,119,6,.24); color: #f3c98a; font-size: 11px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .merchant-cta {
+            position: relative; z-index: 1; isolation: isolate; overflow: hidden;
+            margin-top: 18px; display: inline-flex; align-items: center; gap: 8px;
+            background: #d97706; color: #fff; font-weight: 700; font-size: 13.5px;
+            padding: 11px 20px; border-radius: 9999px; text-decoration: none;
+            box-shadow: 0 8px 18px -6px rgba(217,119,6,.55);
+            opacity: 0; animation: rise-fade .5s ease forwards .55s;
+            transition: transform .15s ease;
+        }
+        .merchant-cta::before {
+            content: ''; position: absolute; inset: 0; z-index: -1;
+            background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%);
+            background-size: 200% 100%; animation: cta-shimmer 2.8s ease-in-out infinite;
+        }
+        .merchant-cta:active { transform: scale(.97); }
+        .merchant-tagline {
+            position: relative; z-index: 1; font-size: 12px; opacity: 0; color: rgba(255,255,255,.8);
+            margin-top: 15px; padding-top: 13px; border-top: 1px solid rgba(255,255,255,.15);
+            animation: rise-fade .55s ease forwards .65s;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .merchant-badge .plate-icon, .merchant-cta::before { animation: none; }
+            .merchant-title, .merchant-sub, .merchant-point, .merchant-cta, .merchant-tagline { animation: none; opacity: 1; }
         }
     </style>
 </head>
@@ -112,14 +177,30 @@
 
     <div id="page-content" class="p-4 space-y-6">
 
-        <!-- ترحيب + بحث سريع عن مطاعم -->
-        <a href="restaurants.html" class="hero-cta block relative z-0">
-            <p class="text-[11px] font-semibold relative z-10 opacity-85">أهلاً فيك بمنصة</p>
-            <h1 class="font-display text-2xl font-semibold relative z-10">سفرة 🍽️</h1>
-            <p class="text-[12.5px] mt-1 relative z-10 opacity-90">اكتشف أشهى الأكلات البيتية من مطاعم موثوقة قريبة منك</p>
-            <span class="inline-flex items-center gap-1.5 mt-3 relative z-10 bg-white/15 px-3 py-1.5 rounded-full text-xs font-semibold">
-                تصفّح كل المطاعم <i class="fa-solid fa-arrow-left text-[10px]"></i>
-            </span>
+        <!-- دعوة أصحاب المطاعم وبيوت الطبخ للانضمام -->
+        <div class="merchant-hero">
+            <span class="merchant-badge"><span class="plate-icon">🍽️</span> لأصحاب المطاعم وبيوت الطبخ</span>
+
+            <h1 class="font-display font-semibold merchant-title">عندك أكلات شهية أو حلويات مميزة؟</h1>
+            <p class="merchant-sub">تعبتِ من تكاليف التسويق والإعلانات على السوشال ميديا؟</p>
+
+            <div class="merchant-points">
+                <div class="merchant-point"><span class="pt-icon"><i class="fa-solid fa-route"></i></span> وصّلي أصنافك لزبائن أكثر بكل سهولة</div>
+                <div class="merchant-point"><span class="pt-icon"><i class="fa-solid fa-ban"></i></span> بلا تكاليف إعلانات ولا تعقيد</div>
+                <div class="merchant-point"><span class="pt-icon"><i class="fa-solid fa-heart"></i></span> نزّلي أصنافك وخلي الباقي علينا</div>
+            </div>
+
+            <a href="Auth.html?signup=1&role=restaurant_owner" class="merchant-cta">
+                سجّلي مطعمك الآن <i class="fa-solid fa-arrow-left text-[11px]"></i>
+            </a>
+
+            <p class="font-display merchant-tagline">سفرة… شغفك بالأكل، فرصتك للنجاح</p>
+        </div>
+
+        <!-- مسار سريع للزبائن يلي بس بدهم يتصفّحوا -->
+        <a href="restaurants.html" class="flex items-center justify-between bg-white border border-safra-line rounded-2xl px-4 py-3 -mt-1 text-[13px] font-semibold text-safra-dark hover:border-safra-gold transition">
+            <span class="flex items-center gap-2"><i class="fa-solid fa-utensils text-safra-gold text-xs"></i> زبون؟ تصفّحي كل المطاعم</span>
+            <i class="fa-solid fa-arrow-left text-safra-muted text-[11px]"></i>
         </a>
 
         <!-- إعلانات المنصة (بانر) — مستقلة كليًا عن اشتراكات المطاعم، يتحكم بها الأدمن -->

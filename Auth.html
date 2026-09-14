@@ -98,6 +98,13 @@
         const adminRedirectBox = document.getElementById('admin-redirect-box');
         const roleSelection = document.getElementById('role-selection');
 
+        // دعم فتح النموذج مباشرة على وضع "إنشاء حساب" لصاحب مطعم عند القدوم من رابط دعوة المطاعم بالصفحة الرئيسية
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('role') === 'restaurant_owner') {
+            const ownerRadio = authForm.querySelector('input[name="role"][value="restaurant_owner"]');
+            if (ownerRadio) ownerRadio.checked = true;
+        }
+
         toggleModeBtn.addEventListener('click', () => {
             isSignUp = !isSignUp;
             if (isSignUp) {
@@ -112,6 +119,10 @@
                 roleSelection.classList.add('hidden');
             }
         });
+
+        if (urlParams.get('signup') === '1') {
+            toggleModeBtn.click();
+        }
 
         forgotPasswordLink.addEventListener('click', async (e) => {
             e.preventDefault();

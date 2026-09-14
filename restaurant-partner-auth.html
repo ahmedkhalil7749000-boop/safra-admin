@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>انضم كشريك مع سفرة</title>
+    <link rel="stylesheet" href="app-shell.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Zain:wght@700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'safra-dark': '#173628',
+              'safra-green': '#2f6b45',
+              'safra-cream': '#faf6ee',
+              'safra-gold': '#b5651d',
+              'safra-gold-dark': '#8f4e14',
+              'safra-ink': '#231f18',
+            },
+            fontFamily: {
+              sans: ['"IBM Plex Sans Arabic"', 'Tahoma', 'sans-serif'],
+              display: ['"Zain"', '"IBM Plex Sans Arabic"', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+        :root {
+            --ink: #231f18;
+            --ink-soft: #6b6255;
+            --line: #e7ddc9;
+            --panel: #ffffff;
+            --sand: #f3ecdd;
+            --green: #2f6b45;
+            --green-deep: #173628;
+            --green-tint: #eaf2ea;
+            --green-line: #cfe1d2;
+            --saffron: #b5651d;
+            --saffron-deep: #8f4e14;
+            --saffron-tint: #fbf0e2;
+            --red: #ad3b2d;
+            --red-tint: #fbeae7;
+        }
+        * { font-family: 'IBM Plex Sans Arabic', Tahoma, sans-serif; }
+        body { color: var(--ink); }
+
+        /* ===== خلفية علوية مزخرفة ===== */
+        .hero-wrap {
+            position: relative; isolation: isolate; overflow: hidden;
+            background: linear-gradient(160deg, var(--green-deep) 0%, #14442f 55%, var(--green) 120%);
+            padding: 20px 20px 74px;
+        }
+        .hero-wrap::before {
+            content: ''; position: absolute; inset: 0; z-index: 0; opacity: .12;
+            background-image: radial-gradient(circle at 1.5px 1.5px, rgba(255,255,255,.7) 1.4px, transparent 1.6px);
+            background-size: 16px 16px;
+        }
+        .hero-wrap::after {
+            content: ''; position: absolute; z-index: 0; width: 220px; height: 220px; border-radius: 50%;
+            top: -90px; left: -60px; filter: blur(4px);
+            background: radial-gradient(circle, rgba(181,101,29,.5), transparent 70%);
+        }
+        .brand-row { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; }
+        .brand-logo { width: 42px; height: 42px; border-radius: 9999px; object-fit: cover; border: 1.5px solid rgba(255,255,255,.3); }
+        .back-link {
+            display: inline-flex; align-items: center; gap: 6px; color: rgba(255,255,255,.8);
+            font-size: 12.5px; font-weight: 600; text-decoration: none;
+        }
+        .back-link:hover { color: #fff; }
+
+        .hero-badge {
+            position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.22);
+            padding: 5px 13px; border-radius: 9999px; font-size: 11.5px; font-weight: 700; color: #fff;
+            margin-top: 20px; backdrop-filter: blur(3px);
+        }
+        .hero-title {
+            position: relative; z-index: 1; color: #fff; font-size: 25px; line-height: 1.35;
+            margin-top: 12px;
+        }
+        .hero-sub {
+            position: relative; z-index: 1; color: rgba(255,255,255,.85); font-size: 13px;
+            margin-top: 6px; max-width: 30rem;
+        }
+        .perk-row { position: relative; z-index: 1; display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+        .perk-chip {
+            display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,.1);
+            border: 1px solid rgba(255,255,255,.18); color: #fff; font-size: 11.5px; font-weight: 600;
+            padding: 6px 11px; border-radius: 9999px;
+        }
+        .perk-chip i { color: #f0c793; font-size: 10.5px; }
+
+        /* ===== بطاقة الفورم العائمة ===== */
+        .auth-card {
+            position: relative; z-index: 2; margin: -52px 16px 0; background: var(--panel);
+            border-radius: 22px; border: 1px solid var(--line);
+            box-shadow: 0 1px 2px rgba(35,31,24,.05), 0 20px 40px -20px rgba(23,54,40,.35);
+            padding: 20px;
+        }
+
+        /* ===== نص ترحيبي فوق الفورم ===== */
+        .welcome-block { text-align: center; margin-bottom: 18px; }
+        .welcome-block h2 { font-size: 20px; color: var(--green-deep); line-height: 1.3; }
+        .welcome-block p { font-size: 12.5px; color: var(--ink-soft); margin-top: 7px; line-height: 1.7; }
+
+        /* ===== مبدّل تبويب: إنشاء حساب / دخول ===== */
+        .tab-switch {
+            display: flex; background: var(--sand); border: 1px solid var(--line);
+            border-radius: 12px; padding: 4px; gap: 4px;
+        }
+        .tab-btn {
+            flex: 1; text-align: center; padding: 9px 8px; border-radius: 9px;
+            font-size: 13px; font-weight: 700; color: var(--ink-soft); cursor: pointer;
+            transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+            border: none; background: transparent;
+        }
+        .tab-btn.active { background: var(--panel); color: var(--green-deep); box-shadow: 0 1px 2px rgba(35,31,24,.08); }
+
+        /* ===== حقول الإدخال ===== */
+        .field-label { display: block; font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+        .field-wrap { position: relative; }
+        .field {
+            width: 100%; padding: 11px 40px 11px 13px; border-radius: 12px; font-size: 14px;
+            border: 1.5px solid var(--line); background: var(--panel); color: var(--ink);
+            transition: border-color .15s ease, box-shadow .15s ease;
+        }
+        .field:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-tint); }
+        .field-icon {
+            position: absolute; top: 50%; right: 13px; transform: translateY(-50%);
+            color: var(--ink-soft); font-size: 13.5px; pointer-events: none;
+        }
+        .toggle-pw {
+            position: absolute; top: 50%; right: 13px; transform: translateY(-50%);
+            color: var(--ink-soft); font-size: 13.5px; cursor: pointer; background: none; border: none; padding: 0;
+        }
+
+        /* ===== أزرار ===== */
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            font-weight: 700; font-size: 14px; border-radius: 12px; padding: 12px 18px; width: 100%;
+            transition: background-color .15s ease, transform .1s ease; cursor: pointer; border: none;
+        }
+        .btn:active { transform: translateY(1px); }
+        .btn-primary { background: var(--saffron); color: #fff; box-shadow: 0 8px 18px -8px rgba(181,101,29,.6); }
+        .btn-primary:hover { background: var(--saffron-deep); }
+        .btn[disabled] { opacity: .6; cursor: not-allowed; }
+
+        .role-note {
+            display: flex; align-items: flex-start; gap: 8px; background: var(--green-tint);
+            border: 1px solid var(--green-line); color: var(--green-deep); font-size: 12px; font-weight: 600;
+            border-radius: 12px; padding: 10px 12px; line-height: 1.6;
+        }
+        .role-note i { margin-top: 2px; }
+
+        .msg-box {
+            font-size: 12.5px; font-weight: 700; border-radius: 12px; padding: 9px 12px;
+            display: none; align-items: center; gap: 7px;
+        }
+        .msg-box.show { display: flex; }
+        .msg-error { background: var(--red-tint); color: var(--red); }
+        .msg-success { background: var(--green-tint); color: var(--green-deep); }
+        .msg-info { background: var(--saffron-tint); color: var(--saffron-deep); }
+
+        .form-view { display: none; }
+        .form-view.active { display: flex; flex-direction: column; gap: 14px; }
+
+        .divider-line { border-top: 1px solid var(--line); }
+    </style>
+</head>
+<body class="app-narrow bg-safra-cream min-h-screen pb-10">
+
+    <!-- ===== الهيدر العلوي المزخرف ===== -->
+    <div class="hero-wrap">
+        <div class="brand-row">
+            <a href="index.html" class="back-link"><i class="fa-solid fa-arrow-right"></i> الرئيسية</a>
+            <img src="logo.png" alt="سفرة" class="brand-logo">
+        </div>
+
+        <span class="hero-badge"><i class="fa-solid fa-store"></i> بوابة الشركاء</span>
+        <h1 class="font-display font-bold hero-title">انضم كشريك مع سفرة</h1>
+        <p class="hero-sub">حوّل مطبخك أو مطعمك لمصدر دخل حقيقي — وصّل أصنافك لآلاف الزبائن من غير تعقيد.</p>
+
+        <div class="perk-row">
+            <span class="perk-chip"><i class="fa-solid fa-bolt"></i> تفعيل سريع</span>
+            <span class="perk-chip"><i class="fa-solid fa-chart-line"></i> إدارة طلبات لحظية</span>
+            <span class="perk-chip"><i class="fa-solid fa-hand-holding-dollar"></i> بلا تكاليف إعلانات</span>
+        </div>
+    </div>
+
+    <!-- ===== بطاقة الفورم ===== -->
+    <div class="auth-card">
+
+        <div class="welcome-block">
+            <h2 class="font-display font-bold">وسّع مطعمك مع سفرة</h2>
+            <p>سجّل مطعمك أو مطبخك البيتي ووصّل أصنافك لآلاف الزبائن الجدد، وادِر طلباتك وأصنافك من لوحة تحكم سهلة وواضحة، بدون أي تكاليف إعلانات إضافية.</p>
+        </div>
+
+        <div class="tab-switch">
+            <button type="button" id="tab-signup" class="tab-btn active">إنشاء حساب شريك</button>
+            <button type="button" id="tab-login" class="tab-btn">تسجيل الدخول</button>
+        </div>
+
+        <p id="msg" class="msg-box mt-4"></p>
+
+        <!-- ===== فورم إنشاء حساب شريك ===== -->
+        <form id="signup-form" class="form-view active mt-4">
+            <div class="role-note">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>هاد الحساب رح يترتبط تلقائيًا بلوحة تحكم المطاعم عشان تضيف أصنافك وتدير طلباتك.</span>
+            </div>
+
+            <div>
+                <label class="field-label">اسم المطعم / المشروع</label>
+                <div class="field-wrap">
+                    <input type="text" id="su-business" required class="field" placeholder="مثال: مطبخ سارة البيتي">
+                    <i class="fa-solid fa-utensils field-icon"></i>
+                </div>
+            </div>
+
+            <div>
+                <label class="field-label">الاسم الكامل</label>
+                <div class="field-wrap">
+                    <input type="text" id="su-name" required class="field" placeholder="اسمك الثلاثي">
+                    <i class="fa-solid fa-user field-icon"></i>
+                </div>
+            </div>
+
+            <div>
+                <label class="field-label">رقم الجوال</label>
+                <div class="field-wrap">
+                    <input type="tel" id="su-phone" required class="field" placeholder="07xxxxxxxx">
+                    <i class="fa-solid fa-phone field-icon"></i>
+                </div>
+            </div>
+
+            <div>
+                <label class="field-label">البريد الإلكتروني</label>
+                <div class="field-wrap">
+                    <input type="email" id="su-email" required class="field" placeholder="example@domain.com">
+                    <i class="fa-solid fa-envelope field-icon"></i>
+                </div>
+            </div>
+
+            <div>
+                <label class="field-label">كلمة المرور</label>
+                <div class="field-wrap">
+                    <input type="password" id="su-password" required minlength="6" class="field" placeholder="6 أحرف على الأقل">
+                    <button type="button" class="toggle-pw" data-target="su-password"><i class="fa-solid fa-eye"></i></button>
+                </div>
+            </div>
+
+            <div>
+                <label class="field-label">تأكيد كلمة المرور</label>
+                <div class="field-wrap">
+                    <input type="password" id="su-password2" required minlength="6" class="field" placeholder="أعد كتابة كلمة المرور">
+                    <button type="button" class="toggle-pw" data-target="su-password2"><i class="fa-solid fa-eye"></i></button>
+                </div>
+            </div>
+
+            <button type="submit" id="signup-btn" class="btn btn-primary">
+                إنشاء حساب الشريك <i class="fa-solid fa-arrow-left text-[12px]"></i>
+            </button>
+
+            <p class="text-center text-[11.5px] text-safra-ink/50 leading-relaxed">
+                بإنشاء الحساب، أنت موافق على شروط استخدام منصة سفرة الخاصة بالشركاء.
+            </p>
+        </form>
+
+        <!-- ===== فورم تسجيل الدخول ===== -->
+        <form id="login-form" class="form-view mt-4">
+            <div>
+                <label class="field-label">البريد الإلكتروني</label>
+                <div class="field-wrap">
+                    <input type="email" id="li-email" required class="field" placeholder="example@domain.com">
+                    <i class="fa-solid fa-envelope field-icon"></i>
+                </div>
+            </div>
+
+            <div>
+                <label class="field-label">كلمة المرور</label>
+                <div class="field-wrap">
+                    <input type="password" id="li-password" required class="field" placeholder="********">
+                    <button type="button" class="toggle-pw" data-target="li-password"><i class="fa-solid fa-eye"></i></button>
+                </div>
+            </div>
+
+            <div class="flex justify-end -mt-1">
+                <a href="#" id="forgot-password" class="text-[12px] font-semibold text-safra-gold hover:text-safra-gold-dark">نسيت كلمة المرور؟</a>
+            </div>
+
+            <button type="submit" id="login-btn" class="btn btn-primary">
+                دخول للوحة الشريك <i class="fa-solid fa-arrow-left text-[12px]"></i>
+            </button>
+        </form>
+
+        <div class="divider-line mt-5 pt-4 text-center">
+            <p class="text-[12px] text-safra-ink/60">مش صاحب مطعم؟ <a href="index.html" class="font-bold text-safra-green hover:text-safra-dark">تصفّح سفرة كزبون</a></p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { auth, db } from "./firebase-config.js";
+        import {
+            signInWithEmailAndPassword,
+            createUserWithEmailAndPassword,
+            sendPasswordResetEmail
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { doc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // ===== عناصر التبويب =====
+        const tabSignup = document.getElementById('tab-signup');
+        const tabLogin = document.getElementById('tab-login');
+        const signupForm = document.getElementById('signup-form');
+        const loginForm = document.getElementById('login-form');
+        const msg = document.getElementById('msg');
+
+        function showTab(tab) {
+            const isSignup = tab === 'signup';
+            tabSignup.classList.toggle('active', isSignup);
+            tabLogin.classList.toggle('active', !isSignup);
+            signupForm.classList.toggle('active', isSignup);
+            loginForm.classList.toggle('active', !isSignup);
+            hideMsg();
+        }
+        tabSignup.addEventListener('click', () => showTab('signup'));
+        tabLogin.addEventListener('click', () => showTab('login'));
+
+        // دعم فتح الصفحة مباشرة على وضع الدخول عبر ?mode=login
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('mode') === 'login') showTab('login');
+
+        // ===== إظهار/إخفاء كلمة المرور =====
+        document.querySelectorAll('.toggle-pw').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const input = document.getElementById(btn.dataset.target);
+                const icon = btn.querySelector('i');
+                const toText = input.type === 'password';
+                input.type = toText ? 'text' : 'password';
+                icon.classList.toggle('fa-eye', !toText);
+                icon.classList.toggle('fa-eye-slash', toText);
+            });
+        });
+
+        // ===== رسائل =====
+        function showMsg(text, type) {
+            msg.textContent = text;
+            msg.className = `msg-box show msg-${type}`;
+        }
+        function hideMsg() {
+            msg.className = 'msg-box';
+        }
+
+        function friendlyError(error) {
+            const map = {
+                'auth/email-already-in-use': 'هذا البريد الإلكتروني مسجّل مسبقًا. جرّب تسجيل الدخول.',
+                'auth/invalid-email': 'صيغة البريد الإلكتروني غير صحيحة.',
+                'auth/weak-password': 'كلمة المرور ضعيفة، لازم تكون 6 أحرف على الأقل.',
+                'auth/user-not-found': 'ما في حساب مسجّل بهذا البريد الإلكتروني.',
+                'auth/wrong-password': 'كلمة المرور غير صحيحة.',
+                'auth/invalid-credential': 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
+                'auth/too-many-requests': 'محاولات كثيرة متتالية، حاول بعد شوي.',
+            };
+            return map[error.code] || ('حدث خطأ: ' + error.message);
+        }
+
+        // ===== إنشاء حساب شريك مطعم =====
+        signupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideMsg();
+
+            const businessName = document.getElementById('su-business').value.trim();
+            const fullName = document.getElementById('su-name').value.trim();
+            const phone = document.getElementById('su-phone').value.trim();
+            const email = document.getElementById('su-email').value.trim();
+            const password = document.getElementById('su-password').value;
+            const password2 = document.getElementById('su-password2').value;
+            const signupBtn = document.getElementById('signup-btn');
+
+            if (password !== password2) {
+                showMsg('كلمتا المرور غير متطابقتين.', 'error');
+                return;
+            }
+
+            signupBtn.disabled = true;
+            showMsg('جاري إنشاء حسابك...', 'info');
+
+            try {
+                const cred = await createUserWithEmailAndPassword(auth, email, password);
+
+                await setDoc(doc(db, "users", cred.user.uid), {
+                    email: cred.user.email,
+                    role: 'restaurant_owner',
+                    fullName: fullName,
+                    phone: phone,
+                    businessName: businessName,
+                    createdAt: serverTimestamp()
+                });
+
+                showMsg('تم إنشاء حساب الشريك بنجاح! جاري تحويلك للوحة التحكم...', 'success');
+
+                setTimeout(() => {
+                    window.location.href = "restaurant-dashboard.html";
+                }, 1200);
+            } catch (error) {
+                showMsg(friendlyError(error), 'error');
+                signupBtn.disabled = false;
+            }
+        });
+
+        // ===== تسجيل الدخول =====
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideMsg();
+
+            const email = document.getElementById('li-email').value.trim();
+            const password = document.getElementById('li-password').value;
+            const loginBtn = document.getElementById('login-btn');
+
+            loginBtn.disabled = true;
+            showMsg('جاري تسجيل الدخول...', 'info');
+
+            try {
+                const cred = await signInWithEmailAndPassword(auth, email, password);
+                const userDoc = await getDoc(doc(db, "users", cred.user.uid));
+                const role = userDoc.exists() ? userDoc.data().role : 'customer';
+
+                if (role === 'restaurant_owner') {
+                    showMsg('تم تسجيل الدخول بنجاح! جاري تحويلك للوحة التحكم...', 'success');
+                    setTimeout(() => { window.location.href = "restaurant-dashboard.html"; }, 1000);
+                } else {
+                    showMsg('هذا الحساب مسجّل كزبون وليس كشريك مطعم. تقدر تتصفّح سفرة من الصفحة الرئيسية.', 'info');
+                    loginBtn.disabled = false;
+                }
+            } catch (error) {
+                showMsg(friendlyError(error), 'error');
+                loginBtn.disabled = false;
+            }
+        });
+
+        // ===== استعادة كلمة المرور =====
+        document.getElementById('forgot-password').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('li-email').value.trim();
+            if (!email) {
+                showMsg('اكتب بريدك الإلكتروني بحقل الدخول أولاً.', 'error');
+                return;
+            }
+            try {
+                await sendPasswordResetEmail(auth, email);
+                showMsg('تم إرسال رابط استعادة كلمة المرور لبريدك الإلكتروني.', 'success');
+            } catch (error) {
+                showMsg(friendlyError(error), 'error');
+            }
+        });
+    </script>
+</body>
+</html>
