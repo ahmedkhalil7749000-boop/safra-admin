@@ -122,6 +122,14 @@
             </span>
         </a>
 
+        <!-- إعلانات المنصة (بانر) — مستقلة كليًا عن اشتراكات المطاعم، يتحكم بها الأدمن -->
+        <div id="platform-banners-section" class="hidden">
+            <div class="section-heading">
+                <h2 class="font-display">إعلانات مميزة</h2>
+            </div>
+            <div id="platform-banners-row" class="banner-row"></div>
+        </div>
+
         <!-- بانرات المطاعم المعتمدة -->
         <div id="banners-section" class="hidden">
             <div class="section-heading">
@@ -149,6 +157,14 @@
                 <h2 class="font-display">فيديوهات من مطاعمنا</h2>
             </div>
             <div id="videos-row" class="video-row"></div>
+        </div>
+
+        <!-- إعلانات المنصة (فيديو) — مستقلة كليًا عن اشتراكات المطاعم، يتحكم بها الأدمن -->
+        <div id="platform-videos-section" class="hidden">
+            <div class="section-heading">
+                <h2 class="font-display">إعلانات فيديو</h2>
+            </div>
+            <div id="platform-videos-row" class="video-row"></div>
         </div>
 
         <div id="error-box" class="hidden text-center text-red-600 bg-red-50 border border-red-100 rounded-xl py-6 px-4 text-sm"></div>
@@ -240,6 +256,61 @@
             return a;
         }
 
+        function renderPlatformBanner(ad) {
+            const tag = ad.linkUrl ? 'a' : 'div';
+            const el = document.createElement(tag);
+            if (ad.linkUrl) { el.href = ad.linkUrl; el.target = '_blank'; el.rel = 'noopener'; }
+            el.className = 'banner-slide';
+            el.innerHTML = `
+                <img src="${ad.mediaUrl}" alt="${ad.title || 'إعلان'}">
+                ${ad.title ? `<span class="banner-name">${ad.title}</span>` : ''}
+            `;
+            return el;
+        }
+
+        function renderPlatformVideo(ad) {
+            const tag = ad.linkUrl ? 'a' : 'div';
+            const el = document.createElement(tag);
+            if (ad.linkUrl) { el.href = ad.linkUrl; el.target = '_blank'; el.rel = 'noopener'; }
+            el.className = 'video-card';
+            const embeddable = isVideoUrlEmbeddable(ad.mediaUrl);
+            el.innerHTML = `
+                <div class="video-thumb-wrap">
+                    ${embeddable
+                        ? `<iframe src="${toYoutubeEmbed(ad.mediaUrl)}" loading="lazy" allow="encrypted-media"></iframe>`
+                        : `<video src="${ad.mediaUrl}" muted playsinline preload="metadata"></video><div class="video-play-badge"><i class="fa-solid fa-circle-play"></i></div>`}
+                </div>
+                ${ad.title ? `<p class="video-name">${ad.title}</p>` : ''}
+            `;
+            return el;
+        }
+
+        // ===== إعلانات المنصة: مستقلة كليًا عن اشتراكات المطاعم، يديرها الأدمن مباشرة =====
+        async function loadPlatformAds() {
+            try {
+                const snap = await getDocs(collection(db, "platformAds"));
+                const all = [];
+                snap.forEach(d => all.push({ id: d.id, ...d.data() }));
+                const active = all.filter(ad => ad.status === 'نشط' && ad.mediaUrl && (!ad.target || ad.target === 'الكل' || ad.target === 'الرئيسية'));
+
+                const banners = active.filter(ad => ad.type === 'بانر');
+                if (banners.length) {
+                    document.getElementById('platform-banners-section').classList.remove('hidden');
+                    const row = document.getElementById('platform-banners-row');
+                    banners.forEach(ad => row.appendChild(renderPlatformBanner(ad)));
+                }
+
+                const videos = active.filter(ad => ad.type === 'فيديو');
+                if (videos.length) {
+                    document.getElementById('platform-videos-section').classList.remove('hidden');
+                    const row = document.getElementById('platform-videos-row');
+                    videos.forEach(ad => row.appendChild(renderPlatformVideo(ad)));
+                }
+            } catch (error) {
+                console.error("خطأ أثناء تحميل إعلانات المنصة:", error);
+            }
+        }
+
         async function loadHome() {
             try {
                 const snap = await getDocs(collection(db, "restaurants"));
@@ -289,6 +360,7 @@
         }
 
         loadHome();
+        loadPlatformAds();
     </script>
 </body>
 </html>

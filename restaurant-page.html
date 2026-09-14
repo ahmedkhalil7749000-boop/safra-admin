@@ -42,6 +42,30 @@
             display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px;
             border-radius: 9999px; background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0;
         }
+
+        /* ============ إعلانات المنصة (بانر/فيديو مستقلة عن اشتراكات المطاعم) ============ */
+        .ad-banner-row { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+        .ad-banner-row::-webkit-scrollbar { display: none; }
+        .ad-banner-slide {
+            flex: 0 0 90%; scroll-snap-align: start; display: block; text-decoration: none;
+            border-radius: 14px; overflow: hidden; position: relative; background: #f1ece0; aspect-ratio: 16/7;
+        }
+        .ad-banner-slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .ad-banner-slide .ad-banner-name {
+            position: absolute; right: 10px; bottom: 8px; color: #fff; font-size: 12px;
+            font-weight: 700; text-shadow: 0 1px 6px rgba(0,0,0,.55);
+            background: rgba(11,20,15,.35); padding: 3px 9px; border-radius: 9999px;
+        }
+        .ad-video-row { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+        .ad-video-row::-webkit-scrollbar { display: none; }
+        .ad-video-card { flex: 0 0 120px; text-decoration: none; color: inherit; }
+        .ad-video-thumb-wrap {
+            position: relative; aspect-ratio: 9/16; border-radius: 14px; overflow: hidden; background: #12261d;
+        }
+        .ad-video-thumb-wrap video, .ad-video-thumb-wrap iframe { width: 100%; height: 100%; object-fit: cover; border: none; }
+        .ad-video-play-badge { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.18); pointer-events: none; }
+        .ad-video-play-badge i { color: #fff; font-size: 24px; text-shadow: 0 2px 8px rgba(0,0,0,.4); }
+        .ad-video-name { margin-top: 6px; font-size: 11.5px; font-weight: 600; color: #1c1a16; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     </style>
 </head>
 <body class="app-narrow bg-safra-cream min-h-screen">
@@ -69,6 +93,16 @@
                     <span id="r-fee"></span>
                 </div>
             </div>
+        </div>
+
+        <!-- إعلانات المنصة (بانر) — مستقلة كليًا عن اشتراك المطعم، يديرها الأدمن -->
+        <div id="ad-banners-section" class="hidden mb-4">
+            <div id="ad-banners-row" class="ad-banner-row"></div>
+        </div>
+
+        <!-- إعلانات المنصة (فيديو) -->
+        <div id="ad-videos-section" class="hidden mb-5">
+            <div id="ad-videos-row" class="ad-video-row"></div>
         </div>
 
         <h2 class="text-lg font-bold text-safra-dark mb-3">المنيو</h2>
@@ -380,6 +414,71 @@
             filtered.forEach(item => menuList.appendChild(buildMenuItemCard(item.id, item)));
         }
 
+        // ===== إعلانات المنصة: مستقلة كليًا عن اشتراك هذا المطعم، يديرها الأدمن مباشرة =====
+        function isAdVideoEmbeddable(url) {
+            return /youtube\.com|youtu\.be/i.test(url || '');
+        }
+        function adVideoToYoutubeEmbed(url) {
+            try {
+                const u = new URL(url);
+                let id = '';
+                if (u.hostname.includes('youtu.be')) { id = u.pathname.replace('/', ''); }
+                else { id = u.searchParams.get('v') || ''; }
+                return id ? `https://www.youtube.com/embed/${id}?rel=0` : url;
+            } catch { return url; }
+        }
+        function renderAdBanner(ad) {
+            const tag = ad.linkUrl ? 'a' : 'div';
+            const el = document.createElement(tag);
+            if (ad.linkUrl) { el.href = ad.linkUrl; el.target = '_blank'; el.rel = 'noopener'; }
+            el.className = 'ad-banner-slide';
+            el.innerHTML = `
+                <img src="${ad.mediaUrl}" alt="${ad.title || 'إعلان'}">
+                ${ad.title ? `<span class="ad-banner-name">${ad.title}</span>` : ''}
+            `;
+            return el;
+        }
+        function renderAdVideo(ad) {
+            const tag = ad.linkUrl ? 'a' : 'div';
+            const el = document.createElement(tag);
+            if (ad.linkUrl) { el.href = ad.linkUrl; el.target = '_blank'; el.rel = 'noopener'; }
+            el.className = 'ad-video-card';
+            const embeddable = isAdVideoEmbeddable(ad.mediaUrl);
+            el.innerHTML = `
+                <div class="ad-video-thumb-wrap">
+                    ${embeddable
+                        ? `<iframe src="${adVideoToYoutubeEmbed(ad.mediaUrl)}" loading="lazy" allow="encrypted-media"></iframe>`
+                        : `<video src="${ad.mediaUrl}" muted playsinline preload="metadata"></video><div class="ad-video-play-badge"><i class="fa-solid fa-circle-play"></i></div>`}
+                </div>
+                ${ad.title ? `<p class="ad-video-name">${ad.title}</p>` : ''}
+            `;
+            return el;
+        }
+        async function loadPlatformAds() {
+            try {
+                const snap = await getDocs(collection(db, "platformAds"));
+                const all = [];
+                snap.forEach(d => all.push({ id: d.id, ...d.data() }));
+                const active = all.filter(ad => ad.status === 'نشط' && ad.mediaUrl && (!ad.target || ad.target === 'الكل' || ad.target === 'المطاعم'));
+
+                const banners = active.filter(ad => ad.type === 'بانر');
+                if (banners.length) {
+                    document.getElementById('ad-banners-section').classList.remove('hidden');
+                    const row = document.getElementById('ad-banners-row');
+                    banners.forEach(ad => row.appendChild(renderAdBanner(ad)));
+                }
+
+                const videos = active.filter(ad => ad.type === 'فيديو');
+                if (videos.length) {
+                    document.getElementById('ad-videos-section').classList.remove('hidden');
+                    const row = document.getElementById('ad-videos-row');
+                    videos.forEach(ad => row.appendChild(renderAdVideo(ad)));
+                }
+            } catch (error) {
+                console.error("خطأ أثناء تحميل إعلانات المنصة:", error);
+            }
+        }
+
         async function loadRestaurant() {
             if (!restaurantId) {
                 loading.innerText = "ما في مطعم محدد. ارجع لصفحة المطاعم واختر واحد.";
@@ -434,6 +533,7 @@
         });
 
         loadRestaurant();
+        loadPlatformAds();
     </script>
 </body>
 </html>

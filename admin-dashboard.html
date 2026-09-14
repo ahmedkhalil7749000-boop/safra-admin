@@ -77,13 +77,14 @@
             await loadPlans();
             await loadUsers();
             await loadHomeReview();
+            await loadPlatformAds();
         });
 
         // ===============================================================
-        //                  تبديل التبويبات (طلبات / اشتراكات / الرئيسية / المستخدمين)
+        //                  تبديل التبويبات (طلبات / اشتراكات / الرئيسية / إعلانات المنصة / المستخدمين)
         // ===============================================================
         window.showTab = function(tab) {
-            const tabs = ['orders', 'subscriptions', 'home', 'users'];
+            const tabs = ['orders', 'subscriptions', 'home', 'platform-ads', 'users'];
             tabs.forEach(t => {
                 document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
                 document.getElementById('btn-tab-' + t).className = t === tab
@@ -635,6 +636,132 @@
             }
         }
 
+        // ===============================================================
+        //          إعلانات المنصة (بانر/فيديو مستقلة كليًا عن المطاعم)
+        // ===============================================================
+        const AD_IMGBB_API_KEY = "7dfc52facabaef7d38eddf1c83976c5d";
+        const AD_CLOUDINARY_CLOUD_NAME = "a81hyco5";
+        const AD_CLOUDINARY_VIDEO_PRESET = "safra_videos";
+
+        async function uploadAdImage(file) {
+            const formData = new FormData();
+            formData.append("image", file);
+            const response = await fetch(`https://api.imgbb.com/1/upload?key=${AD_IMGBB_API_KEY}`, { method: "POST", body: formData });
+            const result = await response.json();
+            if (!result.success) throw new Error((result.error && result.error.message) || "فشل رفع الصورة إلى imgbb");
+            return result.data.url;
+        }
+
+        async function uploadAdVideo(file) {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("upload_preset", AD_CLOUDINARY_VIDEO_PRESET);
+            const response = await fetch(`https://api.cloudinary.com/v1_1/${AD_CLOUDINARY_CLOUD_NAME}/video/upload`, { method: "POST", body: formData });
+            const result = await response.json();
+            if (!result.secure_url) throw new Error((result.error && result.error.message) || "فشل رفع الفيديو إلى Cloudinary");
+            return result.secure_url;
+        }
+
+        window.toggleAdTypeFields = function() {
+            const type = document.getElementById('ad-type').value;
+            document.getElementById('ad-banner-field').classList.toggle('hidden', type !== 'بانر');
+            document.getElementById('ad-video-field').classList.toggle('hidden', type !== 'فيديو');
+        }
+
+        window.addPlatformAd = async function(e) {
+            e.preventDefault();
+            const msg = document.getElementById('ad-form-msg');
+            const btn = document.getElementById('ad-submit-btn');
+            const type = document.getElementById('ad-type').value;
+            const title = document.getElementById('ad-title').value.trim();
+            const target = document.getElementById('ad-target').value;
+            const linkUrl = document.getElementById('ad-link').value.trim();
+            btn.disabled = true;
+            msg.className = "sm:col-span-2 text-xs font-semibold text-blue-600";
+            msg.innerText = "جاري الرفع...";
+            try {
+                let mediaUrl = "";
+                if (type === 'بانر') {
+                    const file = document.getElementById('ad-banner-file').files[0];
+                    if (!file) throw new Error("لازم ترفع صورة البانر");
+                    mediaUrl = await uploadAdImage(file);
+                } else {
+                    const file = document.getElementById('ad-video-file').files[0];
+                    const url = document.getElementById('ad-video-url').value.trim();
+                    if (file) mediaUrl = await uploadAdVideo(file);
+                    else if (url) mediaUrl = url;
+                    else throw new Error("لازم ترفع ملف فيديو أو تضيف رابط يوتيوب");
+                }
+                await addDoc(collection(db, "platformAds"), {
+                    type, title, linkUrl, mediaUrl, target,
+                    status: "نشط",
+                    createdAt: serverTimestamp()
+                });
+                msg.className = "sm:col-span-2 text-xs font-semibold text-green-600";
+                msg.innerText = "تمت إضافة الإعلان بنجاح!";
+                document.getElementById('platform-ad-form').reset();
+                window.toggleAdTypeFields();
+                await loadPlatformAds();
+            } catch (error) {
+                msg.className = "sm:col-span-2 text-xs font-semibold text-red-600";
+                msg.innerText = "خطأ: " + error.message;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function loadPlatformAds() {
+            const box = document.getElementById('platform-ads-list');
+            if (!box) return;
+            try {
+                const snap = await getDocs(collection(db, "platformAds"));
+                const ads = [];
+                snap.forEach(d => ads.push({ id: d.id, ...d.data() }));
+                ads.sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
+                if (!ads.length) {
+                    box.innerHTML = `<p class="text-center text-gray-400 py-6">لا يوجد إعلانات بعد</p>`;
+                    return;
+                }
+                box.innerHTML = "";
+                ads.forEach(ad => {
+                    const row = document.createElement('div');
+                    row.className = "flex items-center justify-between gap-3 border border-gray-100 rounded-xl p-3 flex-wrap";
+                    row.innerHTML = `
+                        <div class="flex items-center gap-3 min-w-0">
+                            ${ad.type === 'بانر'
+                                ? `<img src="${ad.mediaUrl}" class="w-20 h-12 object-cover rounded-lg border">`
+                                : `<div class="w-20 h-12 rounded-lg border bg-gray-800 flex items-center justify-center text-white text-lg">🎬</div>`}
+                            <div class="min-w-0">
+                                <p class="text-sm font-semibold text-gray-800 truncate">${ad.title || (ad.type === 'بانر' ? 'بانر بدون عنوان' : 'فيديو بدون عنوان')}</p>
+                                <p class="text-xs text-gray-400">${ad.type}${ad.linkUrl ? ' · مرتبط برابط' : ''} · ${ad.target === 'الرئيسية' ? 'الرئيسية فقط' : ad.target === 'المطاعم' ? 'صفحة المطاعم فقط' : 'الرئيسية + المطاعم'}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="text-xs font-semibold px-2 py-1 rounded-full ${ad.status === 'نشط' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">${ad.status}</span>
+                            <button data-id="${ad.id}" data-status="${ad.status}" class="ad-toggle-btn text-xs font-semibold text-blue-600 hover:underline">${ad.status === 'نشط' ? 'إيقاف' : 'تفعيل'}</button>
+                            <button data-id="${ad.id}" class="ad-delete-btn text-xs font-semibold text-red-600 hover:underline">حذف</button>
+                        </div>`;
+                    box.appendChild(row);
+                });
+                box.querySelectorAll('.ad-toggle-btn').forEach(btn => btn.addEventListener('click', async () => {
+                    const newStatus = btn.dataset.status === 'نشط' ? 'غير نشط' : 'نشط';
+                    try {
+                        await updateDoc(doc(db, "platformAds", btn.dataset.id), { status: newStatus });
+                        await loadPlatformAds();
+                    } catch (error) { alert("خطأ: " + error.message); }
+                }));
+                box.querySelectorAll('.ad-delete-btn').forEach(btn => btn.addEventListener('click', async () => {
+                    if (!confirm("متأكد من حذف هذا الإعلان؟")) return;
+                    try {
+                        await deleteDoc(doc(db, "platformAds", btn.dataset.id));
+                        await loadPlatformAds();
+                    } catch (error) { alert("خطأ: " + error.message); }
+                }));
+            } catch (error) {
+                box.innerHTML = `<p class="text-red-500 text-sm text-center py-4">تعذر التحميل: ${error.message}</p>`;
+            }
+        }
+
         window.logout = function() {
             signOut(auth).then(() => {
                 window.location.replace("Auth.html");
@@ -667,6 +794,7 @@
                 <button id="btn-tab-orders" onclick="showTab('orders')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-safra-gold text-white">الطلبات</button>
                 <button id="btn-tab-subscriptions" onclick="showTab('subscriptions')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">الاشتراكات</button>
                 <button id="btn-tab-home" onclick="showTab('home')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">الرئيسية</button>
+                <button id="btn-tab-platform-ads" onclick="showTab('platform-ads')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">📣 إعلانات المنصة</button>
                 <button id="btn-tab-users" onclick="showTab('users')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">المستخدمين</button>
             </div>
 
@@ -782,6 +910,62 @@
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                     <h2 class="text-lg font-bold text-gray-800 mb-4">✅ المعتمد حاليًا بالصفحة الرئيسية</h2>
                     <div id="approved-promo-list" class="space-y-2">
+                        <p class="text-center text-gray-400 py-6">جاري التحميل...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== تبويب: إعلانات المنصة (بانر/فيديو مستقلة عن المطاعم) ===== -->
+            <div id="tab-platform-ads" class="hidden space-y-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-2">📣 إضافة إعلان جديد</h2>
+                    <p class="text-xs text-gray-400 mb-4">هاي الإعلانات مستقلة كليًا عن اشتراكات المطاعم وما بتحتاج مراجعة — إنت متحكم فيها بالكامل كأدمن، وبتظهر فورًا على الصفحة الرئيسية وصفحة كل مطعم.</p>
+                    <form id="platform-ad-form" onsubmit="addPlatformAd(event)" class="grid sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">نوع الإعلان</label>
+                            <select id="ad-type" required class="w-full px-3 py-2 border rounded-lg text-sm" onchange="toggleAdTypeFields()">
+                                <option value="بانر">بانر (صورة)</option>
+                                <option value="فيديو">فيديو</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">عنوان مختصر (اختياري)</label>
+                            <input type="text" id="ad-title" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="مثال: عرض رمضان">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">وين يظهر الإعلان؟</label>
+                            <select id="ad-target" required class="w-full px-3 py-2 border rounded-lg text-sm">
+                                <option value="الكل">الصفحة الرئيسية + صفحة المطاعم (الاثنين)</option>
+                                <option value="الرئيسية">الصفحة الرئيسية فقط</option>
+                                <option value="المطاعم">صفحة المطاعم فقط</option>
+                            </select>
+                        </div>
+                        <div id="ad-banner-field" class="sm:col-span-2">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">صورة البانر <span class="text-gray-400">(مقاس أفقي عريض يُفضّل، مثلاً 1200×500)</span></label>
+                            <input type="file" id="ad-banner-file" accept="image/*" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                        <div id="ad-video-field" class="hidden sm:col-span-2 grid sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">رفع ملف فيديو من جهازك</label>
+                                <input type="file" id="ad-video-file" accept="video/*" class="w-full px-3 py-2 border rounded-lg text-sm">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">أو رابط يوتيوب</label>
+                                <input type="url" id="ad-video-url" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="https://youtube.com/watch?v=...">
+                            </div>
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">رابط عند الضغط على الإعلان (اختياري)</label>
+                            <input type="url" id="ad-link" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="https://...">
+                        </div>
+                        <button type="submit" id="ad-submit-btn" class="sm:col-span-2 bg-safra-gold text-white py-2 rounded-lg text-sm font-semibold hover:bg-safra-gold-dark transition">إضافة الإعلان</button>
+                        <p id="ad-form-msg" class="sm:col-span-2 text-xs font-semibold"></p>
+                    </form>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">📋 الإعلانات الحالية</h2>
+                    <div id="platform-ads-list" class="space-y-3">
                         <p class="text-center text-gray-400 py-6">جاري التحميل...</p>
                     </div>
                 </div>
