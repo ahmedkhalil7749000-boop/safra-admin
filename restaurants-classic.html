@@ -219,6 +219,25 @@
             background: color-mix(in srgb, var(--r-roof) 12%, white);
             padding: 2px 8px; border-radius: 9999px;
         }
+
+        /* ============ بانرات إعلانات المنصة (شريط تمرير أفقي) ============ */
+        .banner-row {
+            display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory;
+            padding: 2px 2px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+        }
+        .banner-row::-webkit-scrollbar { display: none; }
+        .banner-slide {
+            flex: 0 0 88%; scroll-snap-align: start; display: block; text-decoration: none;
+            border-radius: 18px; overflow: hidden; position: relative; background: #f1ece0;
+            aspect-ratio: 16/7;
+        }
+        .banner-slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .banner-slide .banner-name {
+            position: absolute; right: 12px; bottom: 10px; color: #fff; font-size: 12.5px;
+            font-weight: 700; text-shadow: 0 1px 6px rgba(0,0,0,.55);
+            background: rgba(11,20,15,.35); padding: 4px 10px; border-radius: 9999px;
+            backdrop-filter: blur(2px);
+        }
     </style>
 </head>
 <body class="app-narrow bg-safra-cream min-h-screen">
@@ -228,6 +247,11 @@
 
     <div class="p-4">
         <h1 class="text-xl font-bold text-safra-gold mb-4">المطاعم</h1>
+
+        <!-- إعلانات المنصة (بانر) — مستقلة كليًا عن اشتراكات المطاعم، يتحكم بها الأدمن -->
+        <div id="platform-banners-section" class="hidden mb-5">
+            <div id="platform-banners-row" class="banner-row"></div>
+        </div>
 
         <!-- البحث -->
         <div class="mb-4">
@@ -412,6 +436,36 @@
         import { db } from "./firebase-config.js";
         import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+        // ===== إعلانات المنصة (بانر): مستقلة كليًا عن اشتراكات المطاعم، يديرها الأدمن مباشرة =====
+        function renderPlatformBanner(ad) {
+            const tag = ad.linkUrl ? 'a' : 'div';
+            const el = document.createElement(tag);
+            if (ad.linkUrl) { el.href = ad.linkUrl; el.target = '_blank'; el.rel = 'noopener'; }
+            el.className = 'banner-slide';
+            el.innerHTML = `
+                <img src="${ad.mediaUrl}" alt="${ad.title || 'إعلان'}">
+                ${ad.title ? `<span class="banner-name">${ad.title}</span>` : ''}
+            `;
+            return el;
+        }
+
+        async function loadPlatformAds() {
+            try {
+                const snap = await getDocs(collection(db, "platformAds"));
+                const all = [];
+                snap.forEach(d => all.push({ id: d.id, ...d.data() }));
+                const active = all.filter(ad => ad.status === 'نشط' && ad.mediaUrl && ad.type === 'بانر' && (!ad.target || ad.target === 'الكل' || ad.target === 'المطاعم'));
+
+                if (active.length) {
+                    document.getElementById('platform-banners-section').classList.remove('hidden');
+                    const row = document.getElementById('platform-banners-row');
+                    active.forEach(ad => row.appendChild(renderPlatformBanner(ad)));
+                }
+            } catch (error) {
+                console.error("خطأ أثناء تحميل إعلانات المنصة:", error);
+            }
+        }
+
         const loading = document.getElementById('loading');
         const errorBox = document.getElementById('error');
         const emptyBox = document.getElementById('empty');
@@ -545,6 +599,7 @@
         }
 
         loadRestaurants();
+        loadPlatformAds();
     </script>
 </body>
 </html>
