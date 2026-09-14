@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>ريلز المطاعم - سفرة</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'safra-dark': '#0b3b2c',
+              'safra-green': '#2e6f40',
+              'safra-cream': '#fbf9f5',
+              'safra-gold': '#d97706',
+              'safra-gold-dark': '#b45309',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        html, body { height: 100%; margin: 0; background: #000; overscroll-behavior: none; }
+
+        #reels-feed {
+            height: 100dvh; width: 100%;
+            overflow-y: scroll; scroll-snap-type: y mandatory;
+            -webkit-overflow-scrolling: touch;
+        }
+        #reels-feed::-webkit-scrollbar { display: none; }
+
+        .reel {
+            position: relative; height: 100dvh; width: 100%;
+            scroll-snap-align: start; scroll-snap-stop: always;
+            display: flex; align-items: center; justify-content: center;
+            background: #0b120e; overflow: hidden;
+        }
+        .reel video {
+            width: 100%; height: 100%; object-fit: cover;
+        }
+        .reel-overlay {
+            position: absolute; inset: 0; pointer-events: none;
+            background: linear-gradient(to top, rgba(0,0,0,.65) 0%, rgba(0,0,0,0) 32%, rgba(0,0,0,0) 70%, rgba(0,0,0,.35) 100%);
+        }
+        .reel-topbar {
+            position: absolute; top: 0; right: 0; left: 0; padding: 14px 14px 0;
+            display: flex; align-items: center; justify-content: space-between; pointer-events: none;
+        }
+        .reel-topbar > * { pointer-events: auto; }
+        .icon-btn {
+            width: 38px; height: 38px; border-radius: 9999px; background: rgba(0,0,0,.35);
+            display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px;
+            border: none; backdrop-filter: blur(2px);
+        }
+        .reel-info {
+            position: absolute; bottom: 22px; right: 16px; left: 88px; pointer-events: auto;
+            color: #fff;
+        }
+        .reel-info .r-name { font-weight: 800; font-size: 16px; text-shadow: 0 1px 6px rgba(0,0,0,.5); }
+        .reel-info .r-link { font-size: 12px; opacity: .9; text-decoration: underline; }
+
+        .reel-side-actions {
+            position: absolute; bottom: 24px; left: 12px; display: flex; flex-direction: column;
+            align-items: center; gap: 18px; pointer-events: auto;
+        }
+        .action-btn {
+            display: flex; flex-direction: column; align-items: center; gap: 3px;
+            background: none; border: none; color: #fff; font-size: 13px; font-weight: 700;
+        }
+        .action-circle {
+            width: 46px; height: 46px; border-radius: 9999px; background: rgba(0,0,0,.32);
+            display: flex; align-items: center; justify-content: center; font-size: 21px; color: #fff;
+            transition: transform .12s ease;
+        }
+        .action-btn.liked .action-circle { color: #ff3b5c; }
+        .action-btn:active .action-circle { transform: scale(0.88); }
+
+        .rating-pop {
+            position: absolute; bottom: 24px; left: 74px; right: 16px; pointer-events: auto;
+            background: rgba(0,0,0,.55); border-radius: 14px; padding: 10px 12px;
+            display: none; align-items: center; justify-content: space-between; gap: 8px;
+            backdrop-filter: blur(3px);
+        }
+        .rating-pop.open { display: flex; }
+        .rating-pop .stars { display: flex; gap: 6px; }
+        .rating-pop .stars i { font-size: 20px; color: rgba(255,255,255,.35); cursor: pointer; }
+        .rating-pop .stars i.on { color: var(--rate-gold, #f5b301); }
+        .rating-pop .avg { color: #fff; font-size: 12px; white-space: nowrap; }
+
+        .reel-loading, .reel-empty {
+            position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 14px; text-align: center; padding: 20px; z-index: 5;
+        }
+        .spinner {
+            width: 30px; height: 30px; border-radius: 9999px; border: 3px solid rgba(255,255,255,.25);
+            border-top-color: #fff; animation: spin 0.8s linear infinite; margin: 0 auto 10px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .mute-hint {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+            width: 58px; height: 58px; border-radius: 9999px; background: rgba(0,0,0,.4);
+            display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24px;
+            opacity: 0; pointer-events: none; transition: opacity .25s ease;
+        }
+        .mute-hint.show { opacity: 1; }
+    </style>
+</head>
+<body>
+
+    <div id="loading-box" class="reel-loading">
+        <div>
+            <div class="spinner"></div>
+            جاري تحميل الفيديوهات...
+        </div>
+    </div>
+
+    <div id="empty-box" class="reel-empty hidden">
+        لا يوجد فيديوهات متاحة حاليًا 🎬
+        <br>
+        <a href="home.html" style="color:#f5b301; margin-top:10px; display:inline-block;">رجوع للرئيسية</a>
+    </div>
+
+    <div id="reels-feed" class="hidden"></div>
+
+    <script type="module">
+        import { db, auth } from "./firebase-config.js";
+        import {
+            collection, getDocs, doc, getDoc, setDoc, deleteDoc, updateDoc, query, where, serverTimestamp
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        const feed = document.getElementById('reels-feed');
+        const loadingBox = document.getElementById('loading-box');
+        const emptyBox = document.getElementById('empty-box');
+
+        const params = new URLSearchParams(window.location.search);
+        const focusId = params.get('id');
+
+        let currentUser = null;
+
+        function isPromoActive(data, statusField, endDateField) {
+            if (data[statusField] !== 'نشط') return false;
+            const end = data[endDateField]?.toDate ? data[endDateField].toDate() : (data[endDateField] ? new Date(data[endDateField]) : null);
+            if (end && end.getTime() < Date.now()) return false;
+            return true;
+        }
+
+        function starsMarkup(avg, interactive) {
+            let html = '<div class="stars">';
+            for (let i = 1; i <= 5; i++) {
+                html += `<i class="fa-solid fa-star ${i <= Math.round(avg) ? 'on' : ''}" data-star="${i}"></i>`;
+            }
+            html += '</div>';
+            return html;
+        }
+
+        function reelTemplate(id, r) {
+            const likesCount = r.videoLikesCount || 0;
+            const ratingAvg = r.videoRating || 0;
+            const ratingsCount = r.videoRatingsCount || 0;
+            return `
+                <section class="reel" data-id="${id}">
+                    <video src="${r.videoUrl}" loop playsinline muted preload="metadata"></video>
+                    <div class="reel-overlay"></div>
+
+                    <div class="reel-topbar">
+                        <button class="icon-btn" data-action="back"><i class="fa-solid fa-arrow-right"></i></button>
+                        <button class="icon-btn" data-action="mute"><i class="fa-solid fa-volume-xmark"></i></button>
+                    </div>
+
+                    <div class="mute-hint"><i class="fa-solid fa-volume-high"></i></div>
+
+                    <div class="reel-info">
+                        <div class="r-name">${r.name || ''}</div>
+                        <a class="r-link" href="restaurant-page.html?id=${id}">اطلب من هذا المطعم ⟵</a>
+                    </div>
+
+                    <div class="reel-side-actions">
+                        <button class="action-btn" data-action="like">
+                            <div class="action-circle"><i class="fa-solid fa-heart"></i></div>
+                            <span data-role="like-count">${likesCount}</span>
+                        </button>
+                        <button class="action-btn" data-action="rate-toggle">
+                            <div class="action-circle"><i class="fa-solid fa-star"></i></div>
+                            <span data-role="rate-avg">${ratingAvg ? ratingAvg.toFixed(1) : 'قيّم'}</span>
+                        </button>
+                    </div>
+
+                    <div class="rating-pop">
+                        ${starsMarkup(ratingAvg, true)}
+                        <span class="avg" data-role="rate-summary">${ratingsCount ? ratingAvg.toFixed(1) + ' (' + ratingsCount + ')' : 'كن أول من يقيّم'}</span>
+                    </div>
+                </section>
+            `;
+        }
+
+        async function toggleLike(restaurantId, btnEl) {
+            if (!currentUser) { window.location.href = 'Auth.html'; return; }
+            const likeRef = doc(db, "videoLikes", `${restaurantId}_${currentUser.uid}`);
+            const wasLiked = btnEl.classList.contains('liked');
+            btnEl.classList.toggle('liked'); // تفاعل فوري بدون انتظار
+            try {
+                if (wasLiked) {
+                    await deleteDoc(likeRef);
+                } else {
+                    await setDoc(likeRef, {
+                        restaurantId,
+                        customerId: currentUser.uid,
+                        customerEmail: currentUser.email,
+                        createdAt: serverTimestamp()
+                    });
+                }
+                const q = query(collection(db, "videoLikes"), where("restaurantId", "==", restaurantId));
+                const snap = await getDocs(q);
+                const count = snap.size;
+                btnEl.querySelector('[data-role="like-count"]').innerText = count;
+                updateDoc(doc(db, "restaurants", restaurantId), { videoLikesCount: count }).catch(() => {});
+            } catch (err) {
+                btnEl.classList.toggle('liked'); // ارجعها زي ما كانت لو صار خطأ
+                alert('صار خطأ بالإعجاب: ' + err.message);
+            }
+        }
+
+        async function submitRating(restaurantId, stars, section) {
+            if (!currentUser) { window.location.href = 'Auth.html'; return; }
+            const ratingRef = doc(db, "videoRatings", `${restaurantId}_${currentUser.uid}`);
+            try {
+                await setDoc(ratingRef, {
+                    restaurantId,
+                    customerId: currentUser.uid,
+                    customerEmail: currentUser.email,
+                    rating: stars,
+                    createdAt: serverTimestamp()
+                });
+                const q = query(collection(db, "videoRatings"), where("restaurantId", "==", restaurantId));
+                const snap = await getDocs(q);
+                const ratings = snap.docs.map(d => d.data().rating).filter(v => typeof v === 'number');
+                const count = ratings.length;
+                const avg = count ? ratings.reduce((a, b) => a + b, 0) / count : 0;
+
+                section.querySelectorAll('.rating-pop .stars i').forEach(star => {
+                    star.classList.toggle('on', Number(star.dataset.star) <= Math.round(avg));
+                });
+                section.querySelector('[data-role="rate-summary"]').innerText = `${avg.toFixed(1)} (${count})`;
+                section.querySelector('[data-role="rate-avg"]').innerText = avg.toFixed(1);
+
+                updateDoc(doc(db, "restaurants", restaurantId), {
+                    videoRating: Number(avg.toFixed(1)),
+                    videoRatingsCount: count
+                }).catch(() => {});
+            } catch (err) {
+                alert('صار خطأ بالتقييم: ' + err.message);
+            }
+        }
+
+        function bindSectionEvents(section, id) {
+            const video = section.querySelector('video');
+            const likeBtn = section.querySelector('[data-action="like"]');
+            const rateToggleBtn = section.querySelector('[data-action="rate-toggle"]');
+            const ratingPop = section.querySelector('.rating-pop');
+            const muteBtn = section.querySelector('[data-action="mute"]');
+            const muteHint = section.querySelector('.mute-hint');
+            const backBtn = section.querySelector('[data-action="back"]');
+
+            backBtn.addEventListener('click', () => { window.location.href = 'home.html'; });
+
+            // تشغيل/إيقاف الفيديو بالنقر عليه مباشرة
+            video.addEventListener('click', () => {
+                if (video.paused) video.play(); else video.pause();
+            });
+
+            // كتم/تشغيل الصوت
+            muteBtn.addEventListener('click', () => {
+                video.muted = !video.muted;
+                muteBtn.innerHTML = video.muted
+                    ? '<i class="fa-solid fa-volume-xmark"></i>'
+                    : '<i class="fa-solid fa-volume-high"></i>';
+                muteHint.querySelector('i').className = video.muted ? 'fa-solid fa-volume-xmark' : 'fa-solid fa-volume-high';
+                muteHint.classList.add('show');
+                setTimeout(() => muteHint.classList.remove('show'), 500);
+            });
+
+            likeBtn.addEventListener('click', () => toggleLike(id, likeBtn));
+
+            rateToggleBtn.addEventListener('click', () => ratingPop.classList.toggle('open'));
+
+            ratingPop.querySelectorAll('.stars i').forEach(star => {
+                star.addEventListener('click', () => submitRating(id, Number(star.dataset.star), section));
+            });
+
+            // تحميل حالة إعجاب/تقييم المستخدم الحالي لهذا الفيديو بالذات
+            if (currentUser) {
+                getDoc(doc(db, "videoLikes", `${id}_${currentUser.uid}`)).then(snap => {
+                    if (snap.exists()) likeBtn.classList.add('liked');
+                });
+                getDoc(doc(db, "videoRatings", `${id}_${currentUser.uid}`)).then(snap => {
+                    if (snap.exists()) {
+                        ratingPop.querySelectorAll('.stars i').forEach(star => {
+                            star.classList.toggle('on', Number(star.dataset.star) <= snap.data().rating);
+                        });
+                    }
+                });
+            }
+        }
+
+        function setupAutoPlay() {
+            const sections = Array.from(document.querySelectorAll('.reel'));
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const video = entry.target.querySelector('video');
+                    if (entry.isIntersecting) {
+                        video.play().catch(() => {});
+                    } else {
+                        video.pause();
+                    }
+                });
+            }, { threshold: 0.6 });
+            sections.forEach(s => observer.observe(s));
+        }
+
+        async function loadReels() {
+            try {
+                const snap = await getDocs(collection(db, "restaurants"));
+                const all = [];
+                snap.forEach(d => all.push({ id: d.id, data: d.data() }));
+
+                let videos = all.filter(({ data }) =>
+                    data.videoUrl && data.videoStatus === 'معتمد' && isPromoActive(data, 'videoSubscriptionStatus', 'videoSubscriptionEndDate')
+                );
+
+                if (!videos.length) {
+                    loadingBox.classList.add('hidden');
+                    emptyBox.classList.remove('hidden');
+                    return;
+                }
+
+                // إذا الزبون جاي من فيديو معيّن بالصفحة الرئيسية، خليه هو الأول
+                if (focusId) {
+                    videos.sort((a, b) => (a.id === focusId ? -1 : b.id === focusId ? 1 : 0));
+                }
+
+                feed.innerHTML = videos.map(({ id, data }) => reelTemplate(id, data)).join('');
+                loadingBox.classList.add('hidden');
+                feed.classList.remove('hidden');
+
+                document.querySelectorAll('.reel').forEach(section => {
+                    bindSectionEvents(section, section.dataset.id);
+                });
+
+                setupAutoPlay();
+
+                // شغّل أول فيديو مباشرة
+                const firstVideo = feed.querySelector('.reel video');
+                if (firstVideo) firstVideo.play().catch(() => {});
+
+            } catch (error) {
+                loadingBox.innerHTML = `<div>حدث خطأ أثناء تحميل الفيديوهات: ${error.message}</div>`;
+            }
+        }
+
+        onAuthStateChanged(auth, (user) => {
+            currentUser = user;
+            loadReels();
+        });
+    </script>
+</body>
+</html>

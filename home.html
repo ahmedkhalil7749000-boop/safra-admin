@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>سفرة</title>
+    <link rel="stylesheet" href="app-shell.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@500;600;700&family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'safra-dark': '#0b3b2c',
+              'safra-green': '#2e6f40',
+              'safra-cream': '#fbf9f5',
+              'safra-gold': '#d97706',
+              'safra-gold-dark': '#b45309',
+              'safra-line': '#e7e2d6',
+              'safra-muted': '#7c7669',
+            },
+            fontFamily: {
+              display: ['"El Messiri"', 'serif'],
+              sans: ['"Cairo"', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+        body { font-family: 'Cairo', sans-serif; }
+        .font-display { font-family: 'El Messiri', serif; }
+
+        .section-heading { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+        .section-heading h2 { font-size: 17px; font-weight: 600; color: #0b3b2c; }
+        .section-heading a { font-size: 12px; font-weight: 600; color: #b45309; text-decoration: none; }
+
+        /* ============ بانرات (شريط تمرير أفقي بعرض كامل) ============ */
+        .banner-row {
+            display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory;
+            padding: 2px 2px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+        }
+        .banner-row::-webkit-scrollbar { display: none; }
+        .banner-slide {
+            flex: 0 0 88%; scroll-snap-align: start; display: block; text-decoration: none;
+            border-radius: 18px; overflow: hidden; position: relative; background: #f1ece0;
+            aspect-ratio: 16/7;
+        }
+        .banner-slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .banner-slide .banner-name {
+            position: absolute; right: 12px; bottom: 10px; color: #fff; font-size: 12.5px;
+            font-weight: 700; text-shadow: 0 1px 6px rgba(0,0,0,.55);
+            background: rgba(11,20,15,.35); padding: 4px 10px; border-radius: 9999px;
+            backdrop-filter: blur(2px);
+        }
+
+        /* ============ مطاعم مميزة (الأعلى تقييمًا) ============ */
+        .feat-row { display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+        .feat-row::-webkit-scrollbar { display: none; }
+        .feat-card { flex: 0 0 168px; display: block; text-decoration: none; color: inherit; }
+        .feat-photo { position: relative; aspect-ratio: 4/3; border-radius: 16px; overflow: hidden; background: #f1ece0; }
+        .feat-photo img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .4s ease; }
+        .feat-card:active .feat-photo img { transform: scale(1.03); }
+        .feat-rank {
+            position: absolute; top: 8px; right: 8px; z-index: 2;
+            width: 22px; height: 22px; border-radius: 9999px; background: rgba(11,59,44,.85);
+            color: #fff; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center;
+        }
+        .feat-body { padding: 8px 2px 0; }
+        .feat-body h3 { font-size: 13.5px; font-weight: 700; color: #1c1a16; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .feat-meta { display: flex; align-items: center; gap: 4px; margin-top: 3px; font-size: 11.5px; color: #8a8474; font-weight: 600; }
+        .feat-meta i { color: #d97706; font-size: 10px; }
+
+        /* ============ فيديوهات المطاعم ============ */
+        .video-row { display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+        .video-row::-webkit-scrollbar { display: none; }
+        .video-card { flex: 0 0 130px; text-decoration: none; color: inherit; }
+        .video-thumb-wrap {
+            position: relative; aspect-ratio: 9/16; border-radius: 16px; overflow: hidden; background: #12261d;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .video-thumb-wrap video, .video-thumb-wrap iframe { width: 100%; height: 100%; object-fit: cover; border: none; }
+        .video-play-badge {
+            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+            background: rgba(0,0,0,.18); pointer-events: none;
+        }
+        .video-play-badge i { color: #fff; font-size: 26px; text-shadow: 0 2px 8px rgba(0,0,0,.4); }
+        .video-name { margin-top: 7px; font-size: 12px; font-weight: 600; color: #1c1a16; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .empty-hint { font-size: 12px; color: #9a9384; text-align: center; padding: 18px 0; }
+        .skeleton-block { border-radius: 16px; background: #eee7d8; animation: sk-pulse 1.4s ease-in-out infinite; }
+        @keyframes sk-pulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+
+        .hero-cta {
+            background: linear-gradient(135deg, #0b3b2c, #2e6f40);
+            border-radius: 20px; padding: 20px; color: #fff; position: relative; overflow: hidden;
+        }
+        .hero-cta::after {
+            content: ''; position: absolute; inset: 0;
+            background: radial-gradient(120px 120px at 90% 10%, rgba(217,119,6,.35), transparent 70%);
+        }
+    </style>
+</head>
+<body class="app-narrow bg-safra-cream min-h-screen">
+    <!-- الهيدر المشترك -->
+    <div id="app-header"></div>
+    <script type="module" src="shared-header.js"></script>
+
+    <div id="page-content" class="p-4 space-y-6">
+
+        <!-- ترحيب + بحث سريع عن مطاعم -->
+        <a href="restaurants.html" class="hero-cta block relative z-0">
+            <p class="text-[11px] font-semibold relative z-10 opacity-85">أهلاً فيك بمنصة</p>
+            <h1 class="font-display text-2xl font-semibold relative z-10">سفرة 🍽️</h1>
+            <p class="text-[12.5px] mt-1 relative z-10 opacity-90">اكتشف أشهى الأكلات البيتية من مطاعم موثوقة قريبة منك</p>
+            <span class="inline-flex items-center gap-1.5 mt-3 relative z-10 bg-white/15 px-3 py-1.5 rounded-full text-xs font-semibold">
+                تصفّح كل المطاعم <i class="fa-solid fa-arrow-left text-[10px]"></i>
+            </span>
+        </a>
+
+        <!-- بانرات المطاعم المعتمدة -->
+        <div id="banners-section" class="hidden">
+            <div class="section-heading">
+                <h2 class="font-display">عروض مميزة</h2>
+            </div>
+            <div id="banners-row" class="banner-row"></div>
+        </div>
+
+        <!-- مطاعم مميزة (الأعلى تقييمًا) -->
+        <div>
+            <div class="section-heading">
+                <h2 class="font-display">مطاعم مميزة</h2>
+                <a href="restaurants.html">كل المطاعم</a>
+            </div>
+            <div id="featured-row" class="feat-row">
+                <div class="feat-card"><div class="feat-photo skeleton-block"></div></div>
+                <div class="feat-card"><div class="feat-photo skeleton-block"></div></div>
+                <div class="feat-card"><div class="feat-photo skeleton-block"></div></div>
+            </div>
+        </div>
+
+        <!-- فيديوهات المطاعم المعتمدة -->
+        <div id="videos-section" class="hidden">
+            <div class="section-heading">
+                <h2 class="font-display">فيديوهات من مطاعمنا</h2>
+            </div>
+            <div id="videos-row" class="video-row"></div>
+        </div>
+
+        <div id="error-box" class="hidden text-center text-red-600 bg-red-50 border border-red-100 rounded-xl py-6 px-4 text-sm"></div>
+
+    </div>
+
+    <!-- شريط التنقل السفلي -->
+    <div id="app-bottom-nav"></div>
+    <script type="module" src="shared-bottom-nav.js"></script>
+
+    <script type="module">
+        import { db } from "./firebase-config.js";
+        import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const FALLBACK_IMG = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=700&q=80';
+
+        function isPromoActive(data, statusField, endDateField) {
+            if (data[statusField] !== 'نشط') return false;
+            const end = data[endDateField]?.toDate ? data[endDateField].toDate() : (data[endDateField] ? new Date(data[endDateField]) : null);
+            if (end && end.getTime() < Date.now()) return false;
+            return true;
+        }
+
+        function isVideoUrlEmbeddable(url) {
+            return /youtube\.com|youtu\.be/i.test(url || '');
+        }
+
+        function toYoutubeEmbed(url) {
+            try {
+                const u = new URL(url);
+                let id = '';
+                if (u.hostname.includes('youtu.be')) {
+                    id = u.pathname.replace('/', '');
+                } else {
+                    id = u.searchParams.get('v') || '';
+                }
+                return id ? `https://www.youtube.com/embed/${id}?rel=0` : url;
+            } catch {
+                return url;
+            }
+        }
+
+        function renderBanner(id, r) {
+            const a = document.createElement('a');
+            a.href = `restaurant-page.html?id=${id}`;
+            a.className = 'banner-slide';
+            a.innerHTML = `
+                <img src="${r.bannerUrl}" alt="${r.name || 'بانر مطعم'}">
+                <span class="banner-name">${r.name || ''}</span>
+            `;
+            return a;
+        }
+
+        function renderFeatured(id, r, rank) {
+            const hasReviews = !!r.reviewsCount;
+            const a = document.createElement('a');
+            a.href = `restaurant-page.html?id=${id}`;
+            a.className = 'feat-card';
+            a.innerHTML = `
+                <div class="feat-photo">
+                    <span class="feat-rank">${rank}</span>
+                    <img src="${r.imageUrl || FALLBACK_IMG}" alt="${r.name || 'مطعم'}">
+                </div>
+                <div class="feat-body">
+                    <h3>${r.name || ''}</h3>
+                    <div class="feat-meta">
+                        <i class="fa-solid fa-star"></i> ${hasReviews ? (r.rating ?? 0).toFixed ? (r.rating).toFixed(1) : r.rating : 'جديد'}
+                        <span class="mx-1 text-safra-line">•</span>
+                        <i class="fa-regular fa-clock"></i> ${r.deliveryTimeMinutes ?? '-'} د
+                    </div>
+                </div>
+            `;
+            return a;
+        }
+
+        function renderVideo(id, r) {
+            const a = document.createElement('a');
+            a.href = `reels.html?id=${id}`;
+            a.className = 'video-card';
+            const embeddable = isVideoUrlEmbeddable(r.videoUrl);
+            a.innerHTML = `
+                <div class="video-thumb-wrap">
+                    ${embeddable
+                        ? `<iframe src="${toYoutubeEmbed(r.videoUrl)}" loading="lazy" allow="encrypted-media"></iframe>`
+                        : `<video src="${r.videoUrl}" muted playsinline preload="metadata"></video><div class="video-play-badge"><i class="fa-solid fa-circle-play"></i></div>`}
+                </div>
+                <p class="video-name">${r.name || ''}</p>
+            `;
+            return a;
+        }
+
+        async function loadHome() {
+            try {
+                const snap = await getDocs(collection(db, "restaurants"));
+                const all = [];
+                snap.forEach(d => all.push({ id: d.id, data: d.data() }));
+
+                // ===== بانرات: بس المطاعم يلي عندها اشتراك بانر نشط + الصورة معتمدة من الأدمن =====
+                const banners = all.filter(({ data }) =>
+                    data.bannerUrl && data.bannerStatus === 'معتمد' && isPromoActive(data, 'bannerSubscriptionStatus', 'bannerSubscriptionEndDate')
+                );
+                const bannersSection = document.getElementById('banners-section');
+                const bannersRow = document.getElementById('banners-row');
+                if (banners.length) {
+                    bannersSection.classList.remove('hidden');
+                    banners.forEach(({ id, data }) => bannersRow.appendChild(renderBanner(id, data)));
+                }
+
+                // ===== مطاعم مميزة: الأعلى تقييمًا (بغض النظر عن الاشتراك) =====
+                const featuredRow = document.getElementById('featured-row');
+                featuredRow.innerHTML = '';
+                const ranked = [...all]
+                    .filter(({ data }) => data.status !== 'متوقف')
+                    .sort((a, b) => (b.data.rating ?? 0) - (a.data.rating ?? 0))
+                    .slice(0, 8);
+                if (ranked.length) {
+                    ranked.forEach(({ id, data }, i) => featuredRow.appendChild(renderFeatured(id, data, i + 1)));
+                } else {
+                    featuredRow.innerHTML = `<p class="empty-hint w-full">لا يوجد مطاعم بعد</p>`;
+                }
+
+                // ===== فيديوهات: بس المطاعم يلي عندها اشتراك فيديو نشط + فيديو معتمد من الأدمن =====
+                const videos = all.filter(({ data }) =>
+                    data.videoUrl && data.videoStatus === 'معتمد' && isPromoActive(data, 'videoSubscriptionStatus', 'videoSubscriptionEndDate')
+                );
+                const videosSection = document.getElementById('videos-section');
+                const videosRow = document.getElementById('videos-row');
+                if (videos.length) {
+                    videosSection.classList.remove('hidden');
+                    videos.forEach(({ id, data }) => videosRow.appendChild(renderVideo(id, data)));
+                }
+            } catch (error) {
+                document.getElementById('featured-row').innerHTML = '';
+                const errorBox = document.getElementById('error-box');
+                errorBox.classList.remove('hidden');
+                errorBox.innerText = "حدث خطأ أثناء تحميل الصفحة الرئيسية: " + error.message;
+            }
+        }
+
+        loadHome();
+    </script>
+</body>
+</html>

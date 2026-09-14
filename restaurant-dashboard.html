@@ -212,6 +212,25 @@
             return result.data.url;
         }
 
+        // ==== رفع الفيديوهات عبر Cloudinary (Unsigned Upload Preset) ====
+        const CLOUDINARY_CLOUD_NAME = "a81hyco5";
+        const CLOUDINARY_VIDEO_PRESET = "safra_videos";
+
+        async function uploadToCloudinary(file) {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("upload_preset", CLOUDINARY_VIDEO_PRESET);
+            const response = await fetch(
+                `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`,
+                { method: "POST", body: formData }
+            );
+            const result = await response.json();
+            if (!result.secure_url) {
+                throw new Error((result.error && result.error.message) || "فشل رفع الفيديو إلى Cloudinary");
+            }
+            return result.secure_url;
+        }
+
         // ==== قائمة التصنيفات الموحّدة (تستخدم لتصنيف المطعم وتصنيف كل صنف بالمنيو) ====
         const CATEGORY_LIST = [
             { key: "طبيخ", icon: "🍲" },
@@ -238,6 +257,134 @@
             key: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="5.5"></circle><path d="m21 2-9.6 9.6"></path><path d="m15.5 7.5 3 3L22 7l-3-3"></path></svg>`,
             close: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"></path><path d="M6 6l12 12"></path></svg>`,
         };
+
+        // ==== نظام البانر والفيديو (يعتمد على اشتراكي "بانر" و"فيديو" المستقلين) ====
+
+        // هل اشتراك ترويجي (بانر/فيديو) لسا فعّال وما انتهت مدته؟
+        function isPromoActive(data, statusField, endDateField) {
+            if (data[statusField] !== 'نشط') return false;
+            const end = data[endDateField]?.toDate ? data[endDateField].toDate() : (data[endDateField] ? new Date(data[endDateField]) : null);
+            if (end && end.getTime() < Date.now()) return false;
+            return true;
+        }
+
+        // شريحة حالة مراجعة المحتوى (البانر أو الفيديو): قيد المراجعة / معتمد / مرفوض
+        function contentStatusBadge(status) {
+            if (status === 'معتمد') return `<span class="badge badge-live">${ICONS.check} معتمد ويظهر بالرئيسية</span>`;
+            if (status === 'قيد المراجعة') return `<span class="badge badge-paused">${ICONS.clock} قيد مراجعة الأدمن</span>`;
+            if (status === 'مرفوض') return `<span class="badge" style="background: var(--red-tint); color: var(--red);">${ICONS.close} مرفوض</span>`;
+            return '';
+        }
+
+        // يبني قسم "الترويج" (البانر والفيديو) لمطعم معيّن حسب بياناته الحالية
+        function renderPromoSection(restaurantId, data) {
+            const bannerActive = isPromoActive(data, 'bannerSubscriptionStatus', 'bannerSubscriptionEndDate');
+            const videoActive = isPromoActive(data, 'videoSubscriptionStatus', 'videoSubscriptionEndDate');
+
+            const bannerBlock = bannerActive ? `
+                ${data.bannerUrl ? `<img src="${data.bannerUrl}" class="w-full h-28 object-cover rounded-xl mb-3 border" style="border-color: var(--line);">` : ''}
+                <div class="mb-3">${contentStatusBadge(data.bannerStatus)}</div>
+                ${data.bannerStatus === 'مرفوض' && data.bannerRejectReason ? `<p class="text-xs mb-2" style="color: var(--red);">سبب الرفض: ${data.bannerRejectReason}</p>` : ''}
+                <form id="banner-form-${restaurantId}" class="space-y-2">
+                    <label class="field-label">${data.bannerUrl ? 'تغيير صورة البانر' : 'رفع صورة البانر'} <span class="field-hint">(مقاس أفقي عريض يُفضّل، مثلاً 1200×500)</span></label>
+                    <input type="file" id="banner-file-${restaurantId}" accept="image/*" required class="field-file">
+                    <button type="submit" class="btn btn-primary btn-sm">رفع البانر لمراجعة الأدمن</button>
+                    <p id="banner-msg-${restaurantId}" class="form-msg"></p>
+                </form>
+            ` : `
+                <div class="status-card status-warn">
+                    <span class="status-icon">${ICONS.key}</span>
+                    <p class="status-text">لازم اشتراك بانر نشط عشان ترفعي صورة بانر تظهر بالصفحة الرئيسية.</p>
+                </div>
+                <a href="subscription.html" class="btn btn-primary btn-sm mt-3">اشترك بالبانر الآن</a>
+            `;
+
+            const videoBlock = videoActive ? `
+                <div class="mb-3">${contentStatusBadge(data.videoStatus)}</div>
+                ${data.videoStatus === 'مرفوض' && data.videoRejectReason ? `<p class="text-xs mb-2" style="color: var(--red);">سبب الرفض: ${data.videoRejectReason}</p>` : ''}
+                <form id="video-form-${restaurantId}" class="space-y-2">
+                    <label class="field-label">${data.videoUrl ? 'تغيير فيديو المطعم' : 'رفع فيديو المطعم'} <span class="field-hint">(ملف فيديو من جهازك، مثلاً MP4)</span></label>
+                    ${data.videoUrl ? `<video src="${data.videoUrl}" class="w-full rounded-xl mb-2" style="max-height:180px;" controls></video>` : ''}
+                    <input type="file" id="video-file-${restaurantId}" accept="video/*" ${data.videoUrl ? '' : 'required'} class="field-file">
+                    <button type="submit" class="btn btn-primary btn-sm">إرسال الفيديو لمراجعة الأدمن</button>
+                    <p id="video-msg-${restaurantId}" class="form-msg"></p>
+                </form>
+            ` : `
+                <div class="status-card status-warn">
+                    <span class="status-icon">${ICONS.key}</span>
+                    <p class="status-text">لازم اشتراك فيديو نشط عشان تضيفي فيديو ترويجي لمطعمك يظهر بالرئيسية.</p>
+                </div>
+                <a href="subscription.html" class="btn btn-primary btn-sm mt-3">اشترك بالفيديو الآن</a>
+            `;
+
+            return `
+                <div>
+                    <h3 class="font-bold mb-3 flex items-center gap-1.5" style="color: var(--ink);">🖼️ بانر الصفحة الرئيسية</h3>
+                    ${bannerBlock}
+                </div>
+                <div class="hairline pt-5">
+                    <h3 class="font-bold mb-3 flex items-center gap-1.5" style="color: var(--ink);">🎬 فيديو المطعم</h3>
+                    ${videoBlock}
+                </div>
+            `;
+        }
+
+        // يربط أحداث نماذج رفع البانر/الفيديو بعد إدراجها بالـ DOM
+        function bindPromoHandlers(restaurantId) {
+            const bannerForm = document.getElementById(`banner-form-${restaurantId}`);
+            if (bannerForm) {
+                bannerForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const msg = document.getElementById(`banner-msg-${restaurantId}`);
+                    const file = document.getElementById(`banner-file-${restaurantId}`).files[0];
+                    if (!file) return;
+                    msg.className = "form-msg busy";
+                    msg.innerText = "جاري رفع البانر...";
+                    try {
+                        const bannerUrl = await uploadToImgbb(file);
+                        await updateDoc(doc(db, "restaurants", restaurantId), {
+                            bannerUrl,
+                            bannerStatus: "قيد المراجعة",
+                            bannerRejectReason: "",
+                            bannerSubmittedAt: serverTimestamp()
+                        });
+                        msg.className = "form-msg ok";
+                        msg.innerText = "تم الرفع! بانتظار موافقة الأدمن.";
+                        await loadMyRestaurant(currentUserEmail);
+                    } catch (error) {
+                        msg.className = "form-msg err";
+                        msg.innerText = "خطأ: " + error.message;
+                    }
+                });
+            }
+
+            const videoForm = document.getElementById(`video-form-${restaurantId}`);
+            if (videoForm) {
+                videoForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const msg = document.getElementById(`video-msg-${restaurantId}`);
+                    const file = document.getElementById(`video-file-${restaurantId}`).files[0];
+                    if (!file) return;
+                    msg.className = "form-msg busy";
+                    msg.innerText = "جاري رفع الفيديو...";
+                    try {
+                        const videoUrl = await uploadToCloudinary(file);
+                        await updateDoc(doc(db, "restaurants", restaurantId), {
+                            videoUrl,
+                            videoStatus: "قيد المراجعة",
+                            videoRejectReason: "",
+                            videoSubmittedAt: serverTimestamp()
+                        });
+                        msg.className = "form-msg ok";
+                        msg.innerText = "تم الرفع! بانتظار موافقة الأدمن.";
+                        await loadMyRestaurant(currentUserEmail);
+                    } catch (error) {
+                        msg.className = "form-msg err";
+                        msg.innerText = "خطأ: " + error.message;
+                    }
+                });
+            }
+        }
 
         // بيرجع مصفوفة تصنيفات المطعم بشكل موحّد، حتى لو المطعم قديم ومخزن فيه
         // حقل category المفرد بدل categories (توافق مع بيانات قديمة)
@@ -487,9 +634,10 @@
                                             ? restaurantCategories(data).map(c => `<span class="badge badge-cat">${(CATEGORY_LIST.find(x => x.key === c) || {}).icon || ''} ${c}</span>`).join('')
                                             : '<span class="text-sm" style="color: var(--ink-soft);">ما في تصنيفات محددة بعد</span>'}
                                     </div>
-                                    <div class="flex gap-2 mt-5">
+                                    <div class="flex gap-2 mt-5 flex-wrap">
                                         <button data-id="${restaurantId}" class="edit-restaurant-btn btn btn-outline btn-sm">${ICONS.edit} تعديل بيانات المطعم</button>
                                         <button data-id="${restaurantId}" class="manage-items-btn btn btn-dark btn-sm">${ICONS.list} إدارة الأصناف والوجبات</button>
+                                        <button data-id="${restaurantId}" class="manage-promo-btn btn btn-outline btn-sm">📣 البانر والفيديو</button>
                                     </div>
                                 </div>
                             </div>
@@ -527,6 +675,11 @@
                                     <button data-id="${restaurantId}" class="cancel-edit-btn btn btn-ghost">إلغاء</button>
                                 </div>
                                 <p id="edit-message-${restaurantId}" class="form-msg"></p>
+                            </div>
+
+                            <!-- قسم الترويج: البانر والفيديو -->
+                            <div id="promo-section-${restaurantId}" class="hidden hairline p-5 space-y-5">
+                                ${renderPromoSection(restaurantId, data)}
                             </div>
 
                             <!-- قسم إدارة الأصناف -->
@@ -637,6 +790,16 @@
                         }
                     });
                 });
+
+                container.querySelectorAll('.manage-promo-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.dataset.id;
+                        document.getElementById(`promo-section-${id}`).classList.toggle('hidden');
+                    });
+                });
+
+                // ربط نماذج رفع البانر/الفيديو لكل مطعم
+                querySnapshot.forEach((docSnap) => bindPromoHandlers(docSnap.id));
 
                 // معالجة نموذج إضافة الصنف مع الوصف الجديد
                 container.querySelectorAll('[id^="add-item-form-"]').forEach(form => {

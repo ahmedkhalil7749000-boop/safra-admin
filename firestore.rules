@@ -54,8 +54,25 @@ service cloud.firestore {
       // أي مستخدم مسجل دخول (زبون) مسموح له يعدّل فقط rating و reviewsCount،
       // وبشرط تكون القيم صحيحة النوع وضمن حدود منطقية
       // (إصلاح: قبل كذا كان أي شخص يقدر يحط أي رقم عشوائي بدون تحقق)
+      //
+      // ملاحظة (نظام البانر والفيديو): صاحب المطعم يقدر يرفع/يغيّر bannerUrl
+      // و videoUrl بحرية (هاي "الطلب" منه)، لكن ممنوع عليه يحط بنفسه
+      // bannerStatus أو videoStatus = "معتمد" — هاي الكلمة محجوزة للأدمن فقط
+      // (هو يقدر يحطها "قيد المراجعة" لما يرفع محتوى جديد، وبس). هيك ضمان
+      // حقيقي (مو بس بالواجهة) إن أي بانر/فيديو ما يظهر عالصفحة الرئيسية
+      // إلا بعد موافقة الأدمن الفعلية.
       allow update: if isAdmin()
-                    || (isSignedIn() && resource.data.ownerEmail == request.auth.token.email)
+                    || (
+                      isSignedIn() && resource.data.ownerEmail == request.auth.token.email
+                      && (
+                        !('bannerStatus' in request.resource.data.diff(resource.data).affectedKeys())
+                        || request.resource.data.bannerStatus == "قيد المراجعة"
+                      )
+                      && (
+                        !('videoStatus' in request.resource.data.diff(resource.data).affectedKeys())
+                        || request.resource.data.videoStatus == "قيد المراجعة"
+                      )
+                    )
                     || (
                       isSignedIn()
                       && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rating', 'reviewsCount'])
@@ -64,6 +81,24 @@ service cloud.firestore {
                       && request.resource.data.rating <= 5
                       && request.resource.data.reviewsCount is int
                       && request.resource.data.reviewsCount >= 0
+                    )
+                    // أي زبون مسجل دخول يقدر يحدّث عداد إعجابات فيديو المطعم فقط
+                    // (الرقم نفسه محسوب ومتحقق منه بالكود من عدد وثائق videoLikes الحقيقية)
+                    || (
+                      isSignedIn()
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['videoLikesCount'])
+                      && request.resource.data.videoLikesCount is int
+                      && request.resource.data.videoLikesCount >= 0
+                    )
+                    // أي زبون مسجل دخول يقدر يحدّث متوسط/عدد تقييمات فيديو المطعم فقط
+                    || (
+                      isSignedIn()
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['videoRating', 'videoRatingsCount'])
+                      && request.resource.data.videoRating is number
+                      && request.resource.data.videoRating >= 0
+                      && request.resource.data.videoRating <= 5
+                      && request.resource.data.videoRatingsCount is int
+                      && request.resource.data.videoRatingsCount >= 0
                     );
 
       // الحذف: فقط صاحب هذا المطعم بالذات، أو الأدمن
@@ -112,6 +147,50 @@ service cloud.firestore {
 
       // التعديل والحذف: بس صاحب التقييم نفسه، أو الأدمن
       allow update, delete: if isAdmin()
+                    || (isSignedIn() && resource.data.customerId == request.auth.uid);
+    }
+
+    // =====================================================
+    //                  videoLikes/{likeId}
+    //   likeId لازم يكون بالشكل: {restaurantId}_{uid} — هيك
+    //   نضمن زبون واحد ما يقدر يعمل أكتر من إعجاب لنفس الفيديو
+    //   (بدل ما نعتمد على تحقق بالواجهة بس)
+    // =====================================================
+    match /videoLikes/{likeId} {
+      // القراءة عامة (عشان أي زائر يشوف عدد الإعجابات)
+      allow read: if true;
+
+      // الإنشاء: بس مستخدم مسجل دخول، ومعرف الوثيقة لازم يطابق restaurantId_uid تبعه
+      allow create: if isSignedIn()
+                    && request.resource.data.customerId == request.auth.uid
+                    && likeId == request.resource.data.restaurantId + '_' + request.auth.uid;
+
+      // الحذف (لإلغاء الإعجاب): بس صاحب الإعجاب نفسه، أو الأدمن
+      allow update: if false;
+      allow delete: if isAdmin()
+                    || (isSignedIn() && resource.data.customerId == request.auth.uid);
+    }
+
+    // =====================================================
+    //                  videoRatings/{ratingId}
+    //   ratingId لازم يكون بالشكل: {restaurantId}_{uid} — هيك
+    //   الزبون بيقدر يعدّل تقييمه بس ما بيقدر يعمل أكتر من تقييم
+    // =====================================================
+    match /videoRatings/{ratingId} {
+      // القراءة عامة (عشان أي زائر يشوف متوسط التقييم)
+      allow read: if true;
+
+      // الإنشاء والتعديل: بس مستخدم مسجل دخول، معرف الوثيقة يطابق حسابه،
+      // وتقييم صحيح بين 1 و5
+      allow create, update: if isSignedIn()
+                    && request.resource.data.customerId == request.auth.uid
+                    && ratingId == request.resource.data.restaurantId + '_' + request.auth.uid
+                    && request.resource.data.rating is int
+                    && request.resource.data.rating >= 1
+                    && request.resource.data.rating <= 5;
+
+      // الحذف: بس صاحب التقييم نفسه، أو الأدمن
+      allow delete: if isAdmin()
                     || (isSignedIn() && resource.data.customerId == request.auth.uid);
     }
 

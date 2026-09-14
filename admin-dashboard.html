@@ -26,7 +26,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, orderBy, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyCp_boObC6rDyAcLYJ-FBqm8_QwRQXShUk",
@@ -76,13 +76,14 @@
             await loadSubscriptions();
             await loadPlans();
             await loadUsers();
+            await loadHomeReview();
         });
 
         // ===============================================================
-        //                  تبديل التبويبات (طلبات / اشتراكات)
+        //                  تبديل التبويبات (طلبات / اشتراكات / الرئيسية / المستخدمين)
         // ===============================================================
         window.showTab = function(tab) {
-            const tabs = ['orders', 'subscriptions', 'users'];
+            const tabs = ['orders', 'subscriptions', 'home', 'users'];
             tabs.forEach(t => {
                 document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
                 document.getElementById('btn-tab-' + t).className = t === tab
@@ -112,6 +113,25 @@
             return `<span class="px-2 py-1 rounded-full text-xs font-bold ${map[status] || 'bg-gray-100 text-gray-700'}">${status}</span>`;
         }
 
+        // ===== نوع الاشتراك: أساسي / بانر / فيديو =====
+        const SUB_TYPES = ["أساسي", "بانر", "فيديو"];
+        let activeSubTypeFilter = "الكل";
+
+        function typeBadge(type) {
+            const t = type || "أساسي";
+            const map = { "أساسي": "bg-gray-100 text-gray-700", "بانر": "bg-purple-100 text-purple-700", "فيديو": "bg-pink-100 text-pink-700" };
+            return `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${map[t] || 'bg-gray-100 text-gray-700'}">${t}</span>`;
+        }
+
+        window.setSubTypeFilter = function(type) {
+            activeSubTypeFilter = type;
+            document.querySelectorAll('.sub-type-filter-btn').forEach(b => {
+                b.className = "sub-type-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold " +
+                    (b.dataset.type === type ? "bg-safra-gold text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200");
+            });
+            loadSubscriptions();
+        }
+
         async function loadSubscriptions() {
             const box = document.getElementById('subscriptions-list');
             if (!box) return;
@@ -119,13 +139,18 @@
                 const q = query(collection(db, "subscriptions"), orderBy("createdAt", "desc"));
                 const snap = await getDocs(q);
 
-                if (snap.empty) {
+                const docsFiltered = snap.docs.filter(d => {
+                    if (activeSubTypeFilter === "الكل") return true;
+                    return (d.data().type || "أساسي") === activeSubTypeFilter;
+                });
+
+                if (docsFiltered.length === 0) {
                     box.innerHTML = `<p class="text-center text-gray-400 py-6">لا توجد طلبات اشتراك حتى الآن</p>`;
                     return;
                 }
 
                 box.innerHTML = "";
-                snap.forEach((d) => {
+                docsFiltered.forEach((d) => {
                     const s = d.data();
                     const id = d.id;
                     const end = s.endDate?.toDate ? s.endDate.toDate() : (s.endDate ? new Date(s.endDate) : null);
@@ -145,7 +170,7 @@
                     } else if (s.status === "نشط") {
                         actions = `
                             <span class="text-xs text-gray-500">حتى ${end ? fmtDate(end) : '-'}</span>
-                            <button data-id="${id}" data-rid="${s.restaurantId}" class="act-end bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-300">⛔ إنهاء الاشتراك</button>`;
+                            <button data-id="${id}" data-rid="${s.restaurantId}" data-type="${s.type || 'أساسي'}" class="act-end bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-300">⛔ إنهاء الاشتراك</button>`;
                     } else {
                         actions = `<button data-id="${id}" class="act-delete text-gray-400 hover:text-red-500 text-xs">حذف السجل</button>`;
                     }
@@ -157,6 +182,7 @@
                             <div class="flex-1">
                                 <div class="flex items-center gap-2 mb-1 flex-wrap">
                                     <h3 class="font-bold text-gray-800">${s.restaurantName || 'مطعم'}</h3>
+                                    ${typeBadge(s.type)}
                                     ${statusBadge(s.status)}
                                 </div>
                                 <p class="text-xs text-gray-500">${s.ownerEmail || ''}</p>
@@ -177,7 +203,7 @@
                 box.querySelectorAll('.act-activate').forEach(btn => btn.addEventListener('click', () => activateSubscription(btn.dataset.id)));
                 box.querySelectorAll('.act-gencode').forEach(btn => btn.addEventListener('click', () => generateActivationCode(btn.dataset.id)));
                 box.querySelectorAll('.act-reject').forEach(btn => btn.addEventListener('click', () => rejectSubscription(btn.dataset.id)));
-                box.querySelectorAll('.act-end').forEach(btn => btn.addEventListener('click', () => endSubscription(btn.dataset.id, btn.dataset.rid)));
+                box.querySelectorAll('.act-end').forEach(btn => btn.addEventListener('click', () => endSubscription(btn.dataset.id, btn.dataset.rid, btn.dataset.type)));
                 box.querySelectorAll('.act-delete').forEach(btn => btn.addEventListener('click', () => deleteSubscriptionRecord(btn.dataset.id)));
             } catch (error) {
                 console.error("خطأ في جلب طلبات الاشتراك:", error);
@@ -187,6 +213,15 @@
 
         function genRandomCode() {
             return Math.floor(100000 + Math.random() * 900000).toString();
+        }
+
+        // يرجع اسم حقلي حالة/تاريخ انتهاء الاشتراك على وثيقة المطعم، حسب نوع الاشتراك
+        // (أساسي / بانر / فيديو) — كل نوع إله حقوله الخاصة المستقلة عن الباقي
+        function restaurantFieldsForType(type) {
+            const t = type || "أساسي";
+            if (t === "بانر") return { statusField: "bannerSubscriptionStatus", endDateField: "bannerSubscriptionEndDate" };
+            if (t === "فيديو") return { statusField: "videoSubscriptionStatus", endDateField: "videoSubscriptionEndDate" };
+            return { statusField: "subscriptionStatus", endDateField: "subscriptionEndDate" };
         }
 
         async function activateSubscription(subId) {
@@ -206,9 +241,10 @@
                     activatedAt: serverTimestamp()
                 });
 
+                const { statusField, endDateField } = restaurantFieldsForType(s.type);
                 await updateDoc(doc(db, "restaurants", s.restaurantId), {
-                    subscriptionStatus: "نشط",
-                    subscriptionEndDate: Timestamp.fromDate(end)
+                    [statusField]: "نشط",
+                    [endDateField]: Timestamp.fromDate(end)
                 });
 
                 await loadSubscriptions();
@@ -246,14 +282,61 @@
             }
         }
 
-        async function endSubscription(subId, restaurantId) {
+        async function endSubscription(subId, restaurantId, type) {
             if (!confirm("متأكد إنك بدك تنهي هالاشتراك يدويًا؟")) return;
             try {
                 await updateDoc(doc(db, "subscriptions", subId), { status: "منتهي" });
-                await updateDoc(doc(db, "restaurants", restaurantId), { subscriptionStatus: "منتهي" });
+                const { statusField } = restaurantFieldsForType(type);
+                await updateDoc(doc(db, "restaurants", restaurantId), { [statusField]: "منتهي" });
                 await loadSubscriptions();
             } catch (error) {
                 alert("خطأ أثناء الإنهاء: " + error.message);
+            }
+        }
+
+        // ===============================================================
+        // أداة تصليح لمرة واحدة: تعالج أي اشتراك بانر/فيديو "نشط" (تم
+        // تفعيله قبل إصلاح خطأ "تفعيل مباشر") ما انعكست حالته صح على
+        // وثيقة المطعم (bannerSubscriptionStatus/videoSubscriptionStatus).
+        // آمنة الاستخدام أكثر من مرة — ما تلمس أي اشتراك مزبوط أصلاً.
+        // ===============================================================
+        window.syncPromoSubscriptions = async function() {
+            const msg = document.getElementById('sync-promo-msg');
+            msg.className = "text-xs font-semibold mb-3 text-blue-600";
+            msg.innerText = "جاري الفحص...";
+            try {
+                const snap = await getDocs(query(collection(db, "subscriptions"), where("status", "==", "نشط")));
+                const affected = snap.docs.filter(d => {
+                    const t = d.data().type || "أساسي";
+                    return t === "بانر" || t === "فيديو";
+                });
+
+                let fixedCount = 0;
+                for (const d of affected) {
+                    const s = d.data();
+                    const restRef = doc(db, "restaurants", s.restaurantId);
+                    const restSnap = await getDoc(restRef);
+                    if (!restSnap.exists()) continue;
+                    const r = restSnap.data();
+                    const { statusField, endDateField } = restaurantFieldsForType(s.type);
+
+                    // إذا الحقل الصحيح مش "نشط" أصلاً (يعني تأثر بالخطأ القديم)، صلّحه
+                    if (r[statusField] !== "نشط") {
+                        await updateDoc(restRef, {
+                            [statusField]: "نشط",
+                            [endDateField]: s.endDate || null
+                        });
+                        fixedCount++;
+                    }
+                }
+
+                msg.className = "text-xs font-semibold mb-3 text-green-600";
+                msg.innerText = fixedCount > 0
+                    ? `تم! صلّحنا ${fixedCount} مطعم كان متأثر بالخطأ القديم.`
+                    : "كل شي مزبوط أصلاً، ما في أي مطعم يحتاج تصليح.";
+            } catch (error) {
+                msg.className = "text-xs font-semibold mb-3 text-red-600";
+                msg.innerText = "خطأ أثناء المزامنة: " + error.message;
             }
         }
 
@@ -286,7 +369,8 @@
                     row.className = "flex items-center justify-between gap-2 border border-gray-200 rounded-lg px-3 py-2 bg-white text-sm";
                     row.innerHTML = `
                         <div>
-                            <b>${p.name}</b> — ${p.price} د.أ / ${p.durationDays} يوم
+                            ${typeBadge(p.type)}
+                            <b class="mr-1">${p.name}</b> — ${p.price} د.أ / ${p.durationDays} يوم
                             <span class="mr-2 text-xs px-2 py-0.5 rounded-full ${p.active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">${p.active ? 'فعّالة' : 'موقوفة'}</span>
                         </div>
                         <div class="flex items-center gap-2">
@@ -313,6 +397,7 @@
         window.addPlan = async function(e) {
             e.preventDefault();
             const name = document.getElementById('plan-name').value.trim();
+            const type = document.getElementById('plan-type').value;
             const price = parseFloat(document.getElementById('plan-price').value);
             const durationDays = parseInt(document.getElementById('plan-duration').value);
             const description = document.getElementById('plan-desc').value.trim();
@@ -320,7 +405,7 @@
 
             try {
                 await addDoc(collection(db, "subscriptionPlans"), {
-                    name, price, durationDays, description, active: true, createdAt: serverTimestamp()
+                    name, type, price, durationDays, description, active: true, createdAt: serverTimestamp()
                 });
                 document.getElementById('plan-form').reset();
                 await loadPlans();
@@ -442,6 +527,114 @@
             }
         }
 
+        // ===============================================================
+        //          تبويب "الرئيسية": مراجعة بانرات وفيديوهات المطاعم
+        // ===============================================================
+        async function loadHomeReview() {
+            const bannersBox = document.getElementById('banners-review-list');
+            const videosBox = document.getElementById('videos-review-list');
+            const approvedBox = document.getElementById('approved-promo-list');
+            if (!bannersBox || !videosBox || !approvedBox) return;
+
+            try {
+                const snap = await getDocs(collection(db, "restaurants"));
+                const restaurants = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+                // ---- بانرات قيد المراجعة ----
+                const pendingBanners = restaurants.filter(r => r.bannerStatus === "قيد المراجعة" && r.bannerUrl);
+                bannersBox.innerHTML = pendingBanners.length ? "" : `<p class="text-center text-gray-400 py-6">لا يوجد بانرات بانتظار المراجعة حاليًا</p>`;
+                pendingBanners.forEach(r => {
+                    const card = document.createElement('div');
+                    card.className = "border border-gray-200 rounded-xl p-4 bg-gray-50";
+                    card.innerHTML = `
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <img src="${r.bannerUrl}" class="w-full sm:w-48 h-28 object-cover rounded-lg border border-gray-300">
+                            <div class="flex-1">
+                                <h3 class="font-bold text-gray-800">${r.name || 'مطعم'}</h3>
+                                <p class="text-xs text-gray-500 mb-3">${r.ownerEmail || ''}</p>
+                                <div class="flex flex-wrap gap-2">
+                                    <button data-id="${r.id}" class="act-approve-banner bg-safra-green text-white px-3 py-1.5 rounded text-xs font-semibold hover:bg-safra-dark">✅ اعتماد</button>
+                                    <button data-id="${r.id}" class="act-reject-banner bg-red-100 text-red-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-red-200">❌ رفض</button>
+                                </div>
+                            </div>
+                        </div>`;
+                    bannersBox.appendChild(card);
+                });
+                bannersBox.querySelectorAll('.act-approve-banner').forEach(btn => btn.addEventListener('click', () => approvePromo(btn.dataset.id, 'banner')));
+                bannersBox.querySelectorAll('.act-reject-banner').forEach(btn => btn.addEventListener('click', () => rejectPromo(btn.dataset.id, 'banner')));
+
+                // ---- فيديوهات قيد المراجعة ----
+                const pendingVideos = restaurants.filter(r => r.videoStatus === "قيد المراجعة" && r.videoUrl);
+                videosBox.innerHTML = pendingVideos.length ? "" : `<p class="text-center text-gray-400 py-6">لا يوجد فيديوهات بانتظار المراجعة حاليًا</p>`;
+                pendingVideos.forEach(r => {
+                    const card = document.createElement('div');
+                    card.className = "border border-gray-200 rounded-xl p-4 bg-gray-50";
+                    card.innerHTML = `
+                        <div class="flex flex-col sm:flex-row gap-3 sm:items-center">
+                            <div class="flex-1">
+                                <h3 class="font-bold text-gray-800">${r.name || 'مطعم'}</h3>
+                                <p class="text-xs text-gray-500">${r.ownerEmail || ''}</p>
+                                <a href="${r.videoUrl}" target="_blank" class="text-xs text-blue-600 underline break-all">${r.videoUrl}</a>
+                                <div class="flex flex-wrap gap-2 mt-3">
+                                    <button data-id="${r.id}" class="act-approve-video bg-safra-green text-white px-3 py-1.5 rounded text-xs font-semibold hover:bg-safra-dark">✅ اعتماد</button>
+                                    <button data-id="${r.id}" class="act-reject-video bg-red-100 text-red-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-red-200">❌ رفض</button>
+                                </div>
+                            </div>
+                        </div>`;
+                    videosBox.appendChild(card);
+                });
+                videosBox.querySelectorAll('.act-approve-video').forEach(btn => btn.addEventListener('click', () => approvePromo(btn.dataset.id, 'video')));
+                videosBox.querySelectorAll('.act-reject-video').forEach(btn => btn.addEventListener('click', () => rejectPromo(btn.dataset.id, 'video')));
+
+                // ---- المعتمد حاليًا (بانر أو فيديو) ----
+                const approved = restaurants.filter(r => r.bannerStatus === "معتمد" || r.videoStatus === "معتمد");
+                approvedBox.innerHTML = approved.length ? "" : `<p class="text-center text-gray-400 py-6">ما في أي بانر أو فيديو معتمد حاليًا</p>`;
+                approved.forEach(r => {
+                    const row = document.createElement('div');
+                    row.className = "flex items-center justify-between gap-2 border border-gray-200 rounded-lg px-3 py-2 bg-white text-sm";
+                    row.innerHTML = `
+                        <div class="min-w-0">
+                            <b>${r.name || 'مطعم'}</b>
+                            ${r.bannerStatus === 'معتمد' ? '<span class="mr-2 text-xs px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">بانر معتمد</span>' : ''}
+                            ${r.videoStatus === 'معتمد' ? '<span class="mr-2 text-xs px-2 py-0.5 rounded-full bg-pink-100 text-pink-700">فيديو معتمد</span>' : ''}
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            ${r.bannerStatus === 'معتمد' ? `<button data-id="${r.id}" class="act-revoke-banner text-xs font-semibold text-gray-500 hover:text-red-600">إلغاء اعتماد البانر</button>` : ''}
+                            ${r.videoStatus === 'معتمد' ? `<button data-id="${r.id}" class="act-revoke-video text-xs font-semibold text-gray-500 hover:text-red-600">إلغاء اعتماد الفيديو</button>` : ''}
+                        </div>`;
+                    approvedBox.appendChild(row);
+                });
+                approvedBox.querySelectorAll('.act-revoke-banner').forEach(btn => btn.addEventListener('click', () => rejectPromo(btn.dataset.id, 'banner')));
+                approvedBox.querySelectorAll('.act-revoke-video').forEach(btn => btn.addEventListener('click', () => rejectPromo(btn.dataset.id, 'video')));
+            } catch (error) {
+                console.error("خطأ في تحميل بانرات/فيديوهات المراجعة:", error);
+                bannersBox.innerHTML = `<p class="text-red-500 text-sm text-center py-4">تعذر التحميل: ${error.message}</p>`;
+            }
+        }
+
+        async function approvePromo(restaurantId, kind) {
+            const field = kind === 'banner' ? 'bannerStatus' : 'videoStatus';
+            const reasonField = kind === 'banner' ? 'bannerRejectReason' : 'videoRejectReason';
+            try {
+                await updateDoc(doc(db, "restaurants", restaurantId), { [field]: "معتمد", [reasonField]: "" });
+                await loadHomeReview();
+            } catch (error) {
+                alert("خطأ أثناء الاعتماد: " + error.message);
+            }
+        }
+
+        async function rejectPromo(restaurantId, kind) {
+            const field = kind === 'banner' ? 'bannerStatus' : 'videoStatus';
+            const reasonField = kind === 'banner' ? 'bannerRejectReason' : 'videoRejectReason';
+            const reason = prompt("سبب الرفض (اختياري):") || "";
+            try {
+                await updateDoc(doc(db, "restaurants", restaurantId), { [field]: "مرفوض", [reasonField]: reason });
+                await loadHomeReview();
+            } catch (error) {
+                alert("خطأ أثناء الرفض: " + error.message);
+            }
+        }
+
         window.logout = function() {
             signOut(auth).then(() => {
                 window.location.replace("Auth.html");
@@ -473,6 +666,7 @@
             <div class="flex items-center gap-2 mb-5">
                 <button id="btn-tab-orders" onclick="showTab('orders')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-safra-gold text-white">الطلبات</button>
                 <button id="btn-tab-subscriptions" onclick="showTab('subscriptions')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">الاشتراكات</button>
+                <button id="btn-tab-home" onclick="showTab('home')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">الرئيسية</button>
                 <button id="btn-tab-users" onclick="showTab('users')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">المستخدمين</button>
             </div>
 
@@ -507,10 +701,22 @@
             <div id="tab-subscriptions" class="hidden space-y-6">
 
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <div class="flex justify-between items-center mb-4">
+                    <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
                         <h2 class="text-lg font-bold text-gray-800">طلبات الاشتراك (CliQ)</h2>
                         <span class="text-xs text-gray-400 font-mono">رقم CliQ: 0787000190</span>
                     </div>
+                    <div class="flex items-center justify-between gap-2 mb-4 flex-wrap">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button data-type="الكل" onclick="setSubTypeFilter('الكل')" class="sub-type-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-safra-gold text-white">الكل</button>
+                            <button data-type="أساسي" onclick="setSubTypeFilter('أساسي')" class="sub-type-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">أساسي</button>
+                            <button data-type="بانر" onclick="setSubTypeFilter('بانر')" class="sub-type-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">بانر</button>
+                            <button data-type="فيديو" onclick="setSubTypeFilter('فيديو')" class="sub-type-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">فيديو</button>
+                        </div>
+                        <button onclick="syncPromoSubscriptions()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100">
+                            🔄 مزامنة اشتراكات البانر/الفيديو القديمة
+                        </button>
+                    </div>
+                    <p id="sync-promo-msg" class="text-xs font-semibold mb-3"></p>
                     <div id="subscriptions-list" class="space-y-3">
                         <p class="text-center text-gray-400 py-6">جاري التحميل...</p>
                     </div>
@@ -523,6 +729,14 @@
                     </div>
 
                     <form id="plan-form" onsubmit="addPlan(event)" class="grid sm:grid-cols-2 gap-3 border-t border-gray-100 pt-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">نوع الاشتراك</label>
+                            <select id="plan-type" required class="w-full px-3 py-2 border rounded-lg text-sm">
+                                <option value="أساسي">أساسي — تفعيل المطعم</option>
+                                <option value="بانر">بانر — الصفحة الرئيسية</option>
+                                <option value="فيديو">فيديو — الصفحة الرئيسية</option>
+                            </select>
+                        </div>
                         <div>
                             <label class="block text-xs font-semibold text-gray-600 mb-1">اسم الخطة</label>
                             <input type="text" id="plan-name" required class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="مثال: الاشتراك الشهري">
@@ -543,6 +757,34 @@
                     </form>
                 </div>
 
+            </div>
+
+            <!-- ===== تبويب: الرئيسية (مراجعة البانرات والفيديوهات) ===== -->
+            <div id="tab-home" class="hidden space-y-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-gray-800">🖼️ بانرات بانتظار المراجعة</h2>
+                    </div>
+                    <div id="banners-review-list" class="space-y-3">
+                        <p class="text-center text-gray-400 py-6">جاري التحميل...</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-bold text-gray-800">🎬 فيديوهات بانتظار المراجعة</h2>
+                    </div>
+                    <div id="videos-review-list" class="space-y-3">
+                        <p class="text-center text-gray-400 py-6">جاري التحميل...</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4">✅ المعتمد حاليًا بالصفحة الرئيسية</h2>
+                    <div id="approved-promo-list" class="space-y-2">
+                        <p class="text-center text-gray-400 py-6">جاري التحميل...</p>
+                    </div>
+                </div>
             </div>
 
             <!-- ===== تبويب: المستخدمين ===== -->

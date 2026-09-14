@@ -10,7 +10,7 @@ import { subscribeToCart } from "./cart-service.js";
 const currentPage = location.pathname.split("/").pop() || "index.html";
 
 const navItems = [
-    { href: "index.html", icon: "fa-house", label: "الرئيسية" },
+    { href: "home.html", icon: "fa-house", label: "الرئيسية" },
     { href: "restaurants.html", icon: "fa-utensils", label: "المطاعم" },
     { href: "cart.html", icon: "fa-cart-shopping", label: "السلة", id: "nav-cart" },
     { href: "orders.html", icon: "fa-receipt", label: "طلباتي" },

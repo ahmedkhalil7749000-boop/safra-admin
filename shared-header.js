@@ -17,7 +17,7 @@ initPushNotifications();
 const headerHTML = `
     <header class="bg-white sticky top-0 z-50 shadow-sm border-b border-gray-100">
         <div class="mx-auto px-4 h-16 flex justify-between items-center">
-            <a href="index.html" class="text-lg font-black text-safra-dark tracking-tight flex items-center gap-2">
+            <a href="home.html" class="text-lg font-black text-safra-dark tracking-tight flex items-center gap-2">
                 <img src="logo.png" alt="سفرة" class="h-9 w-9 object-contain rounded-full">
                 سفرة
             </a>
