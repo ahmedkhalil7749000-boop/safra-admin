@@ -558,6 +558,13 @@
                                     <div id="new-restaurant-categories" class="category-chip-group"></div>
                                 </div>
                                 <div>
+                                    <label class="field-label">نوع المطعم</label>
+                                    <select id="new-restaurant-type" class="field">
+                                        <option value="home">منزلي</option>
+                                        <option value="commercial">تجاري</option>
+                                    </select>
+                                </div>
+                                <div>
                                     <label class="field-label">الحالة</label>
                                     <select id="new-restaurant-status" class="field">
                                         <option value="نشط" selected>نشط</option>
@@ -583,6 +590,7 @@
                         const description = document.getElementById('new-restaurant-description').value.trim();
                         const phone = normalizeJordanPhone(document.getElementById('new-restaurant-phone').value);
                         const categories = getCheckedCategories('new-restaurant-categories');
+                        const restaurantType = document.getElementById('new-restaurant-type').value;
                         const status = document.getElementById('new-restaurant-status').value;
                         const imageFile = document.getElementById('new-restaurant-image').files[0];
 
@@ -602,7 +610,7 @@
                             }
 
                             await addDoc(collection(db, "restaurants"), {
-                                name, description, phone, categories, status, ownerEmail: currentUserEmail, imageUrl, createdAt: serverTimestamp()
+                                name, description, phone, categories, restaurantType, status, ownerEmail: currentUserEmail, imageUrl, createdAt: serverTimestamp()
                             });
                             msg.className = "form-msg ok text-center mt-2";
                             msg.innerText = "تم إنشاء المطعم بنجاح!";
@@ -629,6 +637,12 @@
                                     ${!data.imageUrl ? `<span class="badge ${isActive ? 'badge-live' : 'badge-paused'} mb-2">${isActive ? ICONS.check : ''} ${data.status || 'نشط'}</span>` : ''}
                                     <h2 class="font-display font-extrabold" style="font-size: 20px; color: var(--green-deep);">${data.name || 'مطعمي'}</h2>
                                     <p class="text-sm mt-1" style="color: var(--ink-soft);">${data.description || 'لسا ما ضفتي وصف لمطعمك.'}</p>
+                                    <div class="mt-2 flex items-center gap-1.5">
+                                        <span class="text-xs font-semibold" style="color: var(--ink-soft);">نوع المطعم:</span>
+                                        <span class="badge ${data.restaurantType === 'home' ? 'badge-cat' : 'badge-muted'}">
+                                            ${data.restaurantType === 'home' ? '🏠 منزلي' : '🏪 تجاري'}
+                                        </span>
+                                    </div>
                                     <div class="mt-3 flex flex-wrap gap-1.5 items-center">
                                         ${restaurantCategories(data).length
                                             ? restaurantCategories(data).map(c => `<span class="badge badge-cat">${(CATEGORY_LIST.find(x => x.key === c) || {}).icon || ''} ${c}</span>`).join('')
@@ -658,6 +672,13 @@
                                 <div>
                                     <label class="field-label">التصنيفات <span class="field-hint">(ممكن أكتر من وحدة)</span></label>
                                     <div id="edit-categories-${restaurantId}" class="category-chip-group"></div>
+                                </div>
+                                <div>
+                                    <label class="field-label">نوع المطعم</label>
+                                    <select id="edit-type-${restaurantId}" class="field">
+                                        <option value="home" ${data.restaurantType === 'home' ? 'selected' : ''}>منزلي</option>
+                                        <option value="commercial" ${data.restaurantType === 'commercial' || !data.restaurantType ? 'selected' : ''}>تجاري</option>
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="field-label">الحالة</label>
@@ -754,6 +775,7 @@
                         const description = document.getElementById(`edit-description-${id}`).value.trim();
                         const phone = normalizeJordanPhone(document.getElementById(`edit-phone-${id}`).value);
                         const categories = getCheckedCategories(`edit-categories-${id}`);
+                        const restaurantType = document.getElementById(`edit-type-${id}`).value;
                         const status = document.getElementById(`edit-status-${id}`).value;
                         const imageFile = document.getElementById(`edit-image-${id}`).files[0];
 
@@ -767,7 +789,7 @@
                         msg.innerText = "جاري الحفظ...";
 
                         try {
-                            const updateData = { name, description, phone, categories, status };
+                            const updateData = { name, description, phone, categories, restaurantType, status };
                             if (imageFile) {
                                 updateData.imageUrl = await uploadToImgbb(imageFile);
                             }

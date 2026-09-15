@@ -10,6 +10,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Zain:wght@700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="auth-logic.js"></script>
     <script>
       tailwind.config = {
         theme: {
@@ -139,6 +140,11 @@
             position: absolute; top: 50%; right: 13px; transform: translateY(-50%);
             color: var(--ink-soft); font-size: 13.5px; cursor: pointer; background: none; border: none; padding: 0;
         }
+        .select-field {
+            appearance: none; -webkit-appearance: none; -moz-appearance: none;
+            padding: 11px 13px 11px 40px; cursor: pointer;
+        }
+        .select-icon { right: auto; left: 13px; }
 
         /* ===== أزرار ===== */
         .btn {
@@ -171,6 +177,26 @@
         .form-view.active { display: flex; flex-direction: column; gap: 14px; }
 
         .divider-line { border-top: 1px solid var(--line); }
+
+        /* ===== اختيار نوع المطعم (منزلي / تجاري) ===== */
+        .rtype-group { display: flex; gap: 10px; }
+        .rtype-option { flex: 1; position: relative; }
+        .rtype-option input[type="radio"] {
+            position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer;
+        }
+        .rtype-card {
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+            padding: 12px 8px; border-radius: 12px; border: 1.5px solid var(--line);
+            background: var(--panel); color: var(--ink-soft); font-size: 12.5px; font-weight: 700;
+            transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+            text-align: center;
+        }
+        .rtype-card i { font-size: 16px; color: var(--ink-soft); transition: color .15s ease; }
+        .rtype-option input[type="radio"]:checked + .rtype-card {
+            border-color: var(--green); background: var(--green-tint); color: var(--green-deep);
+        }
+        .rtype-option input[type="radio"]:checked + .rtype-card i { color: var(--green); }
+        .rtype-option input[type="radio"]:focus-visible + .rtype-card { box-shadow: 0 0 0 3px var(--green-tint); }
     </style>
 </head>
 <body class="app-narrow bg-safra-cream min-h-screen pb-10">
@@ -224,6 +250,20 @@
             </div>
 
             <div>
+                <label class="field-label">نوع المطعم</label>
+                <div class="rtype-group">
+                    <label class="rtype-option">
+                        <input type="radio" name="su-restaurant-type" value="home" required>
+                        <span class="rtype-card"><i class="fa-solid fa-house"></i> منزلي</span>
+                    </label>
+                    <label class="rtype-option">
+                        <input type="radio" name="su-restaurant-type" value="commercial" required>
+                        <span class="rtype-card"><i class="fa-solid fa-shop"></i> تجاري</span>
+                    </label>
+                </div>
+            </div>
+
+            <div>
                 <label class="field-label">الاسم الكامل</label>
                 <div class="field-wrap">
                     <input type="text" id="su-name" required class="field" placeholder="اسمك الثلاثي">
@@ -234,8 +274,48 @@
             <div>
                 <label class="field-label">رقم الجوال</label>
                 <div class="field-wrap">
-                    <input type="tel" id="su-phone" required class="field" placeholder="07xxxxxxxx">
+                    <input type="tel" id="su-phone" required class="field" placeholder="مثال: 078xxxxxxx أو 00962xxxxxxxxx">
                     <i class="fa-solid fa-phone field-icon"></i>
+                </div>
+                <p class="text-[11px] text-safra-ink/50 mt-1.5">اكتب الرقم بصيغة محلية (0xxxxxxxx) أو دولية (00 أو + متبوعة بكود الدولة)</p>
+            </div>
+
+            <div>
+                <label class="field-label">الدولة</label>
+                <div class="field-wrap">
+                    <select id="su-country" required class="field select-field">
+                        <option value="" disabled selected>اختر الدولة</option>
+                        <optgroup label="دول عربية">
+                            <option value="JO">الأردن</option>
+                            <option value="SA">السعودية</option>
+                            <option value="AE">الإمارات</option>
+                            <option value="KW">الكويت</option>
+                            <option value="QA">قطر</option>
+                            <option value="BH">البحرين</option>
+                            <option value="OM">عُمان</option>
+                            <option value="EG">مصر</option>
+                            <option value="IQ">العراق</option>
+                            <option value="SY">سوريا</option>
+                            <option value="LB">لبنان</option>
+                            <option value="PS">فلسطين</option>
+                            <option value="YE">اليمن</option>
+                            <option value="LY">ليبيا</option>
+                            <option value="TN">تونس</option>
+                            <option value="DZ">الجزائر</option>
+                            <option value="MA">المغرب</option>
+                            <option value="SD">السودان</option>
+                        </optgroup>
+                        <optgroup label="دول أخرى">
+                            <option value="TR">تركيا</option>
+                            <option value="US">الولايات المتحدة</option>
+                            <option value="GB">المملكة المتحدة</option>
+                            <option value="CA">كندا</option>
+                            <option value="DE">ألمانيا</option>
+                            <option value="FR">فرنسا</option>
+                            <option value="OTHER">دولة أخرى</option>
+                        </optgroup>
+                    </select>
+                    <i class="fa-solid fa-chevron-down field-icon select-icon"></i>
                 </div>
             </div>
 
@@ -269,6 +349,11 @@
 
             <p class="text-center text-[11.5px] text-safra-ink/50 leading-relaxed">
                 بإنشاء الحساب، أنت موافق على شروط استخدام منصة سفرة الخاصة بالشركاء.
+            </p>
+
+            <p class="text-center text-[12.5px] text-safra-ink/70">
+                عندك حساب أصلاً؟
+                <button type="button" id="goto-login" class="font-bold text-safra-green hover:text-safra-dark">سجل دخول</button>
             </p>
         </form>
 
@@ -305,13 +390,7 @@
     </div>
 
     <script type="module">
-        import { auth, db } from "./firebase-config.js";
-        import {
-            signInWithEmailAndPassword,
-            createUserWithEmailAndPassword,
-            sendPasswordResetEmail
-        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { doc, setDoc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { loginWithEmail, signUpWithEmail, getUserRole, resetPassword } from "./auth-logic.js";
 
         // ===== عناصر التبويب =====
         const tabSignup = document.getElementById('tab-signup');
@@ -330,6 +409,9 @@
         }
         tabSignup.addEventListener('click', () => showTab('signup'));
         tabLogin.addEventListener('click', () => showTab('login'));
+
+        // رابط "عندك حساب أصلاً؟ سجل دخول" تحت فورم إنشاء الحساب
+        document.getElementById('goto-login').addEventListener('click', () => showTab('login'));
 
         // دعم فتح الصفحة مباشرة على وضع الدخول عبر ?mode=login
         const urlParams = new URLSearchParams(window.location.search);
@@ -369,18 +451,59 @@
             return map[error.code] || ('حدث خطأ: ' + error.message);
         }
 
+        // ===== أكواد الاتصال الدولية لكل دولة (نفس الفكرة تنطبق على كل الدول) =====
+        const callingCodes = {
+            JO: '962', SA: '966', AE: '971', KW: '965', QA: '974', BH: '973',
+            OM: '968', EG: '20', IQ: '964', SY: '963', LB: '961', PS: '970',
+            YE: '967', LY: '218', TN: '216', DZ: '213', MA: '212', SD: '249',
+            TR: '90', US: '1', GB: '44', CA: '1', DE: '49', FR: '33'
+        };
+
+        // ===== تحقق مرن من رقم الجوال: يقبل الصيغة المحلية (0xxxxxxxx) أو الدولية (00/+ متبوعة بكود الدولة) =====
+        function isValidPhone(phone, countryCode) {
+            const digits = phone.replace(/[\s\-()]/g, '');
+            const cc = callingCodes[countryCode];
+
+            if (!cc) {
+                // دولة غير مدرجة (اختيار "دولة أخرى"): تحقق عام فقط
+                return /^\+?\d{7,15}$/.test(digits);
+            }
+
+            const localPattern = /^0\d{7,10}$/;
+            const intlPattern = new RegExp(`^(00${cc}|\\+${cc})\\d{6,10}$`);
+            return localPattern.test(digits) || intlPattern.test(digits);
+        }
+
         // ===== إنشاء حساب شريك مطعم =====
         signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             hideMsg();
 
             const businessName = document.getElementById('su-business').value.trim();
+            const restaurantTypeInput = document.querySelector('input[name="su-restaurant-type"]:checked');
+            const restaurantType = restaurantTypeInput ? restaurantTypeInput.value : '';
             const fullName = document.getElementById('su-name').value.trim();
             const phone = document.getElementById('su-phone').value.trim();
+            const country = document.getElementById('su-country').value;
             const email = document.getElementById('su-email').value.trim();
             const password = document.getElementById('su-password').value;
             const password2 = document.getElementById('su-password2').value;
             const signupBtn = document.getElementById('signup-btn');
+
+            if (!restaurantType) {
+                showMsg('لازم تختار نوع المطعم: منزلي أو تجاري.', 'error');
+                return;
+            }
+
+            if (!country) {
+                showMsg('لازم تختار الدولة.', 'error');
+                return;
+            }
+
+            if (!isValidPhone(phone, country)) {
+                showMsg('رقم الجوال غير صحيح. اكتبه بصيغة محلية (0xxxxxxxx) أو دولية (00 أو + وكود الدولة).', 'error');
+                return;
+            }
 
             if (password !== password2) {
                 showMsg('كلمتا المرور غير متطابقتين.', 'error');
@@ -391,15 +514,13 @@
             showMsg('جاري إنشاء حسابك...', 'info');
 
             try {
-                const cred = await createUserWithEmailAndPassword(auth, email, password);
-
-                await setDoc(doc(db, "users", cred.user.uid), {
-                    email: cred.user.email,
+                const cred = await signUpWithEmail(email, password, {
                     role: 'restaurant_owner',
                     fullName: fullName,
                     phone: phone,
                     businessName: businessName,
-                    createdAt: serverTimestamp()
+                    restaurantType: restaurantType,
+                    country: country
                 });
 
                 showMsg('تم إنشاء حساب الشريك بنجاح! جاري تحويلك للوحة التحكم...', 'success');
@@ -426,9 +547,8 @@
             showMsg('جاري تسجيل الدخول...', 'info');
 
             try {
-                const cred = await signInWithEmailAndPassword(auth, email, password);
-                const userDoc = await getDoc(doc(db, "users", cred.user.uid));
-                const role = userDoc.exists() ? userDoc.data().role : 'customer';
+                const cred = await loginWithEmail(email, password);
+                const role = await getUserRole(cred.user.uid);
 
                 if (role === 'restaurant_owner') {
                     showMsg('تم تسجيل الدخول بنجاح! جاري تحويلك للوحة التحكم...', 'success');
@@ -452,7 +572,7 @@
                 return;
             }
             try {
-                await sendPasswordResetEmail(auth, email);
+                await resetPassword(email);
                 showMsg('تم إرسال رابط استعادة كلمة المرور لبريدك الإلكتروني.', 'success');
             } catch (error) {
                 showMsg(friendlyError(error), 'error');
