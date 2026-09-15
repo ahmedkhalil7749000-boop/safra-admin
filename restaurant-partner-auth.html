@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>انضم كشريك مع سفرة</title>
+    <title>أنشئ حساب مطعمك مع سفرة</title>
     <link rel="stylesheet" href="app-shell.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -208,8 +208,8 @@
             <img src="logo.png" alt="سفرة" class="brand-logo">
         </div>
 
-        <span class="hero-badge"><i class="fa-solid fa-store"></i> بوابة الشركاء</span>
-        <h1 class="font-display font-bold hero-title">انضم كشريك مع سفرة</h1>
+        <span class="hero-badge"><i class="fa-solid fa-store"></i> بوابة المطاعم</span>
+        <h1 class="font-display font-bold hero-title">أنشئ حساب مطعمك مع سفرة</h1>
         <p class="hero-sub">حوّل مطبخك أو مطعمك لمصدر دخل حقيقي — وصّل أصنافك لآلاف الزبائن من غير تعقيد.</p>
 
         <div class="perk-row">
@@ -228,13 +228,13 @@
         </div>
 
         <div class="tab-switch">
-            <button type="button" id="tab-signup" class="tab-btn active">إنشاء حساب شريك</button>
+            <button type="button" id="tab-signup" class="tab-btn active">إنشاء حساب مطعم</button>
             <button type="button" id="tab-login" class="tab-btn">تسجيل الدخول</button>
         </div>
 
         <p id="msg" class="msg-box mt-4"></p>
 
-        <!-- ===== فورم إنشاء حساب شريك ===== -->
+        <!-- ===== فورم إنشاء حساب مطعم ===== -->
         <form id="signup-form" class="form-view active mt-4">
             <div class="role-note">
                 <i class="fa-solid fa-circle-info"></i>
@@ -344,11 +344,11 @@
             </div>
 
             <button type="submit" id="signup-btn" class="btn btn-primary">
-                إنشاء حساب الشريك <i class="fa-solid fa-arrow-left text-[12px]"></i>
+                إنشاء حساب المطعم <i class="fa-solid fa-arrow-left text-[12px]"></i>
             </button>
 
             <p class="text-center text-[11.5px] text-safra-ink/50 leading-relaxed">
-                بإنشاء الحساب، أنت موافق على شروط استخدام منصة سفرة الخاصة بالشركاء.
+                بإنشاء الحساب، أنت موافق على شروط استخدام منصة سفرة الخاصة بالمطاعم.
             </p>
 
             <p class="text-center text-[12.5px] text-safra-ink/70">
@@ -380,7 +380,7 @@
             </div>
 
             <button type="submit" id="login-btn" class="btn btn-primary">
-                دخول للوحة الشريك <i class="fa-solid fa-arrow-left text-[12px]"></i>
+                دخول للوحة المطعم <i class="fa-solid fa-arrow-left text-[12px]"></i>
             </button>
         </form>
 
@@ -474,7 +474,7 @@
             return localPattern.test(digits) || intlPattern.test(digits);
         }
 
-        // ===== إنشاء حساب شريك مطعم =====
+        // ===== إنشاء حساب مطعم =====
         signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             hideMsg();
@@ -523,7 +523,7 @@
                     country: country
                 });
 
-                showMsg('تم إنشاء حساب الشريك بنجاح! جاري تحويلك للوحة التحكم...', 'success');
+                showMsg('تم إنشاء حساب المطعم بنجاح! جاري تحويلك للوحة التحكم...', 'success');
 
                 setTimeout(() => {
                     window.location.href = "restaurant-dashboard.html";
@@ -554,7 +554,7 @@
                     showMsg('تم تسجيل الدخول بنجاح! جاري تحويلك للوحة التحكم...', 'success');
                     setTimeout(() => { window.location.href = "restaurant-dashboard.html"; }, 1000);
                 } else {
-                    showMsg('هذا الحساب مسجّل كزبون وليس كشريك مطعم. تقدر تتصفّح سفرة من الصفحة الرئيسية.', 'info');
+                    showMsg('هذا الحساب مسجّل كزبون وليس كحساب مطعم. تقدر تتصفّح سفرة من الصفحة الرئيسية.', 'info');
                     loginBtn.disabled = false;
                 }
             } catch (error) {
