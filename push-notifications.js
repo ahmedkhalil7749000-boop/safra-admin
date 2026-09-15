@@ -24,6 +24,23 @@ function showInAppToast(title, body) {
     setTimeout(() => toast.remove(), 7000);
 }
 
+// بتحاول تحفظ توكن الإشعارات على وثيقة المستخدم، وبتعيد المحاولة لو الوثيقة
+// لسا ما انكتبت (بيصير بأول ثواني من إنشاء حساب جديد).
+async function saveTokenWithRetry(uid, token, attempts = 3) {
+    for (let i = 0; i < attempts; i++) {
+        try {
+            await setDoc(doc(db, "users", uid), { fcmToken: token }, { merge: true });
+            return;
+        } catch (err) {
+            if (err.code !== 'permission-denied' || i === attempts - 1) {
+                console.error("تعذر حفظ توكن الإشعارات:", err.message);
+                return;
+            }
+            await new Promise((r) => setTimeout(r, 1500));
+        }
+    }
+}
+
 let initialized = false;
 
 export async function initPushNotifications() {
@@ -71,8 +88,11 @@ export async function initPushNotifications() {
                     serviceWorkerRegistration: registration
                 });
                 if (token) {
-                    // نخزّن التوكن على وثيقة المستخدم عشان Cloud Functions تقدر ترسل له
-                    await setDoc(doc(db, "users", user.uid), { fcmToken: token }, { merge: true });
+                    // نخزّن التوكن على وثيقة المستخدم عشان Cloud Functions تقدر ترسل له.
+                    // ملاحظة: وقت التسجيل الجديد، onAuthStateChanged ممكن يشتغل قبل
+                    // ما تنكتب وثيقة users (يلي فيها role)، وقواعد Firestore بترفض
+                    // إنشاء وثيقة بدون role — فمنعيد المحاولة كم مرة بهدوء.
+                    await saveTokenWithRetry(user.uid, token);
                 }
             } catch (err) {
                 console.error("تعذر الحصول على توكن الإشعارات:", err.message);

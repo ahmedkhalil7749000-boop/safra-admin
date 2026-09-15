@@ -20,8 +20,16 @@
     "ignore": [
       "firebase.json",
       "functions/**",
+      "scripts/**",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "activate-admin-role.html",
+      "seed-data.html",
+      "seed_data.html",
+      "Firebase Authentication.html",
+      "Firebase Security Rules.html",
+      "Firebase_Storage.html",
+      "Firestore Database.html"
     ]
   }
 }

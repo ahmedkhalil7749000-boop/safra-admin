@@ -32,12 +32,18 @@ messaging.onBackgroundMessage((payload) => {
         // (بدون هاي الخاصية، بعض الأجهزة/المتصفحات بتخفي الإشعار تلقائياً بعد ثواني)
         requireInteraction: true,
         // اهتزاز يلفت الانتباه (يشتغل على الموبايل بالأخص)
-        vibrate: [200, 100, 200, 100, 200],
-        // كل إشعار طلب جديد إله tag مختلف (orderId) عشان ما ينكتب فوق إشعار سابق
-        // ولو رجع نفس orderId (نادراً) ما يتكرر إشعارين لنفس الطلب
-        tag: payload.data?.orderId ? `order-${payload.data.orderId}` : undefined,
-        renotify: true
+        vibrate: [200, 100, 200, 100, 200]
     };
+
+    // كل إشعار طلب جديد إله tag مختلف (orderId) عشان ما ينكتب فوق إشعار سابق.
+    // مهم: renotify ما بينحط إلا مع tag فعلي — لو انحط لحاله المتصفح بيرمي
+    // TypeError وما بيظهر الإشعار إطلاقاً.
+    const orderId = payload.data?.orderId;
+    if (orderId) {
+        options.tag = `order-${orderId}`;
+        options.renotify = true;
+    }
+
     self.registration.showNotification(title, options);
 });
 

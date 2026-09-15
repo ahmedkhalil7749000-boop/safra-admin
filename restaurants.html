@@ -175,29 +175,6 @@
         .tab-item[disabled] { opacity: .35; cursor: not-allowed; }
         .tab-item:focus-visible { outline: 2px solid #d97706; outline-offset: 3px; border-radius: 4px; }
 
-        /* ============ فلترة نوع المطعم (الكل / منزلي / تجاري) ============ */
-        .type-filter-row {
-            display: flex; gap: 8px;
-            overflow-x: auto; padding: 0 2px 2px;
-            scrollbar-width: none; -webkit-overflow-scrolling: touch;
-        }
-        .type-filter-row::-webkit-scrollbar { display: none; }
-        .type-filter-btn {
-            flex: 0 0 auto;
-            padding: 7px 16px; border-radius: 9999px;
-            font-size: 12.5px; font-weight: 600;
-            border: 1.5px solid #e7e2d6; background: #fff; color: #7c7669;
-            cursor: pointer; white-space: nowrap;
-            -webkit-tap-highlight-color: transparent;
-            transition: background-color .15s ease, border-color .15s ease, color .15s ease;
-        }
-        .type-filter-btn[aria-pressed="true"] { background: #0b3b2c; border-color: #0b3b2c; color: #fff; }
-        .type-filter-btn[disabled] { opacity: .4; cursor: not-allowed; }
-        .type-filter-btn:focus-visible { outline: 2px solid #d97706; outline-offset: 2px; }
-        /* زر "غير مصنّف" يظهر مؤقتًا فقط لو في مطاعم بدون restaurantType، بلون تحذيري ليلفت انتباه الإدارة */
-        .type-filter-btn-warn { border-color: #f2b544; color: #b45309; background: #fff8ec; }
-        .type-filter-btn-warn[aria-pressed="true"] { background: #b45309; border-color: #b45309; color: #fff; }
-
         /* ============ لحظة ظهور واحدة عند تحميل المحتوى لأول مرة ============ */
         @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
         .reveal-init { animation: rise-in .55s ease both; }
@@ -275,6 +252,64 @@
             backdrop-filter: blur(2px);
         }
     </style>
+<style id="safra-design-only">
+/* SAFRA DESIGN ONLY — no JS, Firebase, Firestore, fields or restaurant data changed */
+:root{--sf-bg:#07110f;--sf-surface:#0d1916;--sf-surface2:#12211d;--sf-line:rgba(255,255,255,.10);--sf-text:#fffaf1;--sf-muted:#9ca9a3;--sf-green:#16b77e;--sf-mint:#68e2b2;--sf-gold:#efbd61}
+body.app-narrow{background:radial-gradient(circle at 8% 0%,rgba(22,183,126,.10),transparent 28%),radial-gradient(circle at 100% 25%,rgba(239,189,97,.07),transparent 24%),var(--sf-bg)!important;color:var(--sf-text)!important}
+#page-content{width:min(1180px,100%);margin:auto!important;padding:0 24px 95px!important}
+#page-content>.mb-4:first-child{position:relative;min-height:190px;margin:0 -24px 24px!important;padding:55px 34px 30px!important;overflow:hidden;border-bottom:1px solid var(--sf-line);background:linear-gradient(135deg,#07110f,#0a241d)}
+#page-content>.mb-4:first-child:before{content:"";position:absolute;width:330px;height:330px;left:-110px;bottom:-235px;border:1px solid rgba(104,226,178,.15);border-radius:50%;box-shadow:0 0 0 32px rgba(104,226,178,.025),0 0 0 72px rgba(104,226,178,.018)}
+#page-content>.mb-4:first-child:after{content:"SAFRA • FOOD DISCOVERY";position:absolute;left:34px;bottom:24px;color:rgba(255,255,255,.20);font:700 9px/1 Cairo,sans-serif;letter-spacing:4px}
+#page-content>.mb-4:first-child h1{position:relative;z-index:2;color:#fff!important;font-family:"El Messiri",serif!important;font-size:clamp(34px,5vw,58px)!important;line-height:1.2!important;letter-spacing:-1px}
+#restaurant-count{position:relative;z-index:2;color:#a9b6b0!important;font-size:10px!important;margin-top:7px!important}
+
+/* featured */
+#feature-slot{margin-bottom:28px!important}
+.feature-card{position:relative!important;display:block;min-height:430px;border:1px solid var(--sf-line);border-radius:28px;overflow:hidden;background:#0d1714;box-shadow:0 25px 65px rgba(0,0,0,.30)}
+.feature-photo-wrap{position:absolute!important;inset:0;aspect-ratio:auto!important;border-radius:0!important;background:#13221d}
+.feature-photo-wrap img{width:100%;height:100%;object-fit:cover;transition:transform .7s ease!important}
+.feature-card:hover .feature-photo-wrap img{transform:scale(1.035)}
+.feature-scrim{background:linear-gradient(90deg,rgba(4,13,11,.98) 0%,rgba(4,13,11,.78) 40%,rgba(4,13,11,.08) 82%),linear-gradient(0deg,rgba(0,0,0,.65),transparent 55%)!important}
+.photo-wash{background:linear-gradient(145deg,rgba(22,183,126,.08),rgba(239,189,97,.05))!important;mix-blend-mode:normal!important}
+.feature-text{right:auto!important;left:0!important;bottom:0!important;width:min(55%,560px);padding:58px 46px!important;display:flex;flex-direction:column;justify-content:center;color:#fff!important}
+.feature-eyebrow{color:#7ee7ba!important;font-size:10px!important}
+.feature-text h2{font-family:"El Messiri",serif!important;font-size:clamp(28px,4vw,46px)!important;line-height:1.2!important;margin:5px 0!important;color:#fff!important}
+.feature-text p{color:rgba(255,255,255,.68)!important;font-size:10px!important;max-width:420px}
+.feature-meta{gap:16px!important;font-size:9px!important}.feature-meta .rating-item i{color:var(--sf-gold)!important}
+
+/* arrivals / banners */
+#arrivals-slot,#platform-banners-section{margin-bottom:28px!important}
+.arrivals-heading{font-family:"El Messiri",serif!important;color:#fff!important;font-size:20px!important}
+.arrivals-row{gap:11px!important}
+.arrival-card{flex-basis:165px!important}.arrival-photo{border-radius:18px!important;border:1px solid var(--sf-line);background:#13221d}.arrival-name{color:#fff!important;font-size:10px!important}.arrival-badge{background:rgba(7,17,15,.78)!important;border:1px solid rgba(255,255,255,.13);backdrop-filter:blur(10px)}
+.banner-row{gap:11px!important}.banner-row .banner-slide{border-radius:20px!important;border:1px solid var(--sf-line)}
+
+/* search */
+.search-field{position:sticky!important;top:6px;z-index:40;margin-bottom:24px!important}
+.search-field input{height:58px!important;padding:12px 48px 12px 18px!important;background:rgba(13,25,22,.92)!important;color:#fff!important;border:1px solid rgba(255,255,255,.13)!important;border-radius:18px!important;box-shadow:0 15px 38px rgba(0,0,0,.24)!important;backdrop-filter:blur(16px);font-size:11px!important}
+.search-field input::placeholder{color:#7e8d87!important}.search-field input:focus{border-color:rgba(104,226,178,.55)!important;box-shadow:0 0 0 3px rgba(22,183,126,.10),0 15px 38px rgba(0,0,0,.25)!important}.search-field i{right:18px!important;color:#71827a!important}
+
+/* categories */
+.category-tabs{gap:8px!important;border:0!important;padding:0 1px 5px!important;margin-bottom:27px!important}
+.category-tabs .tab-item{padding:9px 14px!important;border:1px solid var(--sf-line);border-radius:999px!important;background:rgba(255,255,255,.035)!important;color:#87958f!important;font-size:9px!important;font-weight:800!important}.category-tabs .tab-item:after{display:none!important}.category-tabs .tab-item[aria-pressed="true"]{color:#06251b!important;background:var(--sf-mint)!important;border-color:var(--sf-mint)!important}.category-tabs .tab-item:disabled{opacity:.28!important}
+
+/* cards */
+.resto-grid{grid-template-columns:repeat(4,1fr)!important;gap:14px!important}
+.resto-house{background:var(--sf-surface)!important;border:1px solid var(--sf-line);border-radius:21px!important;overflow:hidden;transition:transform .22s,border-color .22s,box-shadow .22s}
+.resto-card:hover .resto-house{transform:translateY(-5px);border-color:rgba(104,226,178,.32);box-shadow:0 20px 40px rgba(0,0,0,.24)}
+.resto-photo-wrap{background:#14221e!important}.resto-photo-wrap img{transition:transform .5s!important}.resto-card:hover .resto-photo-wrap img{transform:scale(1.045)}
+.resto-body{padding:13px!important}.resto-body h3{font-family:"El Messiri",serif!important;color:#fff!important;font-size:13px!important}.resto-desc{color:#81908a!important;font-size:8px!important}.resto-meta{color:#c2cdc8!important;font-size:8px!important}.resto-meta .rating-item i{color:var(--sf-gold)!important}
+.resto-card.is-wide{grid-column:span 2!important}.resto-card.is-wide .resto-house{display:grid!important;grid-template-columns:1.05fr .95fr!important}.resto-card.is-wide .resto-photo-wrap{height:100%!important;min-height:250px}.resto-card.is-wide .resto-body{padding:30px!important;justify-content:center;background:radial-gradient(circle at 10% 20%,rgba(22,183,126,.08),transparent 38%),var(--sf-surface)!important}.resto-card.is-wide .resto-body h3{font-size:21px!important}
+.resto-closed-badge{background:rgba(0,0,0,.60)!important;border:1px solid rgba(255,255,255,.12)}
+
+/* empty/error/loading */
+#empty{color:#899790!important}#empty .text-safra-dark{color:#fff!important}#error{color:#ffc1c1!important;background:rgba(150,30,30,.12)!important;border-color:rgba(255,100,100,.18)!important}.skeleton-feature,.skeleton-photo,.skeleton-line{background:#12221d!important}.skeleton-pulse{animation:safra-pulse 1.4s ease-in-out infinite!important}@keyframes safra-pulse{0%,100%{opacity:1}50%{opacity:.45}}
+
+@media(max-width:950px){#page-content{padding:0 16px 95px!important}#page-content>.mb-4:first-child{margin-left:-16px!important;margin-right:-16px!important}.resto-grid{grid-template-columns:repeat(2,1fr)!important}.resto-card.is-wide{grid-column:1/-1!important}}
+@media(max-width:650px){#page-content{padding:0 12px 90px!important}#page-content>.mb-4:first-child{margin-left:-12px!important;margin-right:-12px!important;min-height:205px;padding:52px 20px 28px!important}#page-content>.mb-4:first-child h1{font-size:35px!important}.feature-card{min-height:460px;border-radius:23px}.feature-scrim{background:linear-gradient(0deg,rgba(4,13,11,.98) 0%,rgba(4,13,11,.68) 48%,rgba(4,13,11,.08) 82%)!important}.feature-text{width:100%;padding:25px 21px 23px!important}.feature-text h2{font-size:29px!important}.arrival-card{flex-basis:145px!important}.search-field input{height:53px!important}.category-tabs{overflow-x:auto!important;scrollbar-width:none}.resto-grid{grid-template-columns:1fr 1fr!important;gap:9px!important}.resto-card.is-wide{grid-column:1/-1!important}.resto-card.is-wide .resto-house{grid-template-columns:1fr!important}.resto-card.is-wide .resto-photo-wrap{min-height:220px}.resto-card.is-wide .resto-body{padding:17px!important}.resto-card.is-wide .resto-body h3{font-size:18px!important}.resto-body{padding:10px!important}.resto-body h3{font-size:11px!important}.resto-desc,.resto-meta{font-size:7px!important}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
+
+</style>
 </head>
 <body class="app-narrow bg-safra-cream min-h-screen">
     <!-- الهيدر المشترك: بيتحمّل تلقائيًا من shared-header.js -->
@@ -305,10 +340,7 @@
         </div>
 
         <!-- التصنيفات -->
-        <div id="category-tabs" class="category-tabs mb-4"></div>
-
-        <!-- فلترة نوع المطعم: الكل / منزلي / تجاري -->
-        <div id="type-filter-row" class="type-filter-row mb-5"></div>
+        <div id="category-tabs" class="category-tabs mb-5"></div>
 
         <!-- حالات العرض -->
         <div id="loading" class="resto-grid"></div>
@@ -364,66 +396,6 @@
                 tab.disabled = !hasAny;
                 tab.title = hasAny ? '' : 'لا يوجد مطاعم بهذا التصنيف حاليًا';
             });
-        };
-
-        // ============ فلترة نوع المطعم ============
-        const typeFilterRow = document.getElementById('type-filter-row');
-        const restaurantTypes = [
-            { key: 'all', label: 'الكل' },
-            { key: 'home', label: '🏠 منزلي' },
-            { key: 'commercial', label: '🏪 تجاري' },
-        ];
-
-        restaurantTypes.forEach(t => {
-            const btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'type-filter-btn';
-            btn.dataset.type = t.key;
-            btn.setAttribute('aria-pressed', t.key === 'all' ? 'true' : 'false');
-            btn.textContent = t.label;
-            typeFilterRow.appendChild(btn);
-        });
-
-        typeFilterRow.addEventListener('click', (e) => {
-            const btn = e.target.closest('.type-filter-btn');
-            if (!btn || btn.disabled) return;
-            [...typeFilterRow.querySelectorAll('.type-filter-btn')].forEach(b => b.setAttribute('aria-pressed', 'false'));
-            btn.setAttribute('aria-pressed', 'true');
-            window.onTypeSelect && window.onTypeSelect(btn.dataset.type);
-        });
-
-        // تعطيل نوع المطعم اللي ما فيه ولا مطعم + إظهار/إخفاء زر "غير مصنّف" حسب الحاجة الفعلية
-        window.setTypeAvailability = (availableSet) => {
-            [...typeFilterRow.querySelectorAll('.type-filter-btn[data-type="home"], .type-filter-btn[data-type="commercial"]')]
-                .forEach(btn => {
-                    const hasAny = availableSet.has(btn.dataset.type);
-                    btn.disabled = !hasAny;
-                    btn.title = hasAny ? '' : 'لا يوجد مطاعم من هذا النوع حاليًا';
-                });
-
-            let unspecifiedBtn = typeFilterRow.querySelector('.type-filter-btn[data-type="unspecified"]');
-            if (availableSet.has('unspecified')) {
-                // في مطاعم بدون restaurantType — نضيف قسم مؤقت "غير مصنّف" ليقدر المستخدم يشوفها ويفلترها بدل ما تختفي
-                if (!unspecifiedBtn) {
-                    unspecifiedBtn = document.createElement('button');
-                    unspecifiedBtn.type = 'button';
-                    unspecifiedBtn.className = 'type-filter-btn type-filter-btn-warn';
-                    unspecifiedBtn.dataset.type = 'unspecified';
-                    unspecifiedBtn.setAttribute('aria-pressed', 'false');
-                    unspecifiedBtn.title = 'مطاعم ما فيها قيمة محددة لنوع المطعم بقاعدة البيانات';
-                    unspecifiedBtn.textContent = '⚠️ غير مصنّف';
-                    typeFilterRow.appendChild(unspecifiedBtn);
-                }
-            } else if (unspecifiedBtn) {
-                // ما عاد في مطاعم بدون نوع (اتصلحت البيانات) — نشيل الزر، ولو كان هو المفعّل نرجّع الفلتر لـ"الكل"
-                if (unspecifiedBtn.getAttribute('aria-pressed') === 'true') {
-                    const allBtn = typeFilterRow.querySelector('.type-filter-btn[data-type="all"]');
-                    [...typeFilterRow.querySelectorAll('.type-filter-btn')].forEach(b => b.setAttribute('aria-pressed', 'false'));
-                    if (allBtn) allBtn.setAttribute('aria-pressed', 'true');
-                    window.onTypeSelect && window.onTypeSelect('all');
-                }
-                unspecifiedBtn.remove();
-            }
         };
 
         // مسكِن تحميل بسيط
@@ -490,7 +462,6 @@
         let allRestaurants = [];
         let featuredId = null;
         let activeCategory = 'all';
-        let activeType = 'all';
 
         function isRestaurantClosed(r) {
             return r.status === 'متوقف';
@@ -500,12 +471,6 @@
             if (Array.isArray(r.categories) && r.categories.length) return r.categories;
             if (r.category) return [r.category];
             return [];
-        }
-
-        // نوع المطعم بأمان: لو الحقل مفقود أو قيمته غير معروفة، نعتبره "غير مصنّف"
-        // بدل ما نخليه يختفي من الفلاتر أو يسبب مقارنة خاطئة
-        function normalizeRestaurantType(r) {
-            return (r.restaurantType === 'home' || r.restaurantType === 'commercial') ? r.restaurantType : 'unspecified';
         }
 
         function renderFeature(id, r) {
@@ -584,11 +549,10 @@
         function applyFilters() {
             const term = searchInput.value.trim().toLowerCase();
             const filtered = allRestaurants.filter(({ id, data }) => {
-                if (id === featuredId && activeCategory === 'all' && activeType === 'all' && !term) return false; // ما نكرر المطعم المميز بالشبكة بالعرض الافتراضي
+                if (id === featuredId && activeCategory === 'all' && !term) return false; // ما نكرر المطعم المميز بالشبكة بالعرض الافتراضي
                 const matchesCategory = activeCategory === 'all' || restaurantCategories(data).includes(activeCategory);
-                const matchesType = activeType === 'all' || normalizeRestaurantType(data) === activeType;
                 const matchesSearch = !term || (data.name || '').toLowerCase().includes(term);
-                return matchesCategory && matchesType && matchesSearch;
+                return matchesCategory && matchesSearch;
             });
 
             grid.innerHTML = '';
@@ -601,7 +565,7 @@
             emptyBox.classList.remove('flex');
 
             // أول مطعم بنتيجة "الكل" (بدون بحث) ياخد بلوك عريض لكسر رتابة الشبكة
-            const breakMonotony = activeCategory === 'all' && activeType === 'all' && !term;
+            const breakMonotony = activeCategory === 'all' && !term;
             filtered.forEach(({ id, data }, index) => {
                 grid.appendChild(renderCard(id, data, breakMonotony && index === 0));
             });
@@ -611,11 +575,6 @@
 
         window.onCategorySelect = (catKey) => {
             activeCategory = catKey;
-            applyFilters();
-        };
-
-        window.onTypeSelect = (typeKey) => {
-            activeType = typeKey;
             applyFilters();
         };
 
@@ -673,13 +632,10 @@
                 }
 
                 const availableCats = new Set();
-                const availableTypes = new Set();
                 allRestaurants.forEach(({ data }) => {
                     restaurantCategories(data).forEach(cat => availableCats.add(cat));
-                    availableTypes.add(normalizeRestaurantType(data));
                 });
                 window.setCategoryAvailability && window.setCategoryAvailability(availableCats);
-                window.setTypeAvailability && window.setTypeAvailability(availableTypes);
 
                 applyFilters();
             } catch (error) {

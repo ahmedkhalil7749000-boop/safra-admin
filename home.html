@@ -1,447 +1,1227 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>سفرة</title>
-    <link rel="stylesheet" href="app-shell.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@500;600;700&family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              'safra-dark': '#0b3b2c',
-              'safra-green': '#2e6f40',
-              'safra-cream': '#fbf9f5',
-              'safra-gold': '#d97706',
-              'safra-gold-dark': '#b45309',
-              'safra-line': '#e7e2d6',
-              'safra-muted': '#7c7669',
-            },
-            fontFamily: {
-              display: ['"El Messiri"', 'serif'],
-              sans: ['"Cairo"', 'sans-serif'],
-            }
-          }
-        }
-      }
-    </script>
-    <style>
-        body { font-family: 'Cairo', sans-serif; }
-        .font-display { font-family: 'El Messiri', serif; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
-        .section-heading { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
-        .section-heading h2 { font-size: 17px; font-weight: 600; color: #0b3b2c; }
-        .section-heading a { font-size: 12px; font-weight: 600; color: #b45309; text-decoration: none; }
+<title>سفرة</title>
 
-        /* ============ بانرات (شريط تمرير أفقي بعرض كامل) ============ */
-        .banner-row {
-            display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory;
-            padding: 2px 2px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch;
-        }
-        .banner-row::-webkit-scrollbar { display: none; }
-        .banner-slide {
-            flex: 0 0 88%; scroll-snap-align: start; display: block; text-decoration: none;
-            border-radius: 18px; overflow: hidden; position: relative; background: #f1ece0;
-            aspect-ratio: 16/7;
-        }
-        .banner-slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
-        .banner-slide .banner-name {
-            position: absolute; right: 12px; bottom: 10px; color: #fff; font-size: 12.5px;
-            font-weight: 700; text-shadow: 0 1px 6px rgba(0,0,0,.55);
-            background: rgba(11,20,15,.35); padding: 4px 10px; border-radius: 9999px;
-            backdrop-filter: blur(2px);
-        }
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=El+Messiri:wght@500;600;700&display=swap" rel="stylesheet">
 
-        /* ============ مطاعم مميزة (الأعلى تقييمًا) ============ */
-        .feat-row { display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-        .feat-row::-webkit-scrollbar { display: none; }
-        .feat-card { flex: 0 0 168px; display: block; text-decoration: none; color: inherit; }
-        .feat-photo { position: relative; aspect-ratio: 4/3; border-radius: 16px; overflow: hidden; background: #f1ece0; }
-        .feat-photo img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .4s ease; }
-        .feat-card:active .feat-photo img { transform: scale(1.03); }
-        .feat-rank {
-            position: absolute; top: 8px; right: 8px; z-index: 2;
-            width: 22px; height: 22px; border-radius: 9999px; background: rgba(11,59,44,.85);
-            color: #fff; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center;
-        }
-        .feat-body { padding: 8px 2px 0; }
-        .feat-body h3 { font-size: 13.5px; font-weight: 700; color: #1c1a16; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .feat-meta { display: flex; align-items: center; gap: 4px; margin-top: 3px; font-size: 11.5px; color: #8a8474; font-weight: 600; }
-        .feat-meta i { color: #d97706; font-size: 10px; }
+<style>
+:root{
+  --green:#103f32;
+  --green2:#1f604b;
+  --cream:#f7f4ed;
+  --ink:#17231e;
+  --muted:#7a817b;
+  --gold:#c98a32;
+  --line:#e7e2d7;
+  --white:#fff;
+}
 
-        /* ============ فيديوهات المطاعم ============ */
-        .video-row { display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 4px; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
-        .video-row::-webkit-scrollbar { display: none; }
-        .video-card { flex: 0 0 130px; text-decoration: none; color: inherit; }
-        .video-thumb-wrap {
-            position: relative; aspect-ratio: 9/16; border-radius: 16px; overflow: hidden; background: #12261d;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .video-thumb-wrap video, .video-thumb-wrap iframe { width: 100%; height: 100%; object-fit: cover; border: none; }
-        .video-play-badge {
-            position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-            background: rgba(0,0,0,.18); pointer-events: none;
-        }
-        .video-play-badge i { color: #fff; font-size: 26px; text-shadow: 0 2px 8px rgba(0,0,0,.4); }
-        .video-name { margin-top: 7px; font-size: 12px; font-weight: 600; color: #1c1a16; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+*{
+  box-sizing:border-box;
+}
 
-        .empty-hint { font-size: 12px; color: #9a9384; text-align: center; padding: 18px 0; }
-        .skeleton-block { border-radius: 16px; background: #eee7d8; animation: sk-pulse 1.4s ease-in-out infinite; }
-        @keyframes sk-pulse { 0%,100% { opacity: 1; } 50% { opacity: .55; } }
+body{
+  margin:0;
+  background:var(--cream);
+  color:var(--ink);
+  font-family:Cairo,sans-serif;
+}
 
-        /* ============ دعوة أصحاب المطاعم وبيوت الطبخ للانضمام ============ */
-        @keyframes rise-fade { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: none; } }
-        @keyframes plate-float { 0%, 100% { transform: translateY(0) rotate(0deg); } 50% { transform: translateY(-3px) rotate(-6deg); } }
-        @keyframes cta-shimmer { 0% { background-position: 180% 0; } 100% { background-position: -40% 0; } }
+a{
+  text-decoration:none;
+  color:inherit;
+}
 
-        .merchant-hero {
-            position: relative; isolation: isolate; overflow: hidden;
-            background: linear-gradient(155deg, #0b3b2c 0%, #123f2f 48%, #2e6f40 100%);
-            border-radius: 24px; padding: 24px 20px 22px; color: #fff;
-            box-shadow: 0 16px 34px -14px rgba(11,59,44,.6);
-        }
-        .merchant-hero::before {
-            content: ''; position: absolute; inset: 0; z-index: 0; opacity: .14;
-            background-image: radial-gradient(circle at 1.5px 1.5px, rgba(255,255,255,.6) 1.4px, transparent 1.6px);
-            background-size: 17px 17px;
-        }
-        .merchant-hero::after {
-            content: ''; position: absolute; z-index: 0; width: 230px; height: 230px; border-radius: 50%;
-            top: -80px; left: -70px; filter: blur(2px);
-            background: radial-gradient(circle, rgba(217,119,6,.45), transparent 70%);
-        }
-        .merchant-badge {
-            position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px;
-            background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.2);
-            padding: 5px 12px; border-radius: 9999px; font-size: 11.5px; font-weight: 700;
-            backdrop-filter: blur(3px);
-        }
-        .merchant-badge .plate-icon { display: inline-block; animation: plate-float 3.2s ease-in-out infinite; }
-        .merchant-title {
-            position: relative; z-index: 1; font-size: 21px; line-height: 1.35; margin-top: 13px;
-            opacity: 0; animation: rise-fade .55s ease forwards .05s;
-        }
-        .merchant-sub {
-            position: relative; z-index: 1; font-size: 12.5px; opacity: 0; margin-top: 6px; color: rgba(255,255,255,.88);
-            animation: rise-fade .55s ease forwards .15s;
-        }
-        .merchant-points { position: relative; z-index: 1; margin-top: 16px; display: flex; flex-direction: column; gap: 9px; }
-        .merchant-point {
-            display: flex; align-items: center; gap: 9px; font-size: 12.5px; font-weight: 600;
-            opacity: 0; animation: rise-fade .5s ease forwards;
-        }
-        .merchant-point:nth-child(1) { animation-delay: .25s; }
-        .merchant-point:nth-child(2) { animation-delay: .35s; }
-        .merchant-point:nth-child(3) { animation-delay: .45s; }
-        .merchant-point .pt-icon {
-            flex: 0 0 auto; width: 25px; height: 25px; border-radius: 9999px;
-            background: rgba(217,119,6,.24); color: #f3c98a; font-size: 11px;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .merchant-cta {
-            position: relative; z-index: 1; isolation: isolate; overflow: hidden;
-            margin-top: 18px; display: inline-flex; align-items: center; gap: 8px;
-            background: #d97706; color: #fff; font-weight: 700; font-size: 13.5px;
-            padding: 11px 20px; border-radius: 9999px; text-decoration: none;
-            box-shadow: 0 8px 18px -6px rgba(217,119,6,.55);
-            opacity: 0; animation: rise-fade .5s ease forwards .55s;
-            transition: transform .15s ease;
-        }
-        .merchant-cta::before {
-            content: ''; position: absolute; inset: 0; z-index: -1;
-            background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%);
-            background-size: 200% 100%; animation: cta-shimmer 2.8s ease-in-out infinite;
-        }
-        .merchant-cta:active { transform: scale(.97); }
-        .merchant-tagline {
-            position: relative; z-index: 1; font-size: 12px; opacity: 0; color: rgba(255,255,255,.8);
-            margin-top: 15px; padding-top: 13px; border-top: 1px solid rgba(255,255,255,.15);
-            animation: rise-fade .55s ease forwards .65s;
-        }
-        @media (prefers-reduced-motion: reduce) {
-            .merchant-badge .plate-icon, .merchant-cta::before { animation: none; }
-            .merchant-title, .merchant-sub, .merchant-point, .merchant-cta, .merchant-tagline { animation: none; opacity: 1; }
-        }
-    </style>
+.app{
+  max-width:520px;
+  margin:auto;
+  min-height:100vh;
+  padding-bottom:86px;
+  background:var(--cream);
+}
+
+/* HEADER */
+
+.top{
+  padding:18px 18px 10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+
+.brand{
+  display:flex;
+  align-items:center;
+  gap:9px;
+  font-weight:800;
+  font-size:20px;
+  color:var(--green);
+}
+
+.brand img{
+  width:42px;
+  height:42px;
+  border-radius:14px;
+  object-fit:contain;
+  background:#fff;
+}
+
+.top-actions{
+  display:flex;
+  gap:8px;
+}
+
+.icon{
+  width:42px;
+  height:42px;
+  border:1px solid var(--line);
+  background:#fff;
+  border-radius:14px;
+  display:grid;
+  place-items:center;
+  font-size:18px;
+}
+
+.location{
+  padding:0 18px 13px;
+  color:var(--muted);
+  font-size:11px;
+}
+
+.location b{
+  color:var(--green);
+  font-size:12px;
+}
+
+/* HERO */
+
+.hero{
+  margin:4px 18px 20px;
+  border-radius:30px;
+  overflow:hidden;
+  position:relative;
+  min-height:270px;
+  background:linear-gradient(145deg,#0d382d,#1d6049);
+  color:#fff;
+  padding:25px 22px;
+}
+
+.hero:before{
+  content:"";
+  position:absolute;
+  width:230px;
+  height:230px;
+  border-radius:50%;
+  left:-75px;
+  top:-70px;
+  background:radial-gradient(
+    circle,
+    rgba(201,138,50,.55),
+    transparent 68%
+  );
+}
+
+.hero:after{
+  content:"";
+  position:absolute;
+  width:170px;
+  height:170px;
+  border-radius:50%;
+  right:-85px;
+  bottom:-85px;
+  background:rgba(255,255,255,.06);
+}
+
+.hero>*{
+  position:relative;
+  z-index:1;
+}
+
+.eyebrow{
+  font-size:11px;
+  opacity:.78;
+  margin-bottom:8px;
+}
+
+.hero h1{
+  font-family:'El Messiri',serif;
+  font-size:29px;
+  line-height:1.35;
+  margin:0 0 8px;
+}
+
+.hero p{
+  font-size:12px;
+  line-height:1.8;
+  color:rgba(255,255,255,.78);
+  margin:0 0 18px;
+  max-width:280px;
+}
+
+.search{
+  background:#fff;
+  color:#9b9f99;
+  border-radius:16px;
+  padding:13px 15px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-size:12px;
+  box-shadow:0 12px 30px rgba(0,0,0,.14);
+}
+
+.plate{
+  position:absolute;
+  left:14px;
+  bottom:-10px;
+  width:155px;
+  height:155px;
+  border-radius:50%;
+  background:
+    radial-gradient(
+      circle,
+      #fff 0 38%,
+      #dfe6df 39% 41%,
+      #fff 42% 58%,
+      #d8ded9 59% 61%,
+      #fff 62%
+    );
+  box-shadow:0 20px 30px rgba(0,0,0,.18);
+  transform:rotate(-12deg);
+}
+
+.plate:after{
+  content:'🍲';
+  position:absolute;
+  font-size:68px;
+  inset:0;
+  display:grid;
+  place-items:center;
+}
+
+/* SECTIONS */
+
+.section{
+  padding:0 18px;
+  margin-bottom:23px;
+}
+
+.section-head{
+  display:flex;
+  align-items:end;
+  justify-content:space-between;
+  margin-bottom:11px;
+}
+
+.section-head h2{
+  font-family:'El Messiri',serif;
+  color:var(--green);
+  font-size:18px;
+  margin:0;
+}
+
+.section-head span{
+  font-size:11px;
+  color:var(--gold);
+  font-weight:700;
+}
+
+/* MOODS */
+
+.moods{
+  display:flex;
+  gap:9px;
+  overflow:auto;
+  padding-bottom:3px;
+  scrollbar-width:none;
+}
+
+.moods::-webkit-scrollbar{
+  display:none;
+}
+
+.mood{
+  flex:0 0 auto;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:11px 13px;
+  min-width:92px;
+  text-align:center;
+}
+
+.mood .emoji{
+  font-size:23px;
+  display:block;
+  margin-bottom:4px;
+}
+
+.mood small{
+  font-size:10px;
+  font-weight:700;
+  color:#3f4944;
+}
+
+/* BANNER */
+
+.banner{
+  position:relative;
+  height:210px;
+  border-radius:25px;
+  overflow:hidden;
+  background:#173f33;
+  box-shadow:0 14px 35px rgba(16,63,50,.12);
+}
+
+.banner img,
+.banner video{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+.banner-overlay{
+  position:absolute;
+  inset:0;
+  background:linear-gradient(
+    0deg,
+    rgba(0,0,0,.68),
+    rgba(0,0,0,.05) 65%
+  );
+}
+
+.banner-content{
+  position:absolute;
+  bottom:17px;
+  right:17px;
+  left:17px;
+  color:#fff;
+}
+
+.banner-content small{
+  font-size:10px;
+  opacity:.85;
+}
+
+.banner-content h3{
+  font-family:'El Messiri',serif;
+  margin:3px 0;
+  font-size:20px;
+}
+
+.banner-content p{
+  margin:0;
+  font-size:10px;
+  opacity:.85;
+}
+
+/* FEATURE */
+
+.feature{
+  display:grid;
+  grid-template-columns:1.1fr .9fr;
+  gap:10px;
+}
+
+.feature-card{
+  border-radius:21px;
+  overflow:hidden;
+  position:relative;
+  min-height:180px;
+  background:#ddd;
+}
+
+.feature-card img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+.feature-card:after{
+  content:"";
+  position:absolute;
+  inset:35% 0 0;
+  background:linear-gradient(
+    transparent,
+    rgba(0,0,0,.72)
+  );
+}
+
+.feature-info{
+  position:absolute;
+  z-index:2;
+  bottom:13px;
+  right:13px;
+  left:13px;
+  color:#fff;
+}
+
+.feature-info b{
+  font-size:14px;
+}
+
+.feature-info small{
+  display:block;
+  font-size:10px;
+  opacity:.86;
+  margin-top:3px;
+}
+
+.mini-stack{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.mini{
+  height:85px;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:11px;
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+
+.mini img{
+  width:62px;
+  height:62px;
+  border-radius:15px;
+  object-fit:cover;
+}
+
+.mini b{
+  font-size:11px;
+}
+
+.mini small{
+  display:block;
+  font-size:9px;
+  color:var(--muted);
+  margin-top:4px;
+}
+
+/* AROUND */
+
+.around{
+  background:var(--green);
+  border-radius:27px;
+  padding:18px;
+  color:#fff;
+  position:relative;
+  overflow:hidden;
+}
+
+.around:before{
+  content:"";
+  position:absolute;
+  width:190px;
+  height:190px;
+  border:1px solid rgba(255,255,255,.09);
+  border-radius:50%;
+  left:-90px;
+  top:-80px;
+  box-shadow:
+    0 0 0 30px rgba(255,255,255,.025),
+    0 0 0 60px rgba(255,255,255,.018);
+}
+
+.around-head{
+  position:relative;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:14px;
+}
+
+.around h2{
+  font-family:'El Messiri',serif;
+  font-size:18px;
+  margin:0;
+}
+
+.around p{
+  font-size:10px;
+  opacity:.7;
+  margin:3px 0 0;
+}
+
+.around-link{
+  font-size:10px;
+  background:rgba(255,255,255,.1);
+  padding:7px 10px;
+  border-radius:10px;
+}
+
+.orbit{
+  position:relative;
+  height:190px;
+}
+
+.center-plate{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  width:104px;
+  height:104px;
+  border-radius:50%;
+  background:#fff;
+  display:grid;
+  place-items:center;
+  color:var(--green);
+  box-shadow:0 12px 28px rgba(0,0,0,.2);
+  font-size:39px;
+}
+
+.orbit-card{
+  position:absolute;
+  width:100px;
+  background:#fff;
+  color:var(--ink);
+  padding:7px;
+  border-radius:16px;
+  box-shadow:0 8px 18px rgba(0,0,0,.15);
+}
+
+.orbit-card img{
+  width:100%;
+  height:62px;
+  object-fit:cover;
+  border-radius:11px;
+}
+
+.orbit-card b{
+  font-size:9px;
+  display:block;
+  margin-top:4px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.orbit-card small{
+  font-size:8px;
+  color:var(--muted);
+}
+
+.o1{
+  right:0;
+  top:2px;
+}
+
+.o2{
+  left:0;
+  top:42px;
+}
+
+.o3{
+  right:18px;
+  bottom:0;
+}
+
+/* RESTAURANTS */
+
+.restaurants{
+  display:flex;
+  gap:12px;
+  overflow:auto;
+  scrollbar-width:none;
+}
+
+.restaurants::-webkit-scrollbar{
+  display:none;
+}
+
+.rest{
+  flex:0 0 190px;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:21px;
+  padding:9px;
+}
+
+.rest img{
+  width:100%;
+  height:112px;
+  object-fit:cover;
+  border-radius:15px;
+}
+
+.rest b{
+  font-size:12px;
+  display:block;
+  margin:7px 3px 2px;
+}
+
+.rest small{
+  font-size:9px;
+  color:var(--muted);
+  margin:0 3px;
+}
+
+.rating{
+  color:var(--gold);
+  font-weight:800;
+}
+
+/* PARTNER */
+
+.partner{
+  position:relative;
+  overflow:hidden;
+  background:
+    linear-gradient(
+      145deg,
+      #fffdf8,
+      #f1eadc
+    );
+  border:1px solid #e3d8c4;
+  border-radius:30px;
+  padding:24px 21px 22px;
+  color:var(--green);
+  box-shadow:
+    0 18px 45px rgba(33,48,39,.08);
+}
+
+.partner:before{
+  content:"";
+  position:absolute;
+  width:210px;
+  height:210px;
+  border-radius:50%;
+  left:-100px;
+  top:-105px;
+  background:rgba(201,138,50,.13);
+}
+
+.partner:after{
+  content:"";
+  position:absolute;
+  width:150px;
+  height:150px;
+  border-radius:50%;
+  right:-80px;
+  bottom:-75px;
+  border:1px solid rgba(16,63,50,.09);
+  box-shadow:
+    0 0 0 25px rgba(16,63,50,.025),
+    0 0 0 50px rgba(16,63,50,.018);
+}
+
+.partner>*{
+  position:relative;
+  z-index:1;
+}
+
+.partner-mark{
+  width:48px;
+  height:48px;
+  border-radius:16px;
+  background:var(--green);
+  color:#fff;
+  display:grid;
+  place-items:center;
+  font-size:24px;
+  margin-bottom:15px;
+  box-shadow:
+    0 9px 20px rgba(16,63,50,.18);
+}
+
+.partner-kicker{
+  font-size:11px;
+  color:var(--gold);
+  font-weight:800;
+  margin-bottom:7px;
+}
+
+.partner h2{
+  font-family:'El Messiri',serif;
+  font-size:23px;
+  line-height:1.45;
+  margin:0 0 8px;
+}
+
+.partner-lead{
+  font-size:11px;
+  line-height:1.9;
+  color:#6d756f;
+  margin:0 0 15px;
+  max-width:350px;
+}
+
+.partner-points{
+  display:grid;
+  gap:8px;
+  margin-bottom:17px;
+}
+
+.partner-points div{
+  font-size:10px;
+  font-weight:700;
+  color:#38443e;
+}
+
+.partner-points span{
+  display:inline-grid;
+  place-items:center;
+  width:20px;
+  height:20px;
+  border-radius:7px;
+  background:#e4efe9;
+  color:var(--green);
+  margin-left:5px;
+}
+
+.partner-btn{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  background:var(--green);
+  color:#fff;
+  border-radius:15px;
+  padding:13px 15px;
+  font-size:11px;
+  font-weight:800;
+  box-shadow:
+    0 10px 22px rgba(16,63,50,.18);
+}
+
+.partner-btn b{
+  font-size:16px;
+}
+
+.partner-sign{
+  text-align:center;
+  font-family:'El Messiri',serif;
+  font-size:11px;
+  color:var(--gold);
+  margin-top:14px;
+  font-weight:700;
+}
+
+/* BOTTOM NAV */
+
+.nav{
+  position:fixed;
+  bottom:0;
+  left:50%;
+  transform:translateX(-50%);
+  width:min(520px,100%);
+  height:74px;
+  background:rgba(255,255,255,.96);
+  backdrop-filter:blur(16px);
+  border-top:1px solid var(--line);
+  display:flex;
+  justify-content:space-around;
+  align-items:center;
+  padding-bottom:env(safe-area-inset-bottom);
+  z-index:10;
+}
+
+.nav a{
+  font-size:9px;
+  color:#858c87;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:5px;
+}
+
+.nav a.active{
+  color:var(--green);
+  font-weight:800;
+}
+
+.nav i{
+  font-size:18px;
+  font-style:normal;
+}
+
+.nav .main{
+  width:50px;
+  height:50px;
+  margin-top:-27px;
+  border-radius:17px;
+  background:var(--gold);
+  color:#fff;
+  display:grid;
+  place-items:center;
+  font-size:22px;
+  box-shadow:
+    0 8px 20px rgba(201,138,50,.32);
+}
+
+/* DESKTOP */
+
+@media(min-width:700px){
+
+  body{
+    padding:25px;
+  }
+
+  .app{
+    border-radius:30px;
+    overflow:hidden;
+    box-shadow:
+      0 20px 70px rgba(20,40,30,.12);
+  }
+}
+</style>
 </head>
-<body class="app-narrow bg-safra-cream min-h-screen">
-    <!-- الهيدر المشترك -->
-    <div id="app-header"></div>
-    <script type="module" src="shared-header.js"></script>
 
-    <div id="page-content" class="p-4 space-y-6">
+<body>
 
-        <!-- دعوة أصحاب المطاعم وبيوت الطبخ للانضمام -->
-        <div class="merchant-hero">
-            <span class="merchant-badge"><span class="plate-icon">🍽️</span> لأصحاب المطاعم وبيوت الطبخ</span>
+<div class="app">
 
-            <h1 class="font-display font-semibold merchant-title">عندك أكلات شهية أو حلويات مميزة؟</h1>
-            <p class="merchant-sub">تعبتِ من تكاليف التسويق والإعلانات على السوشال ميديا؟</p>
+<!-- HEADER -->
 
-            <div class="merchant-points">
-                <div class="merchant-point"><span class="pt-icon"><i class="fa-solid fa-route"></i></span> وصّلي أصنافك لزبائن أكثر بكل سهولة</div>
-                <div class="merchant-point"><span class="pt-icon"><i class="fa-solid fa-ban"></i></span> بلا تكاليف إعلانات ولا تعقيد</div>
-                <div class="merchant-point"><span class="pt-icon"><i class="fa-solid fa-heart"></i></span> نزّلي أصنافك وخلي الباقي علينا</div>
-            </div>
+<header class="top">
 
-            <a href="restaurant-partner-auth.html" class="merchant-cta">
-                سجّلي مطعمك الآن <i class="fa-solid fa-arrow-left text-[11px]"></i>
-            </a>
+  <a class="brand" href="home.html">
+    <img src="logo.png" alt="سفرة">
+    <span>سفرة</span>
+  </a>
 
-            <p class="font-display merchant-tagline">سفرة… شغفك بالأكل، فرصتك للنجاح</p>
-        </div>
+  <div class="top-actions">
+    <a class="icon" href="#">♡</a>
+    <a class="icon" href="#">⌕</a>
+  </div>
 
-        <!-- مسار سريع للزبائن يلي بس بدهم يتصفّحوا -->
-        <a href="restaurants.html" class="flex items-center justify-between bg-white border border-safra-line rounded-2xl px-4 py-3 -mt-1 text-[13px] font-semibold text-safra-dark hover:border-safra-gold transition">
-            <span class="flex items-center gap-2"><i class="fa-solid fa-utensils text-safra-gold text-xs"></i> زبون؟ تصفّحي كل المطاعم</span>
-            <i class="fa-solid fa-arrow-left text-safra-muted text-[11px]"></i>
-        </a>
+</header>
 
-        <!-- إعلانات المنصة (بانر) — مستقلة كليًا عن اشتراكات المطاعم، يتحكم بها الأدمن -->
-        <div id="platform-banners-section" class="hidden">
-            <div class="section-heading">
-                <h2 class="font-display">إعلانات مميزة</h2>
-            </div>
-            <div id="platform-banners-row" class="banner-row"></div>
-        </div>
+<div class="location">
+  موقعك الحالي · <b>عمّان</b>
+</div>
 
-        <!-- بانرات المطاعم المعتمدة -->
-        <div id="banners-section" class="hidden">
-            <div class="section-heading">
-                <h2 class="font-display">عروض مميزة</h2>
-            </div>
-            <div id="banners-row" class="banner-row"></div>
-        </div>
 
-        <!-- مطاعم مميزة (الأعلى تقييمًا) -->
+<!-- HERO -->
+
+<section class="hero">
+
+  <div class="eyebrow">
+    تجربة مختلفة في اكتشاف الأكل
+  </div>
+
+  <h1>
+    خلّي سفرتك تبدأ من مزاجك.
+  </h1>
+
+  <p>
+    اختار إحساسك اليوم، وسفرة تفتح لك اقتراحات تناسب اللحظة.
+  </p>
+
+  <div class="search">
+    ⌕
+    <span>
+      ابحث عن أكلة، مطعم أو صنف...
+    </span>
+  </div>
+
+  <div class="plate"></div>
+
+</section>
+
+
+<!-- MOODS -->
+
+<section class="section">
+
+  <div class="section-head">
+    <h2>شو جوّك اليوم؟</h2>
+    <span>اكتشف</span>
+  </div>
+
+  <div class="moods">
+
+    <div class="mood">
+      <span class="emoji">🔥</span>
+      <small>شي قوي</small>
+    </div>
+
+    <div class="mood">
+      <span class="emoji">😋</span>
+      <small>جوعان</small>
+    </div>
+
+    <div class="mood">
+      <span class="emoji">⚡</span>
+      <small>مستعجل</small>
+    </div>
+
+    <div class="mood">
+      <span class="emoji">👨‍👩‍👧</span>
+      <small>مع العيلة</small>
+    </div>
+
+    <div class="mood">
+      <span class="emoji">🌙</span>
+      <small>سهرة</small>
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- BANNER
+     مكان البانرات: بعد البحث/المزاج وقبل المطاعم
+-->
+
+<section class="section">
+
+  <div class="section-head">
+    <h2>عروض سفرة</h2>
+    <span>مميز</span>
+  </div>
+
+  <a class="banner" href="#">
+
+    <!-- يمكن استبدال الصورة لاحقاً بصورة البانر القادمة من الإدارة -->
+
+    <img
+      src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1000&q=85"
+      alt="عرض سفرة"
+    >
+
+    <div class="banner-overlay"></div>
+
+    <div class="banner-content">
+      <small>عرض اليوم</small>
+
+      <h3>
+        اكتشف سفرة جديدة اليوم
+      </h3>
+
+      <p>
+        أكلات ومطاعم مميزة بانتظارك
+      </p>
+    </div>
+
+  </a>
+
+</section>
+
+
+<!-- FEATURE -->
+
+<section class="section">
+
+  <div class="section-head">
+    <h2>لقطة اليوم</h2>
+    <span>مميز</span>
+  </div>
+
+  <div class="feature">
+
+    <a class="feature-card" href="restaurant-page.html">
+
+      <img
+        src="https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=85"
+        alt="وجبة"
+      >
+
+      <div class="feature-info">
+        <b>وجبة تستاهل التجربة</b>
+        <small>
+          نكهة اليوم · ⭐ 4.9
+        </small>
+      </div>
+
+    </a>
+
+
+    <div class="mini-stack">
+
+      <a class="mini" href="restaurants.html">
+
+        <img
+          src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=300&q=80"
+          alt="بيتزا"
+        >
+
         <div>
-            <div class="section-heading">
-                <h2 class="font-display">مطاعم مميزة</h2>
-                <a href="restaurants.html">كل المطاعم</a>
-            </div>
-            <div id="featured-row" class="feat-row">
-                <div class="feat-card"><div class="feat-photo skeleton-block"></div></div>
-                <div class="feat-card"><div class="feat-photo skeleton-block"></div></div>
-                <div class="feat-card"><div class="feat-photo skeleton-block"></div></div>
-            </div>
+          <b>بيتزا طازجة</b>
+          <small>من مطاعم قريبة</small>
         </div>
 
-        <!-- فيديوهات المطاعم المعتمدة -->
-        <div id="videos-section" class="hidden">
-            <div class="section-heading">
-                <h2 class="font-display">فيديوهات من مطاعمنا</h2>
-            </div>
-            <div id="videos-row" class="video-row"></div>
+      </a>
+
+
+      <a class="mini" href="restaurants.html">
+
+        <img
+          src="https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=300&q=80"
+          alt="برغر"
+        >
+
+        <div>
+          <b>برغر اليوم</b>
+          <small>الأكثر طلباً</small>
         </div>
 
-        <!-- إعلانات المنصة (فيديو) — مستقلة كليًا عن اشتراكات المطاعم، يتحكم بها الأدمن -->
-        <div id="platform-videos-section" class="hidden">
-            <div class="section-heading">
-                <h2 class="font-display">إعلانات فيديو</h2>
-            </div>
-            <div id="platform-videos-row" class="video-row"></div>
-        </div>
-
-        <div id="error-box" class="hidden text-center text-red-600 bg-red-50 border border-red-100 rounded-xl py-6 px-4 text-sm"></div>
+      </a>
 
     </div>
 
-    <!-- شريط التنقل السفلي -->
-    <div id="app-bottom-nav"></div>
-    <script type="module" src="shared-bottom-nav.js"></script>
+  </div>
 
-    <script type="module">
-        import { db } from "./firebase-config.js";
-        import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+</section>
 
-        const FALLBACK_IMG = 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=700&q=80';
 
-        function isPromoActive(data, statusField, endDateField) {
-            if (data[statusField] !== 'نشط') return false;
-            const end = data[endDateField]?.toDate ? data[endDateField].toDate() : (data[endDateField] ? new Date(data[endDateField]) : null);
-            if (end && end.getTime() < Date.now()) return false;
-            return true;
-        }
+<!-- AROUND -->
 
-        function isVideoUrlEmbeddable(url) {
-            return /youtube\.com|youtu\.be/i.test(url || '');
-        }
+<section class="section">
 
-        function toYoutubeEmbed(url) {
-            try {
-                const u = new URL(url);
-                let id = '';
-                if (u.hostname.includes('youtu.be')) {
-                    id = u.pathname.replace('/', '');
-                } else {
-                    id = u.searchParams.get('v') || '';
-                }
-                return id ? `https://www.youtube.com/embed/${id}?rel=0` : url;
-            } catch {
-                return url;
-            }
-        }
+  <div class="around">
 
-        function renderBanner(id, r) {
-            const a = document.createElement('a');
-            a.href = `restaurant-page.html?id=${id}`;
-            a.className = 'banner-slide';
-            a.innerHTML = `
-                <img src="${r.bannerUrl}" alt="${r.name || 'بانر مطعم'}">
-                <span class="banner-name">${r.name || ''}</span>
-            `;
-            return a;
-        }
+    <div class="around-head">
 
-        function renderFeatured(id, r, rank) {
-            const hasReviews = !!r.reviewsCount;
-            const a = document.createElement('a');
-            a.href = `restaurant-page.html?id=${id}`;
-            a.className = 'feat-card';
-            a.innerHTML = `
-                <div class="feat-photo">
-                    <span class="feat-rank">${rank}</span>
-                    <img src="${r.imageUrl || FALLBACK_IMG}" alt="${r.name || 'مطعم'}">
-                </div>
-                <div class="feat-body">
-                    <h3>${r.name || ''}</h3>
-                    <div class="feat-meta">
-                        <i class="fa-solid fa-star"></i> ${hasReviews ? (r.rating ?? 0).toFixed ? (r.rating).toFixed(1) : r.rating : 'جديد'}
-                        <span class="mx-1 text-safra-line">•</span>
-                        <i class="fa-regular fa-clock"></i> ${r.deliveryTimeMinutes ?? '-'} د
-                    </div>
-                </div>
-            `;
-            return a;
-        }
+      <div>
+        <h2>سفرة حولك</h2>
+        <p>
+          أماكن تستاهل تكتشفها الآن
+        </p>
+      </div>
 
-        function renderVideo(id, r) {
-            const a = document.createElement('a');
-            a.href = `reels.html?id=${id}`;
-            a.className = 'video-card';
-            const embeddable = isVideoUrlEmbeddable(r.videoUrl);
-            a.innerHTML = `
-                <div class="video-thumb-wrap">
-                    ${embeddable
-                        ? `<iframe src="${toYoutubeEmbed(r.videoUrl)}" loading="lazy" allow="encrypted-media"></iframe>`
-                        : `<video src="${r.videoUrl}" muted playsinline preload="metadata"></video><div class="video-play-badge"><i class="fa-solid fa-circle-play"></i></div>`}
-                </div>
-                <p class="video-name">${r.name || ''}</p>
-            `;
-            return a;
-        }
+      <a class="around-link" href="restaurants.html">
+        كل المطاعم ←
+      </a>
 
-        function renderPlatformBanner(ad) {
-            const tag = ad.linkUrl ? 'a' : 'div';
-            const el = document.createElement(tag);
-            if (ad.linkUrl) { el.href = ad.linkUrl; el.target = '_blank'; el.rel = 'noopener'; }
-            el.className = 'banner-slide';
-            el.innerHTML = `
-                <img src="${ad.mediaUrl}" alt="${ad.title || 'إعلان'}">
-                ${ad.title ? `<span class="banner-name">${ad.title}</span>` : ''}
-            `;
-            return el;
-        }
+    </div>
 
-        function renderPlatformVideo(ad) {
-            const tag = ad.linkUrl ? 'a' : 'div';
-            const el = document.createElement(tag);
-            if (ad.linkUrl) { el.href = ad.linkUrl; el.target = '_blank'; el.rel = 'noopener'; }
-            el.className = 'video-card';
-            const embeddable = isVideoUrlEmbeddable(ad.mediaUrl);
-            el.innerHTML = `
-                <div class="video-thumb-wrap">
-                    ${embeddable
-                        ? `<iframe src="${toYoutubeEmbed(ad.mediaUrl)}" loading="lazy" allow="encrypted-media"></iframe>`
-                        : `<video src="${ad.mediaUrl}" muted playsinline preload="metadata"></video><div class="video-play-badge"><i class="fa-solid fa-circle-play"></i></div>`}
-                </div>
-                ${ad.title ? `<p class="video-name">${ad.title}</p>` : ''}
-            `;
-            return el;
-        }
 
-        // ===== إعلانات المنصة: مستقلة كليًا عن اشتراكات المطاعم، يديرها الأدمن مباشرة =====
-        async function loadPlatformAds() {
-            try {
-                const snap = await getDocs(collection(db, "platformAds"));
-                const all = [];
-                snap.forEach(d => all.push({ id: d.id, ...d.data() }));
-                const active = all.filter(ad => ad.status === 'نشط' && ad.mediaUrl && (!ad.target || ad.target === 'الكل' || ad.target === 'الرئيسية'));
+    <div class="orbit">
 
-                const banners = active.filter(ad => ad.type === 'بانر');
-                if (banners.length) {
-                    document.getElementById('platform-banners-section').classList.remove('hidden');
-                    const row = document.getElementById('platform-banners-row');
-                    banners.forEach(ad => row.appendChild(renderPlatformBanner(ad)));
-                }
+      <div class="center-plate">
+        🍽️
+      </div>
 
-                const videos = active.filter(ad => ad.type === 'فيديو');
-                if (videos.length) {
-                    document.getElementById('platform-videos-section').classList.remove('hidden');
-                    const row = document.getElementById('platform-videos-row');
-                    videos.forEach(ad => row.appendChild(renderPlatformVideo(ad)));
-                }
-            } catch (error) {
-                console.error("خطأ أثناء تحميل إعلانات المنصة:", error);
-            }
-        }
 
-        async function loadHome() {
-            try {
-                const snap = await getDocs(collection(db, "restaurants"));
-                const all = [];
-                snap.forEach(d => all.push({ id: d.id, data: d.data() }));
+      <a class="orbit-card o1" href="restaurant-page.html">
 
-                // ===== بانرات: بس المطاعم يلي عندها اشتراك بانر نشط + الصورة معتمدة من الأدمن =====
-                const banners = all.filter(({ data }) =>
-                    data.bannerUrl && data.bannerStatus === 'معتمد' && isPromoActive(data, 'bannerSubscriptionStatus', 'bannerSubscriptionEndDate')
-                );
-                const bannersSection = document.getElementById('banners-section');
-                const bannersRow = document.getElementById('banners-row');
-                if (banners.length) {
-                    bannersSection.classList.remove('hidden');
-                    banners.forEach(({ id, data }) => bannersRow.appendChild(renderBanner(id, data)));
-                }
+        <img
+          src="https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=300&q=80"
+          alt="مطعم"
+        >
 
-                // ===== مطاعم مميزة: الأعلى تقييمًا (بغض النظر عن الاشتراك) =====
-                const featuredRow = document.getElementById('featured-row');
-                featuredRow.innerHTML = '';
-                const ranked = [...all]
-                    .filter(({ data }) => data.status !== 'متوقف')
-                    .sort((a, b) => (b.data.rating ?? 0) - (a.data.rating ?? 0))
-                    .slice(0, 8);
-                if (ranked.length) {
-                    ranked.forEach(({ id, data }, i) => featuredRow.appendChild(renderFeatured(id, data, i + 1)));
-                } else {
-                    featuredRow.innerHTML = `<p class="empty-hint w-full">لا يوجد مطاعم بعد</p>`;
-                }
+        <b>مذاق البلد</b>
+        <small>قريب منك · مفتوح</small>
 
-                // ===== فيديوهات: بس المطاعم يلي عندها اشتراك فيديو نشط + فيديو معتمد من الأدمن =====
-                const videos = all.filter(({ data }) =>
-                    data.videoUrl && data.videoStatus === 'معتمد' && isPromoActive(data, 'videoSubscriptionStatus', 'videoSubscriptionEndDate')
-                );
-                const videosSection = document.getElementById('videos-section');
-                const videosRow = document.getElementById('videos-row');
-                if (videos.length) {
-                    videosSection.classList.remove('hidden');
-                    videos.forEach(({ id, data }) => videosRow.appendChild(renderVideo(id, data)));
-                }
-            } catch (error) {
-                document.getElementById('featured-row').innerHTML = '';
-                const errorBox = document.getElementById('error-box');
-                errorBox.classList.remove('hidden');
-                errorBox.innerText = "حدث خطأ أثناء تحميل الصفحة الرئيسية: " + error.message;
-            }
-        }
+      </a>
 
-        loadHome();
-        loadPlatformAds();
-    </script>
+
+      <a class="orbit-card o2" href="restaurant-page.html">
+
+        <img
+          src="https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=300&q=80"
+          alt="بيتزا"
+        >
+
+        <b>بيت البيتزا</b>
+        <small>12 دقيقة</small>
+
+      </a>
+
+
+      <a class="orbit-card o3" href="restaurant-page.html">
+
+        <img
+          src="https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=300&q=80"
+          alt="مطعم"
+        >
+
+        <b>سفرة زمان</b>
+        <small>⭐ 4.8</small>
+
+      </a>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- RESTAURANTS -->
+
+<section class="section">
+
+  <div class="section-head">
+
+    <h2>مطاعم تستاهل</h2>
+
+    <span>
+      الأعلى تقييماً
+    </span>
+
+  </div>
+
+
+  <div class="restaurants">
+
+
+    <a class="rest" href="restaurant-page.html">
+
+      <img
+        src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=500&q=80"
+        alt="مطعم الحارة"
+      >
+
+      <b>
+        مطعم الحارة
+      </b>
+
+      <small>
+        <span class="rating">★ 4.9</span>
+        · أردني · 20 د
+      </small>
+
+    </a>
+
+
+    <a class="rest" href="restaurant-page.html">
+
+      <img
+        src="https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=500&q=80"
+        alt="دار النكهة"
+      >
+
+      <b>
+        دار النكهة
+      </b>
+
+      <small>
+        <span class="rating">★ 4.8</span>
+        · شرقي · 25 د
+      </small>
+
+    </a>
+
+
+    <a class="rest" href="restaurant-page.html">
+
+      <img
+        src="https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=500&q=80"
+        alt="زاوية القهوة"
+      >
+
+      <b>
+        زاوية القهوة
+      </b>
+
+      <small>
+        <span class="rating">★ 4.7</span>
+        · مشروبات
+      </small>
+
+    </a>
+
+
+  </div>
+
+</section>
+
+
+<!-- PARTNER -->
+
+<section class="section">
+
+  <div class="partner">
+
+    <div class="partner-mark">
+      🍽️
+    </div>
+
+    <div class="partner-kicker">
+      لأصحاب المطاعم وبيوت الطبخ
+    </div>
+
+    <h2>
+      عندك أكلات شهية<br>
+      أو حلويات مميزة؟
+    </h2>
+
+    <p class="partner-lead">
+      تعبتِ من تكاليف التسويق والإعلانات على السوشال ميديا؟
+    </p>
+
+
+    <div class="partner-points">
+
+      <div>
+        <span>✓</span>
+        وصّلي أصنافك لزبائن أكثر بكل سهولة
+      </div>
+
+      <div>
+        <span>✓</span>
+        بلا تكاليف إعلانات ولا تعقيد
+      </div>
+
+      <div>
+        <span>✓</span>
+        نزّلي أصنافك وخلي الباقي علينا
+      </div>
+
+    </div>
+
+
+    <a class="partner-btn" href="restaurant-partner-auth.html">
+      سجّلي مطعمك الآن
+      <b>←</b>
+    </a>
+
+
+    <div class="partner-sign">
+      سفرة… شغفك بالأكل، فرصتك للنجاح
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- BOTTOM NAV -->
+
+<nav class="nav">
+
+  <a class="active" href="home.html">
+    <i>⌂</i>
+    الرئيسية
+  </a>
+
+  <a href="restaurants.html">
+    <i>◉</i>
+    المطاعم
+  </a>
+
+  <a class="main" href="restaurants.html">
+    ⌕
+  </a>
+
+  <a href="orders.html">
+    <i>▣</i>
+    طلباتي
+  </a>
+
+  <a href="my-account.html">
+    <i>◌</i>
+    حسابي
+  </a>
+
+</nav>
+
+</div>
+
 </body>
 </html>
