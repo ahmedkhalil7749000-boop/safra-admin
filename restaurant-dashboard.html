@@ -638,10 +638,18 @@
                                     <h2 class="font-display font-extrabold" style="font-size: 20px; color: var(--green-deep);">${data.name || 'مطعمي'}</h2>
                                     <p class="text-sm mt-1" style="color: var(--ink-soft);">${data.description || 'لسا ما ضفتي وصف لمطعمك.'}</p>
                                     <div class="mt-2 flex items-center gap-1.5">
-                                        <span class="text-xs font-semibold" style="color: var(--ink-soft);">نوع المطعم:</span>
-                                        <span class="badge ${data.restaurantType === 'home' ? 'badge-cat' : 'badge-muted'}">
+                                        <span class="text-xs font-semibold" style="color: var(--ink-soft);">نوع المطعم الحالي:</span>
+                                        <span id="type-badge-${restaurantId}" class="badge ${data.restaurantType === 'home' ? 'badge-cat' : 'badge-muted'}">
                                             ${data.restaurantType === 'home' ? '🏠 منزلي' : '🏪 تجاري'}
                                         </span>
+                                    </div>
+                                    <div class="mt-1.5 flex items-center gap-1.5 flex-wrap">
+                                        <select id="quick-type-${restaurantId}" class="text-[12.5px] font-medium rounded-full px-2.5 py-1" style="border: 1.5px solid var(--line); background: var(--panel); color: var(--ink);">
+                                            <option value="home" ${data.restaurantType === 'home' ? 'selected' : ''}>🏠 منزلي</option>
+                                            <option value="commercial" ${data.restaurantType === 'commercial' || !data.restaurantType ? 'selected' : ''}>🏪 تجاري</option>
+                                        </select>
+                                        <button data-id="${restaurantId}" class="save-quick-type-btn text-[12px] font-semibold" style="color: var(--green);">حفظ نوع المطعم</button>
+                                        <span id="quick-type-msg-${restaurantId}" class="text-[11px] font-semibold"></span>
                                     </div>
                                     <div class="mt-3 flex flex-wrap gap-1.5 items-center">
                                         ${restaurantCategories(data).length
@@ -809,6 +817,39 @@
                         section.classList.toggle('hidden');
                         if (!section.classList.contains('hidden')) {
                             await loadMenuItems(id);
+                        }
+                    });
+                });
+
+                // حفظ سريع لنوع المطعم من قسم الملف الشخصي (بدون فتح نموذج التعديل الكامل)
+                container.querySelectorAll('.save-quick-type-btn').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const id = btn.dataset.id;
+                        const select = document.getElementById(`quick-type-${id}`);
+                        const msgEl = document.getElementById(`quick-type-msg-${id}`);
+                        const badge = document.getElementById(`type-badge-${id}`);
+                        const newType = select.value;
+
+                        msgEl.style.color = "var(--ink-soft)";
+                        msgEl.innerText = "جاري الحفظ...";
+
+                        try {
+                            await updateDoc(doc(db, "restaurants", id), { restaurantType: newType });
+
+                            // تحديث الشارة المعروضة فورًا بدون إعادة تحميل كامل للصفحة
+                            if (badge) {
+                                badge.className = `badge ${newType === 'home' ? 'badge-cat' : 'badge-muted'}`;
+                                badge.innerText = newType === 'home' ? '🏠 منزلي' : '🏪 تجاري';
+                            }
+                            // مزامنة نفس القيمة في نموذج التعديل الكامل إذا كان مفتوحًا
+                            const editSelect = document.getElementById(`edit-type-${id}`);
+                            if (editSelect) editSelect.value = newType;
+
+                            msgEl.style.color = "var(--green)";
+                            msgEl.innerText = "تم الحفظ ✓";
+                        } catch (error) {
+                            msgEl.style.color = "var(--red)";
+                            msgEl.innerText = "خطأ: " + error.message;
                         }
                     });
                 });

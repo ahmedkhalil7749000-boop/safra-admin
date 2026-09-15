@@ -175,6 +175,29 @@
         .tab-item[disabled] { opacity: .35; cursor: not-allowed; }
         .tab-item:focus-visible { outline: 2px solid #d97706; outline-offset: 3px; border-radius: 4px; }
 
+        /* ============ فلترة نوع المطعم (الكل / منزلي / تجاري) ============ */
+        .type-filter-row {
+            display: flex; gap: 8px;
+            overflow-x: auto; padding: 0 2px 2px;
+            scrollbar-width: none; -webkit-overflow-scrolling: touch;
+        }
+        .type-filter-row::-webkit-scrollbar { display: none; }
+        .type-filter-btn {
+            flex: 0 0 auto;
+            padding: 7px 16px; border-radius: 9999px;
+            font-size: 12.5px; font-weight: 600;
+            border: 1.5px solid #e7e2d6; background: #fff; color: #7c7669;
+            cursor: pointer; white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+            transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+        }
+        .type-filter-btn[aria-pressed="true"] { background: #0b3b2c; border-color: #0b3b2c; color: #fff; }
+        .type-filter-btn[disabled] { opacity: .4; cursor: not-allowed; }
+        .type-filter-btn:focus-visible { outline: 2px solid #d97706; outline-offset: 2px; }
+        /* زر "غير مصنّف" يظهر مؤقتًا فقط لو في مطاعم بدون restaurantType، بلون تحذيري ليلفت انتباه الإدارة */
+        .type-filter-btn-warn { border-color: #f2b544; color: #b45309; background: #fff8ec; }
+        .type-filter-btn-warn[aria-pressed="true"] { background: #b45309; border-color: #b45309; color: #fff; }
+
         /* ============ لحظة ظهور واحدة عند تحميل المحتوى لأول مرة ============ */
         @keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
         .reveal-init { animation: rise-in .55s ease both; }
@@ -282,7 +305,10 @@
         </div>
 
         <!-- التصنيفات -->
-        <div id="category-tabs" class="category-tabs mb-5"></div>
+        <div id="category-tabs" class="category-tabs mb-4"></div>
+
+        <!-- فلترة نوع المطعم: الكل / منزلي / تجاري -->
+        <div id="type-filter-row" class="type-filter-row mb-5"></div>
 
         <!-- حالات العرض -->
         <div id="loading" class="resto-grid"></div>
@@ -338,6 +364,66 @@
                 tab.disabled = !hasAny;
                 tab.title = hasAny ? '' : 'لا يوجد مطاعم بهذا التصنيف حاليًا';
             });
+        };
+
+        // ============ فلترة نوع المطعم ============
+        const typeFilterRow = document.getElementById('type-filter-row');
+        const restaurantTypes = [
+            { key: 'all', label: 'الكل' },
+            { key: 'home', label: '🏠 منزلي' },
+            { key: 'commercial', label: '🏪 تجاري' },
+        ];
+
+        restaurantTypes.forEach(t => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'type-filter-btn';
+            btn.dataset.type = t.key;
+            btn.setAttribute('aria-pressed', t.key === 'all' ? 'true' : 'false');
+            btn.textContent = t.label;
+            typeFilterRow.appendChild(btn);
+        });
+
+        typeFilterRow.addEventListener('click', (e) => {
+            const btn = e.target.closest('.type-filter-btn');
+            if (!btn || btn.disabled) return;
+            [...typeFilterRow.querySelectorAll('.type-filter-btn')].forEach(b => b.setAttribute('aria-pressed', 'false'));
+            btn.setAttribute('aria-pressed', 'true');
+            window.onTypeSelect && window.onTypeSelect(btn.dataset.type);
+        });
+
+        // تعطيل نوع المطعم اللي ما فيه ولا مطعم + إظهار/إخفاء زر "غير مصنّف" حسب الحاجة الفعلية
+        window.setTypeAvailability = (availableSet) => {
+            [...typeFilterRow.querySelectorAll('.type-filter-btn[data-type="home"], .type-filter-btn[data-type="commercial"]')]
+                .forEach(btn => {
+                    const hasAny = availableSet.has(btn.dataset.type);
+                    btn.disabled = !hasAny;
+                    btn.title = hasAny ? '' : 'لا يوجد مطاعم من هذا النوع حاليًا';
+                });
+
+            let unspecifiedBtn = typeFilterRow.querySelector('.type-filter-btn[data-type="unspecified"]');
+            if (availableSet.has('unspecified')) {
+                // في مطاعم بدون restaurantType — نضيف قسم مؤقت "غير مصنّف" ليقدر المستخدم يشوفها ويفلترها بدل ما تختفي
+                if (!unspecifiedBtn) {
+                    unspecifiedBtn = document.createElement('button');
+                    unspecifiedBtn.type = 'button';
+                    unspecifiedBtn.className = 'type-filter-btn type-filter-btn-warn';
+                    unspecifiedBtn.dataset.type = 'unspecified';
+                    unspecifiedBtn.setAttribute('aria-pressed', 'false');
+                    unspecifiedBtn.title = 'مطاعم ما فيها قيمة محددة لنوع المطعم بقاعدة البيانات';
+                    unspecifiedBtn.textContent = '⚠️ غير مصنّف';
+                    typeFilterRow.appendChild(unspecifiedBtn);
+                }
+            } else if (unspecifiedBtn) {
+                // ما عاد في مطاعم بدون نوع (اتصلحت البيانات) — نشيل الزر، ولو كان هو المفعّل نرجّع الفلتر لـ"الكل"
+                if (unspecifiedBtn.getAttribute('aria-pressed') === 'true') {
+                    const allBtn = typeFilterRow.querySelector('.type-filter-btn[data-type="all"]');
+                    [...typeFilterRow.querySelectorAll('.type-filter-btn')].forEach(b => b.setAttribute('aria-pressed', 'false'));
+                    if (allBtn) allBtn.setAttribute('aria-pressed', 'true');
+                    window.onTypeSelect && window.onTypeSelect('all');
+                }
+                unspecifiedBtn.remove();
+            }
         };
 
         // مسكِن تحميل بسيط
@@ -404,6 +490,7 @@
         let allRestaurants = [];
         let featuredId = null;
         let activeCategory = 'all';
+        let activeType = 'all';
 
         function isRestaurantClosed(r) {
             return r.status === 'متوقف';
@@ -413,6 +500,12 @@
             if (Array.isArray(r.categories) && r.categories.length) return r.categories;
             if (r.category) return [r.category];
             return [];
+        }
+
+        // نوع المطعم بأمان: لو الحقل مفقود أو قيمته غير معروفة، نعتبره "غير مصنّف"
+        // بدل ما نخليه يختفي من الفلاتر أو يسبب مقارنة خاطئة
+        function normalizeRestaurantType(r) {
+            return (r.restaurantType === 'home' || r.restaurantType === 'commercial') ? r.restaurantType : 'unspecified';
         }
 
         function renderFeature(id, r) {
@@ -491,10 +584,11 @@
         function applyFilters() {
             const term = searchInput.value.trim().toLowerCase();
             const filtered = allRestaurants.filter(({ id, data }) => {
-                if (id === featuredId && activeCategory === 'all' && !term) return false; // ما نكرر المطعم المميز بالشبكة بالعرض الافتراضي
+                if (id === featuredId && activeCategory === 'all' && activeType === 'all' && !term) return false; // ما نكرر المطعم المميز بالشبكة بالعرض الافتراضي
                 const matchesCategory = activeCategory === 'all' || restaurantCategories(data).includes(activeCategory);
+                const matchesType = activeType === 'all' || normalizeRestaurantType(data) === activeType;
                 const matchesSearch = !term || (data.name || '').toLowerCase().includes(term);
-                return matchesCategory && matchesSearch;
+                return matchesCategory && matchesType && matchesSearch;
             });
 
             grid.innerHTML = '';
@@ -507,7 +601,7 @@
             emptyBox.classList.remove('flex');
 
             // أول مطعم بنتيجة "الكل" (بدون بحث) ياخد بلوك عريض لكسر رتابة الشبكة
-            const breakMonotony = activeCategory === 'all' && !term;
+            const breakMonotony = activeCategory === 'all' && activeType === 'all' && !term;
             filtered.forEach(({ id, data }, index) => {
                 grid.appendChild(renderCard(id, data, breakMonotony && index === 0));
             });
@@ -517,6 +611,11 @@
 
         window.onCategorySelect = (catKey) => {
             activeCategory = catKey;
+            applyFilters();
+        };
+
+        window.onTypeSelect = (typeKey) => {
+            activeType = typeKey;
             applyFilters();
         };
 
@@ -574,10 +673,13 @@
                 }
 
                 const availableCats = new Set();
+                const availableTypes = new Set();
                 allRestaurants.forEach(({ data }) => {
                     restaurantCategories(data).forEach(cat => availableCats.add(cat));
+                    availableTypes.add(normalizeRestaurantType(data));
                 });
                 window.setCategoryAvailability && window.setCategoryAvailability(availableCats);
+                window.setTypeAvailability && window.setTypeAvailability(availableTypes);
 
                 applyFilters();
             } catch (error) {
