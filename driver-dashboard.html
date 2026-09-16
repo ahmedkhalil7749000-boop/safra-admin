@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>لوحة تحكم الكابتن - منصة سفرة</title>
+    <link rel="stylesheet" href="app-shell.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Zain:wght@700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: { extend: {
+          colors: {
+            'capt-dark':'#0c2340','capt-blue':'#1e6fd9','capt-cream':'#f4f7fb',
+            'capt-amber':'#e8720c','capt-amber-dark':'#c25a06','capt-ink':'#1c2733'
+          },
+          fontFamily: { sans:['"IBM Plex Sans Arabic"','Tahoma','sans-serif'], display:['"Zain"','"IBM Plex Sans Arabic"','sans-serif'] }
+        }}
+      }
+    </script>
+    <style>
+      :root{--ink:#1c2733;--ink-soft:#62707e;--line:#dbe4ee;--panel:#fff;--sand:#eaf0f7;--blue:#1e6fd9;--blue-deep:#0c2340;--blue-tint:#e8f0fc;--blue-line:#c9dcf5;--amber:#e8720c;--amber-deep:#c25a06;--amber-tint:#fdf0e2;--amber-line:#f7d3ab;--green:#2f7a4d;--green-tint:#e8f5ec;--green-line:#c8e6d2;--red:#c8362a;--red-tint:#fbeae7}
+      *{font-family:'IBM Plex Sans Arabic',Tahoma,sans-serif} body{color:var(--ink)}
+      .panel{background:var(--panel);border:1px solid var(--line);border-radius:20px;box-shadow:0 1px 2px rgba(12,35,64,.04),0 14px 30px -22px rgba(12,35,64,.28)}
+      .subpanel{background:var(--sand);border:1px solid var(--line);border-radius:16px}
+      .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;font-weight:700;font-size:13px;border-radius:12px;padding:10px 17px;transition:.15s;cursor:pointer;border:1.5px solid transparent;line-height:1.2;white-space:nowrap}
+      .btn:active{transform:translateY(1px)} .btn-primary{background:var(--amber);color:#fff}.btn-primary:hover{background:var(--amber-deep)}
+      .btn-outline{background:#fff;color:var(--ink);border-color:var(--line)}.btn-outline:hover{border-color:var(--blue);color:var(--blue-deep)}
+      .btn-danger{background:transparent;color:var(--red);border-color:var(--line)}.btn-danger:hover{background:var(--red-tint)}
+      .btn[disabled]{opacity:.55;cursor:not-allowed}
+      .badge{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:9999px;font-size:11.5px;font-weight:700}
+      .badge-green{background:var(--green-tint);color:var(--green);border:1px solid var(--green-line)}
+      .badge-amber{background:var(--amber-tint);color:var(--amber-deep);border:1px solid var(--amber-line)}
+      .badge-muted{background:var(--sand);color:var(--ink-soft);border:1px solid var(--line)}
+      .field-wrap{position:relative}.field-wrap i{position:absolute;right:13px;top:50%;transform:translateY(-50%);color:var(--ink-soft);font-size:13px;pointer-events:none}
+      .field{width:100%;background:#fff;border:1.5px solid var(--line);border-radius:12px;padding:10px 38px 10px 12px;font-size:13px;outline:none;transition:.15s}
+      .field:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(30,111,217,.09)}
+      .label{display:block;font-size:11.5px;font-weight:700;margin-bottom:6px;color:var(--ink-soft)}
+      .spinner{display:inline-block;width:14px;height:14px;border-radius:9999px;border:2px solid var(--line);border-top-color:var(--blue);animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+      .notice{padding:11px 13px;border-radius:13px;font-size:12px;font-weight:600;display:none}.notice.show{display:block}
+      .notice-success{background:var(--green-tint);color:var(--green);border:1px solid var(--green-line)}.notice-error{background:var(--red-tint);color:var(--red);border:1px solid #efc9c4}
+      .status-card{border-radius:18px;padding:16px;border:1px solid var(--line);background:#fff}
+      .status-icon{width:42px;height:42px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+      .status-active .status-icon{background:var(--green-tint);color:var(--green)} .status-pending .status-icon{background:var(--amber-tint);color:var(--amber-deep)}
+      .future-box{border:1.5px dashed #bfd0e0;background:linear-gradient(180deg,#f9fbfd,#f2f6fa);border-radius:18px;padding:30px 18px;text-align:center}
+    </style>
+</head>
+<body class="app-wide min-h-screen" style="background:var(--sand);">
+<header class="bg-white flex flex-wrap items-center justify-between gap-3 px-4 sm:px-8" style="padding:14px 16px calc(14px + env(safe-area-inset-top));border-bottom:1px solid var(--line)">
+  <div class="flex items-center gap-2.5 min-w-0">
+    <img src="logo.png" alt="سفرة" class="h-9 w-9 object-contain rounded-full shrink-0" style="border:1.5px solid var(--line)">
+    <div class="min-w-0 leading-tight"><p class="font-display font-extrabold truncate" style="font-size:19px;color:var(--blue-deep)">سفرة</p><p class="text-[11px] truncate" style="color:var(--ink-soft)">لوحة تحكم الكابتن</p></div>
+  </div>
+  <div class="flex items-center gap-2 flex-wrap">
+    <span id="user-email" class="hidden sm:inline text-xs font-medium" style="color:var(--ink-soft)"></span>
+    <button id="logout-btn" class="btn btn-danger">خروج <i class="fa-solid fa-arrow-left"></i></button>
+  </div>
+</header>
+
+<main class="p-4 sm:p-6 max-w-3xl mx-auto">
+  <div id="loading" class="panel p-8 text-center"><span class="spinner"></span><p class="text-sm mt-3" style="color:var(--ink-soft)">جاري تحميل لوحة الكابتن...</p></div>
+
+  <div id="dashboard" class="hidden space-y-5">
+    <section class="panel p-5">
+      <div class="flex items-center gap-3">
+        <div class="w-14 h-14 rounded-full flex items-center justify-center shrink-0" style="background:var(--blue-tint);color:var(--blue-deep);font-size:22px"><i class="fa-solid fa-motorcycle"></i></div>
+        <div class="min-w-0 flex-1">
+          <p class="text-xs font-semibold" style="color:var(--ink-soft)">أهلًا فيك،</p>
+          <h1 id="captain-name" class="font-display font-extrabold text-xl truncate" style="color:var(--blue-deep)">كابتن سفرة</h1>
+          <p id="captain-email" class="text-xs mt-1 truncate" style="color:var(--ink-soft)"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- حالة الاشتراك الحالية -->
+    <section>
+      <div class="mb-3"><h2 class="font-display font-extrabold text-lg" style="color:var(--blue-deep)">حالة الاشتراك</h2><p class="text-xs" style="color:var(--ink-soft)">حالة اشتراك الكابتن الحالية في منصة سفرة.</p></div>
+      <div id="subscription-card" class="status-card status-pending">
+        <div class="flex items-center gap-3">
+          <div class="status-icon"><i class="fa-solid fa-clock"></i></div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 flex-wrap"><span class="text-sm font-bold">الاشتراك</span><span id="subscription-badge" class="badge badge-amber">قيد المراجعة</span></div>
+            <p id="subscription-text" class="text-xs mt-1" style="color:var(--ink-soft)">لم يتم تفعيل الاشتراك بعد.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- البيانات الشخصية القابلة للتعديل -->
+    <section class="panel p-5">
+      <div class="flex items-center justify-between gap-3 mb-4">
+        <div><h2 class="font-display font-extrabold text-lg" style="color:var(--blue-deep)">بياناتي الشخصية</h2><p class="text-xs mt-1" style="color:var(--ink-soft)">يمكنك تعديل بياناتك وحفظ التغييرات.</p></div>
+        <i class="fa-solid fa-user-pen" style="color:var(--blue)"></i>
+      </div>
+      <div id="profile-notice" class="notice mb-4"></div>
+      <form id="profile-form" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div><label class="label" for="fullName">الاسم الكامل</label><div class="field-wrap"><i class="fa-solid fa-user"></i><input id="fullName" class="field" required maxlength="80"></div></div>
+        <div><label class="label" for="phone">رقم الهاتف</label><div class="field-wrap"><i class="fa-solid fa-phone"></i><input id="phone" class="field" required maxlength="25"></div></div>
+        <div><label class="label" for="city">المدينة</label><div class="field-wrap"><i class="fa-solid fa-location-dot"></i><input id="city" class="field" maxlength="60"></div></div>
+        <div><label class="label" for="vehicleType">وسيلة التوصيل</label><div class="field-wrap"><i class="fa-solid fa-motorcycle"></i><select id="vehicleType" class="field"><option value="motorcycle">🏍️ دراجة نارية</option><option value="car">🚗 سيارة</option></select></div></div>
+        <div><label class="label" for="country">الدولة</label><div class="field-wrap"><i class="fa-solid fa-earth-americas"></i><input id="country" class="field" maxlength="60"></div></div>
+        <div class="sm:col-span-2 flex justify-start">
+          <button id="save-profile" type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk"></i> حفظ التعديلات</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- مكان محجوز مستقبلًا لطلبات التوصيل -->
+    <section>
+      <div class="mb-3"><h2 class="font-display font-extrabold text-lg" style="color:var(--blue-deep)">طلبات التوصيل</h2><p class="text-xs" style="color:var(--ink-soft)">ستظهر طلبات التوصيل هنا عند تفعيل نظام الطلبات للكباتن.</p></div>
+      <div class="future-box">
+        <div class="w-12 h-12 rounded-full mx-auto flex items-center justify-center" style="background:var(--blue-tint);color:var(--blue-deep);font-size:19px"><i class="fa-solid fa-motorcycle"></i></div>
+        <h3 class="font-bold mt-3 text-sm" style="color:var(--blue-deep)">طلبات التوصيل قريبًا</h3>
+        <p class="text-xs mt-1 max-w-md mx-auto" style="color:var(--ink-soft)">هذا القسم محجوز لعرض الطلبات المتاحة للكابتن، والطلبات التي تم استلامها وسجل التوصيلات مستقبلًا.</p>
+        <span class="badge badge-muted mt-3"><i class="fa-solid fa-hourglass-half"></i> قيد التجهيز</span>
+      </div>
+    </section>
+  </div>
+</main>
+
+<script type="module">
+import { auth, db } from "./firebase-config.js";
+import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+const VEHICLES = { motorcycle:"🏍️ دراجة نارية", car:"🚗 سيارة" };
+let uid = null;
+
+const $ = id => document.getElementById(id);
+const safe = value => String(value ?? "").replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+
+function showNotice(text, type){
+  const n=$("profile-notice"); n.textContent=text; n.className="notice mb-4 show "+(type==="success"?"notice-success":"notice-error");
+  setTimeout(()=>n.classList.remove("show"),4500);
+}
+
+function renderSubscription(data){
+  const raw=String(data.subscriptionStatus ?? data.captainSubscriptionStatus ?? "pending").toLowerCase();
+  const active=["active","فعال","مفعل","مفعّل"].includes(raw);
+  const card=$("subscription-card"), badge=$("subscription-badge"), text=$("subscription-text");
+  card.classList.toggle("status-active",active); card.classList.toggle("status-pending",!active);
+  badge.className="badge "+(active?"badge-green":"badge-amber");
+  badge.textContent=active?"نشط":"قيد المراجعة";
+  card.querySelector(".status-icon").innerHTML=active?'<i class="fa-solid fa-circle-check"></i>':'<i class="fa-solid fa-clock"></i>';
+  text.textContent=active
+    ? (data.subscriptionEndDate ? "اشتراكك نشط حاليًا." : "اشتراكك نشط حاليًا ويمكنك استخدام حساب الكابتن.")
+    : "اشتراكك حاليًا قيد المراجعة أو بانتظار التفعيل.";
+}
+
+function fillProfile(data,user){
+  $("captain-name").textContent=data.fullName || "كابتن سفرة";
+  $("captain-email").textContent=user.email || data.email || "";
+  $("fullName").value=data.fullName || "";
+  $("phone").value=data.phone || "";
+  $("city").value=data.city || "";
+  $("vehicleType").value=data.vehicleType || "motorcycle";
+  $("country").value=data.country || "الأردن";
+  renderSubscription(data);
+}
+
+onAuthStateChanged(auth, async user=>{
+  if(!user){ window.location.href="captain-auth.html"; return; }
+  uid=user.uid; $("user-email").textContent=user.email||"";
+  try{
+    const snap=await getDoc(doc(db,"users",uid));
+    if(!snap.exists() || snap.data().role!=="captain"){ window.location.href="captain-auth.html"; return; }
+    fillProfile(snap.data(),user);
+    $("loading").classList.add("hidden"); $("dashboard").classList.remove("hidden");
+  }catch(err){
+    console.error(err);
+    $("loading").innerHTML='<p class="text-sm" style="color:var(--red)">تعذر تحميل بيانات الكابتن. حاول تحديث الصفحة.</p>';
+  }
+});
+
+$("profile-form").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const btn=$("save-profile"); btn.disabled=true; btn.innerHTML='<span class="spinner"></span> جاري الحفظ...';
+  try{
+    await updateDoc(doc(db,"users",uid),{
+      fullName:$("fullName").value.trim(),
+      phone:$("phone").value.trim(),
+      city:$("city").value.trim(),
+      vehicleType:$("vehicleType").value,
+      country:$("country").value.trim(),
+      updatedAt:serverTimestamp()
+    });
+    $("captain-name").textContent=$("fullName").value.trim()||"كابتن سفرة";
+    showNotice("تم حفظ بياناتك الشخصية بنجاح.","success");
+  }catch(err){
+    console.error(err); showNotice("تعذر حفظ التعديلات: "+(err.message||"حدث خطأ غير متوقع"),"error");
+  }finally{
+    btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-floppy-disk"></i> حفظ التعديلات';
+  }
+});
+
+$("logout-btn").addEventListener("click",async()=>{
+  try{await signOut(auth);window.location.href="captain-auth.html";}catch(err){console.error(err);}
+});
+</script>
+</body>
+</html>

@@ -414,8 +414,9 @@
         }
 
         // السائق استلم الطلب من المطعم → عند الزبون بيصير "طلبك في الطريق إليك"
+        // driverId: null يعني الطلب صار متاح بلوحة الكباتن لحد ما وحد منهم يستلمه
         window.markHandedToDriver = function(orderId) {
-            updateOrderStatus(orderId, "تم الشحن", { deliveryMethod: "driver" });
+            updateOrderStatus(orderId, "تم الشحن", { deliveryMethod: "driver", driverId: null });
         }
 
         // الزبون استلم طلبه بنفسه من المطعم → الطلب بينتهي فورًا (بالهناء والشفاء)

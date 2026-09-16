@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>انضم كابتن توصيل مع سفرة</title>
+    <link rel="stylesheet" href="app-shell.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Zain:wght@700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'capt-dark': '#0c2340',
+              'capt-blue': '#1e6fd9',
+              'capt-cream': '#f4f7fb',
+              'capt-amber': '#e8720c',
+              'capt-amber-dark': '#c25a06',
+              'capt-ink': '#1c2733',
+            },
+            fontFamily: {
+              sans: ['"IBM Plex Sans Arabic"', 'Tahoma', 'sans-serif'],
+              display: ['"Zain"', '"IBM Plex Sans Arabic"', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+        :root {
+            --ink: #1c2733;
+            --ink-soft: #62707e;
+            --line: #dbe4ee;
+            --panel: #ffffff;
+            --sand: #eaf0f7;
+            --blue: #1e6fd9;
+            --blue-deep: #0c2340;
+            --blue-tint: #e8f0fc;
+            --blue-line: #c9dcf5;
+            --amber: #e8720c;
+            --amber-deep: #c25a06;
+            --amber-tint: #fdf0e2;
+            --red: #c8362a;
+            --red-tint: #fbeae7;
+        }
+        * { font-family: 'IBM Plex Sans Arabic', Tahoma, sans-serif; }
+        body { color: var(--ink); }
+
+        /* ===== خلفية علوية مزخرفة ===== */
+        .hero-wrap {
+            position: relative; isolation: isolate; overflow: hidden;
+            background: linear-gradient(160deg, var(--blue-deep) 0%, #123a63 55%, var(--blue) 120%);
+            padding: 20px 20px 74px;
+        }
+        .hero-wrap::before {
+            content: ''; position: absolute; inset: 0; z-index: 0; opacity: .14;
+            background-image: radial-gradient(circle at 1.5px 1.5px, rgba(255,255,255,.7) 1.4px, transparent 1.6px);
+            background-size: 16px 16px;
+        }
+        .hero-wrap::after {
+            content: ''; position: absolute; z-index: 0; width: 220px; height: 220px; border-radius: 50%;
+            top: -90px; left: -60px; filter: blur(4px);
+            background: radial-gradient(circle, rgba(232,114,12,.5), transparent 70%);
+        }
+        .brand-row { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; }
+        .brand-logo { width: 42px; height: 42px; border-radius: 9999px; object-fit: cover; border: 1.5px solid rgba(255,255,255,.3); }
+        .back-link {
+            display: inline-flex; align-items: center; gap: 6px; color: rgba(255,255,255,.8);
+            font-size: 12.5px; font-weight: 600; text-decoration: none;
+        }
+        .back-link:hover { color: #fff; }
+
+        .hero-badge {
+            position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 6px;
+            background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.22);
+            padding: 5px 13px; border-radius: 9999px; font-size: 11.5px; font-weight: 700; color: #fff;
+            margin-top: 20px; backdrop-filter: blur(3px);
+        }
+        .hero-title {
+            position: relative; z-index: 1; color: #fff; font-size: 25px; line-height: 1.35;
+            margin-top: 12px;
+        }
+        .hero-sub {
+            position: relative; z-index: 1; color: rgba(255,255,255,.85); font-size: 13px;
+            margin-top: 6px; max-width: 30rem;
+        }
+        .perk-row { position: relative; z-index: 1; display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+        .perk-chip {
+            display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,.1);
+            border: 1px solid rgba(255,255,255,.18); color: #fff; font-size: 11.5px; font-weight: 600;
+            padding: 6px 11px; border-radius: 9999px;
+        }
+        .perk-chip i { color: #ffb066; font-size: 10.5px; }
+
+        /* ===== بطاقة الفورم العائمة ===== */
+        .auth-card {
+            position: relative; z-index: 2; margin: -52px 16px 0; background: var(--panel);
+            border-radius: 22px; border: 1px solid var(--line);
+            box-shadow: 0 1px 2px rgba(28,39,51,.05), 0 20px 40px -20px rgba(12,35,64,.35);
+            padding: 20px;
+        }
+
+        /* ===== نص ترحيبي فوق الفورم ===== */
+        .welcome-block { text-align: center; margin-bottom: 18px; }
+        .welcome-block h2 { font-size: 20px; color: var(--blue-deep); line-height: 1.3; }
+        .welcome-block p { font-size: 12.5px; color: var(--ink-soft); margin-top: 7px; line-height: 1.7; }
+
+        /* ===== مبدّل تبويب: إنشاء حساب / دخول ===== */
+        .tab-switch {
+            display: flex; background: var(--sand); border: 1px solid var(--line);
+            border-radius: 12px; padding: 4px; gap: 4px;
+        }
+        .tab-btn {
+            flex: 1; text-align: center; padding: 9px 8px; border-radius: 9px;
+            font-size: 13px; font-weight: 700; color: var(--ink-soft); cursor: pointer;
+            transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+            border: none; background: transparent;
+        }
+        .tab-btn.active { background: var(--panel); color: var(--blue-deep); box-shadow: 0 1px 2px rgba(28,39,51,.08); }
+
+        /* ===== حقول الإدخال ===== */
+        .field-label { display: block; font-size: 13px; font-weight: 600; color: var(--ink); margin-bottom: 6px; }
+        .field-wrap { position: relative; }
+        .field {
+            width: 100%; padding: 11px 40px 11px 13px; border-radius: 12px; font-size: 14px;
+            border: 1.5px solid var(--line); background: var(--panel); color: var(--ink);
+            transition: border-color .15s ease, box-shadow .15s ease;
+        }
+        .field:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-tint); }
+        .field-icon {
+            position: absolute; top: 50%; right: 13px; transform: translateY(-50%);
+            color: var(--ink-soft); font-size: 13.5px; pointer-events: none;
+        }
+        .toggle-pw {
+            position: absolute; top: 50%; right: 13px; transform: translateY(-50%);
+            color: var(--ink-soft); font-size: 13.5px; cursor: pointer; background: none; border: none; padding: 0;
+        }
+        .select-field {
+            appearance: none; -webkit-appearance: none; -moz-appearance: none;
+            padding: 11px 13px 11px 40px; cursor: pointer;
+        }
+        .select-icon { right: auto; left: 13px; }
+
+        /* ===== أزرار ===== */
+        .btn {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+            font-weight: 700; font-size: 14px; border-radius: 12px; padding: 12px 18px; width: 100%;
+            transition: background-color .15s ease, transform .1s ease; cursor: pointer; border: none;
+        }
+        .btn:active { transform: translateY(1px); }
+        .btn-primary { background: var(--amber); color: #fff; box-shadow: 0 8px 18px -8px rgba(232,114,12,.6); }
+        .btn-primary:hover { background: var(--amber-deep); }
+        .btn[disabled] { opacity: .6; cursor: not-allowed; }
+        .btn-outline {
+            background: var(--blue-tint); color: var(--blue-deep); border: 1.5px solid var(--blue-line);
+            width: 100%; margin-top: 8px;
+        }
+        .btn-outline:hover { background: var(--blue-line); }
+        .btn-outline.verified { background: #eafaf0; color: #16a34a; border-color: #b9ecc8; cursor: default; }
+        .otp-group { margin-top: 10px; }
+        .phone-verified-note {
+            display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700;
+            color: #16a34a; margin-top: 8px;
+        }
+
+        .role-note {
+            display: flex; align-items: flex-start; gap: 8px; background: var(--blue-tint);
+            border: 1px solid var(--blue-line); color: var(--blue-deep); font-size: 12px; font-weight: 600;
+            border-radius: 12px; padding: 10px 12px; line-height: 1.6;
+        }
+        .role-note i { margin-top: 2px; }
+
+        .msg-box {
+            font-size: 12.5px; font-weight: 700; border-radius: 12px; padding: 9px 12px;
+            display: none; align-items: center; gap: 7px;
+        }
+        .msg-box.show { display: flex; }
+        .msg-error { background: var(--red-tint); color: var(--red); }
+        .msg-success { background: var(--blue-tint); color: var(--blue-deep); }
+        .msg-info { background: var(--amber-tint); color: var(--amber-deep); }
+
+        .form-view { display: none; }
+        .form-view.active { display: flex; flex-direction: column; gap: 14px; }
+
+        .divider-line { border-top: 1px solid var(--line); }
+
+        /* ===== اختيار وسيلة التوصيل (دراجة نارية / سيارة) ===== */
+        .rtype-group { display: flex; gap: 10px; }
+        .rtype-option { flex: 1; position: relative; }
+        .rtype-option input[type="radio"] {
+            position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer;
+        }
+        .rtype-card {
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+            padding: 12px 8px; border-radius: 12px; border: 1.5px solid var(--line);
+            background: var(--panel); color: var(--ink-soft); font-size: 12.5px; font-weight: 700;
+            transition: border-color .15s ease, background-color .15s ease, color .15s ease;
+            text-align: center;
+        }
+        .rtype-card i { font-size: 16px; color: var(--ink-soft); transition: color .15s ease; }
+        .rtype-option input[type="radio"]:checked + .rtype-card {
+            border-color: var(--blue); background: var(--blue-tint); color: var(--blue-deep);
+        }
+        .rtype-option input[type="radio"]:checked + .rtype-card i { color: var(--blue); }
+        .rtype-option input[type="radio"]:focus-visible + .rtype-card { box-shadow: 0 0 0 3px var(--blue-tint); }
+    </style>
+</head>
+<body class="app-narrow bg-capt-cream min-h-screen pb-10">
+
+    <!-- ===== الهيدر العلوي المزخرف ===== -->
+    <div class="hero-wrap">
+        <div class="brand-row">
+            <a href="index.html" class="back-link"><i class="fa-solid fa-arrow-right"></i> الرئيسية</a>
+            <img src="logo.png" alt="سفرة" class="brand-logo">
+        </div>
+
+        <span class="hero-badge"><i class="fa-solid fa-motorcycle"></i> بوابة كباتن التوصيل</span>
+        <h1 class="font-display font-bold hero-title">انضم كابتن توصيل مع سفرة</h1>
+        <p class="hero-sub">اشتغل بوقتك الحر، وصّل الطلبات لعملاء سفرة، واكسب دخل إضافي ثابت وواضح.</p>
+
+        <div class="perk-row">
+            <span class="perk-chip"><i class="fa-solid fa-bolt"></i> تفعيل سريع</span>
+            <span class="perk-chip"><i class="fa-solid fa-route"></i> طلبات قريبة منك</span>
+            <span class="perk-chip"><i class="fa-solid fa-sack-dollar"></i> أرباح فورية وواضحة</span>
+        </div>
+    </div>
+
+    <!-- ===== بطاقة الفورم ===== -->
+    <div class="auth-card">
+
+        <div class="welcome-block">
+            <h2 class="font-display font-bold">صير كابتن توصيل مع سفرة</h2>
+            <p>سجّل كـ كابتن توصيل واستلم طلبات توصيل من مطاعم سفرة القريبة منك، وتابع طلباتك وأرباحك من لوحة تحكم سهلة وواضحة، بدون أي التزامات ثابتة.</p>
+        </div>
+
+        <div class="tab-switch">
+            <button type="button" id="tab-signup" class="tab-btn active">إنشاء حساب كابتن</button>
+            <button type="button" id="tab-login" class="tab-btn">تسجيل الدخول</button>
+        </div>
+
+        <p id="msg" class="msg-box mt-4"></p>
+
+        <!-- ===== فورم إنشاء حساب كابتن ===== -->
+        <form id="signup-form" class="form-view active mt-4">
+            <div class="role-note">
+                <i class="fa-solid fa-circle-info"></i>
+                <span>هاد الحساب رح يترتبط تلقائيًا بلوحة تحكم الكباتن عشان تستلم طلبات التوصيل وتتابع أرباحك.</span>
+            </div>
+
+            <div>
+                <label class="field-label">الاسم الكامل</label>
+                <div class="field-wrap">
+                    <input type="text" id="su-name" required class="field" placeholder="اسمك الثلاثي">
+                    <i class="fa-solid fa-user field-icon"></i>
+                </div>
+            </div>
+
+            <div>
+                <label class="field-label">وسيلة التوصيل</label>
+                <div class="rtype-group">
+                    <label class="rtype-option">
+                        <input type="radio" name="su-vehicle-type" value="motorcycle" required>
+                        <span class="rtype-card"><i class="fa-solid fa-motorcycle"></i> دراجة نارية</span>
+                    </label>
+                    <label class="rtype-option">
+                        <input type="radio" name="su-vehicle-type" value="car" required>
+                        <span class="rtype-card"><i class="fa-solid fa-car"></i> سيارة</span>
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <label class="field-label">رقم الجوال</label>
+                <div class="field-wrap">
+                    <input type="tel" id="su-phone" required class="field" placeholder="مثال: 078xxxxxxx أو 00962xxxxxxxxx">
+                    <i class="fa-solid fa-phone field-icon"></i>
+                </div>
+                <p class="text-[11px] text-capt-ink/50 mt-1.5">اكتب الرقم بصيغة محلية (0xxxxxxxx) أو دولية (00 أو + متبوعة بكود الدولة)</p>
+
+                <button type="button" id="send-code-btn" class="btn btn-outline">
+                    إرسال رمز التحقق
+                </button>
+
+                <div id="otp-group" class="otp-group" style="display:none;">
+                    <label class="field-label">رمز التحقق</label>
+                    <div class="field-wrap">
+                        <input type="text" id="otp-code" inputmode="numeric" maxlength="6" class="field" placeholder="أدخل الرمز يلي وصلك بالرسالة">
+                        <i class="fa-solid fa-shield-halved field-icon"></i>
+                    </div>
+                    <button type="button" id="verify-code-btn" class="btn btn-outline">
+                        تأكيد الرمز
+                    </button>
+                </div>
+
+                <p id="phone-verified-note" class="phone-verified-note" style="display:none;">
+                    <i class="fa-solid fa-circle-check"></i> تم التحقق من رقم الهاتف
+                </p>
+            </div>
+
+            <div id="recaptcha-container"></div>
+
+            <div>
+                <label class="field-label">الدولة</label>
+                <div class="field-wrap">
+                    <select id="su-country" required class="field select-field">
+                        <option value="" disabled selected>اختر الدولة</option>
+                        <optgroup label="دول عربية">
+                            <option value="JO">الأردن</option>
+                            <option value="SA">السعودية</option>
+                            <option value="AE">الإمارات</option>
+                            <option value="KW">الكويت</option>
+                            <option value="QA">قطر</option>
+                            <option value="BH">البحرين</option>
+                            <option value="OM">عُمان</option>
+                            <option value="EG">مصر</option>
+                            <option value="IQ">العراق</option>
+                            <option value="SY">سوريا</option>
+                            <option value="LB">لبنان</option>
+                            <option value="PS">فلسطين</option>
+                            <option value="YE">اليمن</option>
+                            <option value="LY">ليبيا</option>
+                            <option value="TN">تونس</option>
+                            <option value="DZ">الجزائر</option>
+                            <option value="MA">المغرب</option>
+                            <option value="SD">السودان</option>
+                        </optgroup>
+                        <optgroup label="دول أخرى">
+                            <option value="TR">تركيا</option>
+                            <option value="US">الولايات المتحدة</option>
+                            <option value="GB">المملكة المتحدة</option>
+                            <option value="CA">كندا</option>
+                            <option value="DE">ألمانيا</option>
+                            <option value="FR">فرنسا</option>
+                            <option value="OTHER">دولة أخرى</option>
+                        </optgroup>
+                    </select>
+                    <i class="fa-solid fa-chevron-down field-icon select-icon"></i>
+                </div>
+            </div>
+
+            <div>
+                <label class="field-label">المدينة / منطقة العمل</label>
+                <div class="field-wrap">
+                    <input type="text" id="su-city" required class="field" placeholder="مثال: عمّان - جبل الحسين">
+                    <i class="fa-solid fa-location-dot field-icon"></i>
+                </div>
+            </div>
+
+            <div>
+                <label class="field-label">البريد الإلكتروني</label>
+                <div class="field-wrap">
+                    <input type="email" id="su-email" required class="field" placeholder="example@domain.com">
+                    <i class="fa-solid fa-envelope field-icon"></i>
+                </div>
+            </div>
+
+            <div>
+                <label class="field-label">كلمة المرور</label>
+                <div class="field-wrap">
+                    <input type="password" id="su-password" required minlength="6" class="field" placeholder="6 أحرف على الأقل">
+                    <button type="button" class="toggle-pw" data-target="su-password"><i class="fa-solid fa-eye"></i></button>
+                </div>
+            </div>
+
+            <div>
+                <label class="field-label">تأكيد كلمة المرور</label>
+                <div class="field-wrap">
+                    <input type="password" id="su-password2" required minlength="6" class="field" placeholder="أعد كتابة كلمة المرور">
+                    <button type="button" class="toggle-pw" data-target="su-password2"><i class="fa-solid fa-eye"></i></button>
+                </div>
+            </div>
+
+            <button type="submit" id="signup-btn" class="btn btn-primary">
+                إنشاء حساب كابتن <i class="fa-solid fa-arrow-left text-[12px]"></i>
+            </button>
+
+            <p class="text-center text-[11.5px] text-capt-ink/50 leading-relaxed">
+                بإنشاء الحساب، أنت موافق على شروط استخدام منصة سفرة الخاصة بكباتن التوصيل.
+            </p>
+
+            <p class="text-center text-[12.5px] text-capt-ink/70">
+                عندك حساب أصلاً؟
+                <button type="button" id="goto-login" class="font-bold text-capt-blue hover:text-capt-dark">سجل دخول</button>
+            </p>
+        </form>
+
+        <!-- ===== فورم تسجيل الدخول ===== -->
+        <form id="login-form" class="form-view mt-4">
+            <div>
+                <label class="field-label">البريد الإلكتروني</label>
+                <div class="field-wrap">
+                    <input type="email" id="li-email" required class="field" placeholder="example@domain.com">
+                    <i class="fa-solid fa-envelope field-icon"></i>
+                </div>
+            </div>
+
+            <div>
+                <label class="field-label">كلمة المرور</label>
+                <div class="field-wrap">
+                    <input type="password" id="li-password" required class="field" placeholder="********">
+                    <button type="button" class="toggle-pw" data-target="li-password"><i class="fa-solid fa-eye"></i></button>
+                </div>
+            </div>
+
+            <div class="flex justify-end -mt-1">
+                <a href="#" id="forgot-password" class="text-[12px] font-semibold text-capt-amber hover:text-capt-amber-dark">نسيت كلمة المرور؟</a>
+            </div>
+
+            <button type="submit" id="login-btn" class="btn btn-primary">
+                دخول للوحة الكابتن <i class="fa-solid fa-arrow-left text-[12px]"></i>
+            </button>
+        </form>
+
+        <div class="divider-line mt-5 pt-4 text-center">
+            <p class="text-[12px] text-capt-ink/60">مش كابتن توصيل؟ <a href="index.html" class="font-bold text-capt-blue hover:text-capt-dark">تصفّح سفرة كزبون</a></p>
+        </div>
+    </div>
+
+    <script type="module">
+        import { loginWithEmail, signUpWithEmail, getUserRole, resetPassword } from "./auth-logic.js";
+        import { auth } from "./firebase-config.js";
+        import { RecaptchaVerifier, signInWithPhoneNumber, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        // ===== عناصر التبويب =====
+        const tabSignup = document.getElementById('tab-signup');
+        const tabLogin = document.getElementById('tab-login');
+        const signupForm = document.getElementById('signup-form');
+        const loginForm = document.getElementById('login-form');
+        const msg = document.getElementById('msg');
+
+        function showTab(tab) {
+            const isSignup = tab === 'signup';
+            tabSignup.classList.toggle('active', isSignup);
+            tabLogin.classList.toggle('active', !isSignup);
+            signupForm.classList.toggle('active', isSignup);
+            loginForm.classList.toggle('active', !isSignup);
+            hideMsg();
+        }
+        tabSignup.addEventListener('click', () => showTab('signup'));
+        tabLogin.addEventListener('click', () => showTab('login'));
+
+        // رابط "عندك حساب أصلاً؟ سجل دخول" تحت فورم إنشاء الحساب
+        document.getElementById('goto-login').addEventListener('click', () => showTab('login'));
+
+        // دعم فتح الصفحة مباشرة على وضع الدخول عبر ?mode=login
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('mode') === 'login') showTab('login');
+
+        // ===== إظهار/إخفاء كلمة المرور =====
+        document.querySelectorAll('.toggle-pw').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const input = document.getElementById(btn.dataset.target);
+                const icon = btn.querySelector('i');
+                const toText = input.type === 'password';
+                input.type = toText ? 'text' : 'password';
+                icon.classList.toggle('fa-eye', !toText);
+                icon.classList.toggle('fa-eye-slash', toText);
+            });
+        });
+
+        // ===== رسائل =====
+        function showMsg(text, type) {
+            msg.textContent = text;
+            msg.className = `msg-box show msg-${type}`;
+        }
+        function hideMsg() {
+            msg.className = 'msg-box';
+        }
+
+        function friendlyError(error) {
+            const map = {
+                'auth/email-already-in-use': 'هذا البريد الإلكتروني مسجّل مسبقًا. جرّب تسجيل الدخول.',
+                'auth/invalid-email': 'صيغة البريد الإلكتروني غير صحيحة.',
+                'auth/weak-password': 'كلمة المرور ضعيفة، لازم تكون 6 أحرف على الأقل.',
+                'auth/user-not-found': 'ما في حساب مسجّل بهذا البريد الإلكتروني.',
+                'auth/wrong-password': 'كلمة المرور غير صحيحة.',
+                'auth/invalid-credential': 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
+                'auth/too-many-requests': 'محاولات كثيرة متتالية، حاول بعد شوي.',
+                'auth/invalid-phone-number': 'رقم الجوال غير صحيح، تأكد من الصيغة وحاول مرة ثانية.',
+                'auth/code-expired': 'رمز التحقق منتهي الصلاحية، اطلب رمز جديد.',
+            };
+            return map[error.code] || ('حدث خطأ: ' + error.message);
+        }
+
+        // ===== أكواد الاتصال الدولية لكل دولة (نفس الفكرة تنطبق على كل الدول) =====
+        const callingCodes = {
+            JO: '962', SA: '966', AE: '971', KW: '965', QA: '974', BH: '973',
+            OM: '968', EG: '20', IQ: '964', SY: '963', LB: '961', PS: '970',
+            YE: '967', LY: '218', TN: '216', DZ: '213', MA: '212', SD: '249',
+            TR: '90', US: '1', GB: '44', CA: '1', DE: '49', FR: '33'
+        };
+
+        // ===== تحقق مرن من رقم الجوال: يقبل الصيغة المحلية (0xxxxxxxx) أو الدولية (00/+ متبوعة بكود الدولة) =====
+        function isValidPhone(phone, countryCode) {
+            const digits = phone.replace(/[\s\-()]/g, '');
+            const cc = callingCodes[countryCode];
+
+            if (!cc) {
+                // دولة غير مدرجة (اختيار "دولة أخرى"): تحقق عام فقط
+                return /^\+?\d{7,15}$/.test(digits);
+            }
+
+            const localPattern = /^0\d{7,10}$/;
+            const intlPattern = new RegExp(`^(00${cc}|\\+${cc})\\d{6,10}$`);
+            return localPattern.test(digits) || intlPattern.test(digits);
+        }
+
+        // ===== تحويل رقم الهاتف لصيغة دولية (E.164) يلي بتطلبها خدمة التحقق =====
+        function toE164(phone, countryCode) {
+            const digits = phone.replace(/[\s\-()]/g, '');
+            const cc = callingCodes[countryCode];
+
+            if (digits.startsWith('+')) return digits;
+            if (cc && digits.startsWith('00' + cc)) return '+' + digits.slice(2);
+            if (cc && digits.startsWith('0')) return '+' + cc + digits.slice(1);
+            return digits.startsWith('+') ? digits : '+' + digits;
+        }
+
+        // ===== التحقق من رقم الهاتف عبر رمز SMS =====
+        const sendCodeBtn = document.getElementById('send-code-btn');
+        const otpGroup = document.getElementById('otp-group');
+        const verifyCodeBtn = document.getElementById('verify-code-btn');
+        const phoneVerifiedNote = document.getElementById('phone-verified-note');
+        const phoneInput = document.getElementById('su-phone');
+        const countrySelect = document.getElementById('su-country');
+
+        let confirmationResult = null;
+        let phoneVerified = false;
+        let recaptchaVerifier = null;
+
+        // كل ما يتغيّر الرقم أو الدولة بعد التحقق، لازم يتحقق من جديد
+        function resetPhoneVerification() {
+            phoneVerified = false;
+            confirmationResult = null;
+            otpGroup.style.display = 'none';
+            phoneVerifiedNote.style.display = 'none';
+            sendCodeBtn.style.display = '';
+            sendCodeBtn.disabled = false;
+            sendCodeBtn.textContent = 'إرسال رمز التحقق';
+            document.getElementById('otp-code').value = '';
+        }
+        phoneInput.addEventListener('input', resetPhoneVerification);
+        countrySelect.addEventListener('change', resetPhoneVerification);
+
+        sendCodeBtn.addEventListener('click', async () => {
+            hideMsg();
+            const phone = phoneInput.value.trim();
+            const country = countrySelect.value;
+
+            if (!country) {
+                showMsg('لازم تختار الدولة الأول.', 'error');
+                return;
+            }
+            if (!isValidPhone(phone, country)) {
+                showMsg('رقم الجوال غير صحيح. اكتبه بصيغة محلية (0xxxxxxxx) أو دولية (00 أو + وكود الدولة).', 'error');
+                return;
+            }
+
+            sendCodeBtn.disabled = true;
+            sendCodeBtn.textContent = 'جاري الإرسال...';
+
+            try {
+                if (!recaptchaVerifier) {
+                    recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
+                }
+                const e164Phone = toE164(phone, country);
+                confirmationResult = await signInWithPhoneNumber(auth, e164Phone, recaptchaVerifier);
+
+                otpGroup.style.display = '';
+                sendCodeBtn.style.display = 'none';
+                showMsg('تم إرسال رمز التحقق برسالة نصية لرقمك.', 'success');
+            } catch (error) {
+                showMsg(friendlyError(error), 'error');
+                sendCodeBtn.disabled = false;
+                sendCodeBtn.textContent = 'إرسال رمز التحقق';
+            }
+        });
+
+        verifyCodeBtn.addEventListener('click', async () => {
+            hideMsg();
+            const code = document.getElementById('otp-code').value.trim();
+
+            if (!confirmationResult) {
+                showMsg('لازم تطلب رمز التحقق الأول.', 'error');
+                return;
+            }
+            if (!code) {
+                showMsg('اكتب رمز التحقق يلي وصلك.', 'error');
+                return;
+            }
+
+            verifyCodeBtn.disabled = true;
+            verifyCodeBtn.textContent = 'جاري التحقق...';
+
+            try {
+                await confirmationResult.confirm(code);
+                // التحقق كان بس للتأكد من الرقم، الحساب الفعلي بينعمل بالإيميل/كلمة المرور
+                await signOut(auth);
+
+                phoneVerified = true;
+                otpGroup.style.display = 'none';
+                phoneVerifiedNote.style.display = 'flex';
+                phoneInput.disabled = true;
+                showMsg('تم التحقق من رقم الهاتف بنجاح.', 'success');
+            } catch (error) {
+                showMsg('رمز التحقق غير صحيح، حاول مرة ثانية.', 'error');
+                verifyCodeBtn.disabled = false;
+                verifyCodeBtn.textContent = 'تأكيد الرمز';
+            }
+        });
+
+        // ===== إنشاء حساب كابتن =====
+        signupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideMsg();
+
+            const fullName = document.getElementById('su-name').value.trim();
+            const vehicleTypeInput = document.querySelector('input[name="su-vehicle-type"]:checked');
+            const vehicleType = vehicleTypeInput ? vehicleTypeInput.value : '';
+            const phone = document.getElementById('su-phone').value.trim();
+            const country = document.getElementById('su-country').value;
+            const city = document.getElementById('su-city').value.trim();
+            const email = document.getElementById('su-email').value.trim();
+            const password = document.getElementById('su-password').value;
+            const password2 = document.getElementById('su-password2').value;
+            const signupBtn = document.getElementById('signup-btn');
+
+            if (!vehicleType) {
+                showMsg('لازم تختار وسيلة التوصيل: دراجة نارية أو سيارة.', 'error');
+                return;
+            }
+
+            if (!country) {
+                showMsg('لازم تختار الدولة.', 'error');
+                return;
+            }
+
+            if (!isValidPhone(phone, country)) {
+                showMsg('رقم الجوال غير صحيح. اكتبه بصيغة محلية (0xxxxxxxx) أو دولية (00 أو + وكود الدولة).', 'error');
+                return;
+            }
+
+            if (!phoneVerified) {
+                showMsg('لازم تتحقق من رقم الهاتف الأول (اضغط "إرسال رمز التحقق").', 'error');
+                return;
+            }
+
+            if (password !== password2) {
+                showMsg('كلمتا المرور غير متطابقتين.', 'error');
+                return;
+            }
+
+            signupBtn.disabled = true;
+            showMsg('جاري إنشاء حسابك...', 'info');
+
+            try {
+                const cred = await signUpWithEmail(email, password, {
+                    role: 'captain',
+                    phoneVerified: true,
+                    fullName: fullName,
+                    phone: phone,
+                    vehicleType: vehicleType,
+                    country: country,
+                    city: city
+                });
+
+                showMsg('تم إنشاء حساب الكابتن بنجاح! جاري تحويلك للوحة التحكم...', 'success');
+
+                setTimeout(() => {
+                    window.location.href = "driver-dashboard.html";
+                }, 1200);
+            } catch (error) {
+                showMsg(friendlyError(error), 'error');
+                signupBtn.disabled = false;
+            }
+        });
+
+        // ===== تسجيل الدخول =====
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideMsg();
+
+            const email = document.getElementById('li-email').value.trim();
+            const password = document.getElementById('li-password').value;
+            const loginBtn = document.getElementById('login-btn');
+
+            loginBtn.disabled = true;
+            showMsg('جاري تسجيل الدخول...', 'info');
+
+            try {
+                const cred = await loginWithEmail(email, password);
+                const role = await getUserRole(cred.user.uid);
+
+                if (role === 'captain') {
+                    showMsg('تم تسجيل الدخول بنجاح! جاري تحويلك للوحة التحكم...', 'success');
+                    setTimeout(() => { window.location.href = "driver-dashboard.html"; }, 1000);
+                } else {
+                    showMsg('هذا الحساب مسجّل بدور مختلف وليس كحساب كابتن توصيل. تقدر تتصفّح سفرة من الصفحة الرئيسية.', 'info');
+                    loginBtn.disabled = false;
+                }
+            } catch (error) {
+                showMsg(friendlyError(error), 'error');
+                loginBtn.disabled = false;
+            }
+        });
+
+        // ===== استعادة كلمة المرور =====
+        document.getElementById('forgot-password').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const email = document.getElementById('li-email').value.trim();
+            if (!email) {
+                showMsg('اكتب بريدك الإلكتروني بحقل الدخول أولاً.', 'error');
+                return;
+            }
+            try {
+                await resetPassword(email);
+                showMsg('تم إرسال رابط استعادة كلمة المرور لبريدك الإلكتروني.', 'success');
+            } catch (error) {
+                showMsg(friendlyError(error), 'error');
+            }
+        });
+    </script>
+</body>
+</html>
