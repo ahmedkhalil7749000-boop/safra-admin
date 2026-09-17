@@ -178,25 +178,6 @@
 
         .divider-line { border-top: 1px solid var(--line); }
 
-        /* ===== اختيار نوع المطعم (منزلي / تجاري) ===== */
-        .rtype-group { display: flex; gap: 10px; }
-        .rtype-option { flex: 1; position: relative; }
-        .rtype-option input[type="radio"] {
-            position: absolute; opacity: 0; width: 100%; height: 100%; margin: 0; cursor: pointer;
-        }
-        .rtype-card {
-            display: flex; flex-direction: column; align-items: center; gap: 6px;
-            padding: 12px 8px; border-radius: 12px; border: 1.5px solid var(--line);
-            background: var(--panel); color: var(--ink-soft); font-size: 12.5px; font-weight: 700;
-            transition: border-color .15s ease, background-color .15s ease, color .15s ease;
-            text-align: center;
-        }
-        .rtype-card i { font-size: 16px; color: var(--ink-soft); transition: color .15s ease; }
-        .rtype-option input[type="radio"]:checked + .rtype-card {
-            border-color: var(--green); background: var(--green-tint); color: var(--green-deep);
-        }
-        .rtype-option input[type="radio"]:checked + .rtype-card i { color: var(--green); }
-        .rtype-option input[type="radio"]:focus-visible + .rtype-card { box-shadow: 0 0 0 3px var(--green-tint); }
     </style>
 </head>
 <body class="app-narrow bg-safra-cream min-h-screen pb-10">
@@ -246,20 +227,6 @@
                 <div class="field-wrap">
                     <input type="text" id="su-business" required class="field" placeholder="مثال: مطبخ سارة البيتي">
                     <i class="fa-solid fa-utensils field-icon"></i>
-                </div>
-            </div>
-
-            <div>
-                <label class="field-label">نوع المطعم</label>
-                <div class="rtype-group">
-                    <label class="rtype-option">
-                        <input type="radio" name="su-restaurant-type" value="home" required>
-                        <span class="rtype-card"><i class="fa-solid fa-house"></i> منزلي</span>
-                    </label>
-                    <label class="rtype-option">
-                        <input type="radio" name="su-restaurant-type" value="commercial" required>
-                        <span class="rtype-card"><i class="fa-solid fa-shop"></i> تجاري</span>
-                    </label>
                 </div>
             </div>
 
@@ -480,8 +447,7 @@
             hideMsg();
 
             const businessName = document.getElementById('su-business').value.trim();
-            const restaurantTypeInput = document.querySelector('input[name="su-restaurant-type"]:checked');
-            const restaurantType = restaurantTypeInput ? restaurantTypeInput.value : '';
+            const restaurantType = 'home';
             const fullName = document.getElementById('su-name').value.trim();
             const phone = document.getElementById('su-phone').value.trim();
             const country = document.getElementById('su-country').value;
@@ -489,11 +455,6 @@
             const password = document.getElementById('su-password').value;
             const password2 = document.getElementById('su-password2').value;
             const signupBtn = document.getElementById('signup-btn');
-
-            if (!restaurantType) {
-                showMsg('لازم تختار نوع المطعم: منزلي أو تجاري.', 'error');
-                return;
-            }
 
             if (!country) {
                 showMsg('لازم تختار الدولة.', 'error');

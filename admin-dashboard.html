@@ -671,6 +671,40 @@
             return result.secure_url;
         }
 
+        // بترجع مقاس صورة/فيديو قبل الرفع، للتحقق الإجباري من المقاس المطلوب
+        function readAdImageDimensions(file) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                const url = URL.createObjectURL(file);
+                img.onload = () => { URL.revokeObjectURL(url); resolve({ width: img.naturalWidth, height: img.naturalHeight }); };
+                img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("تعذر قراءة الصورة")); };
+                img.src = url;
+            });
+        }
+        function readAdVideoDimensions(file) {
+            return new Promise((resolve, reject) => {
+                const video = document.createElement('video');
+                const url = URL.createObjectURL(file);
+                video.preload = 'metadata';
+                video.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve({ width: video.videoWidth, height: video.videoHeight }); };
+                video.onerror = () => { URL.revokeObjectURL(url); reject(new Error("تعذر قراءة الفيديو")); };
+                video.src = url;
+            });
+        }
+        // تحقق إجباري: ما بتنقبل غير المقاسات المناسبة عشان يضل تصميم إعلانات المنصة حترافي وموحّد
+        async function enforceAdImageDimensions(file, w, h, label) {
+            const dims = await readAdImageDimensions(file);
+            if (dims.width !== w || dims.height !== h) {
+                throw new Error(`مقاس ${label} لازم يكون بالضبط ${w}×${h} بكسل (المقاسات المناسبة بس بتنقبل). مقاس الملف يلي اخترته: ${dims.width}×${dims.height}.`);
+            }
+        }
+        async function enforceAdVideoDimensions(file, w, h, label) {
+            const dims = await readAdVideoDimensions(file);
+            if (dims.width !== w || dims.height !== h) {
+                throw new Error(`مقاس ${label} لازم يكون بالضبط ${w}×${h} بكسل عمودي (المقاسات المناسبة بس بتنقبل). مقاس الملف يلي اخترته: ${dims.width}×${dims.height}.`);
+            }
+        }
+
         window.toggleAdTypeFields = function() {
             const type = document.getElementById('ad-type').value;
             document.getElementById('ad-banner-field').classList.toggle('hidden', type !== 'بانر');
@@ -687,17 +721,25 @@
             const linkUrl = document.getElementById('ad-link').value.trim();
             btn.disabled = true;
             msg.className = "sm:col-span-2 text-xs font-semibold text-blue-600";
-            msg.innerText = "جاري الرفع...";
+            msg.innerText = "جاري التحقق من المقاس...";
             try {
                 let mediaUrl = "";
                 if (type === 'بانر') {
                     const file = document.getElementById('ad-banner-file').files[0];
                     if (!file) throw new Error("لازم ترفع صورة البانر");
+                    // تحقق إجباري: ما بتنقبل غير المقاس المناسب 1600×700 عشان يضل التصميم حترافي
+                    await enforceAdImageDimensions(file, 1600, 700, "صورة البانر");
+                    msg.innerText = "جاري الرفع...";
                     mediaUrl = await uploadAdImage(file);
                 } else {
                     const file = document.getElementById('ad-video-file').files[0];
                     const url = document.getElementById('ad-video-url').value.trim();
-                    if (file) mediaUrl = await uploadAdVideo(file);
+                    if (file) {
+                        // تحقق إجباري: ما بتنقبل غير المقاس المناسب 1080×1920 عمودي
+                        await enforceAdVideoDimensions(file, 1080, 1920, "فيديو الإعلان");
+                        msg.innerText = "جاري الرفع...";
+                        mediaUrl = await uploadAdVideo(file);
+                    }
                     else if (url) mediaUrl = url;
                     else throw new Error("لازم ترفع ملف فيديو أو تضيف رابط يوتيوب");
                 }
@@ -950,12 +992,12 @@
                             </select>
                         </div>
                         <div id="ad-banner-field" class="sm:col-span-2">
-                            <label class="block text-xs font-semibold text-gray-600 mb-1">صورة البانر <span class="text-gray-400">(مقاس أفقي عريض يُفضّل، مثلاً 1200×500)</span></label>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">صورة البانر <span class="text-red-500 font-bold">(إجباري: المقاس المطلوب بالضبط 1600×700 بكسل — المقاسات المناسبة بس بتنقبل)</span></label>
                             <input type="file" id="ad-banner-file" accept="image/*" class="w-full px-3 py-2 border rounded-lg text-sm">
                         </div>
                         <div id="ad-video-field" class="hidden sm:col-span-2 grid sm:grid-cols-2 gap-3">
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1">رفع ملف فيديو من جهازك</label>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">رفع ملف فيديو من جهازك <span class="text-red-500 font-bold">(إجباري: 1080×1920 بكسل عمودي)</span></label>
                                 <input type="file" id="ad-video-file" accept="video/*" class="w-full px-3 py-2 border rounded-lg text-sm">
                             </div>
                             <div>

@@ -209,6 +209,15 @@
             });
         }
 
+        // تتحقق إجباريًا إنو مقاس الصورة يطابق المقاس المطلوب بالضبط، وترجع رسالة خطأ جاهزة بالعربي لو ما طابق
+        // عشان نضمن تصميم حترافي وموحّد وما حدا يرفع صورة بأي مقاس ع كيفه
+        async function enforceImageDimensions(file, requiredWidth, requiredHeight, label) {
+            const dims = await readImageDimensions(file);
+            if (dims.width !== requiredWidth || dims.height !== requiredHeight) {
+                throw new Error(`مقاس ${label} لازم يكون بالضبط ${requiredWidth}×${requiredHeight} بكسل (المقاسات المناسبة بس هي يلي بتنقبل). مقاس الصورة يلي اخترتها: ${dims.width}×${dims.height}.`);
+            }
+        }
+
         async function uploadToImgbb(file) {
             const formData = new FormData();
             formData.append("image", file);
@@ -267,6 +276,20 @@
             { key: "بوكسات مناسبات", icon: "🎁" },
         ];
 
+        // تصنيفات المنيو الخاصة بكل مطعم، مع إبقاء التصنيفات الافتراضية متاحة.
+        function getMenuCategoryList(restaurantData = {}) {
+            const custom = Array.isArray(restaurantData.menuCategories) ? restaurantData.menuCategories : [];
+            const normalized = custom
+                .map(c => typeof c === 'string' ? { key: c, icon: '🍽️' } : c)
+                .filter(c => c && c.key);
+            const merged = [...CATEGORY_LIST, ...normalized];
+            return merged.filter((c, i, arr) => arr.findIndex(x => x.key === c.key) === i);
+        }
+
+        function menuCategoryOptions(list, selected = '') {
+            return list.map(c => `<option value="${c.key}" ${selected === c.key ? 'selected' : ''}>${c.icon} ${c.key}</option>`).join('');
+        }
+
         // ==== مجموعة أيقونات SVG بسيطة موحّدة (بدل الاعتماد الكامل على الإيموجي بعناصر الواجهة) ====
         const ICONS = {
             check: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
@@ -309,7 +332,7 @@
                 <div class="mb-3">${contentStatusBadge(data.bannerStatus)}</div>
                 ${data.bannerStatus === 'مرفوض' && data.bannerRejectReason ? `<p class="text-xs mb-2" style="color: var(--red);">سبب الرفض: ${data.bannerRejectReason}</p>` : ''}
                 <form id="banner-form-${restaurantId}" class="space-y-2">
-                    <label class="field-label">${data.bannerUrl ? 'تغيير صورة البانر' : 'رفع صورة البانر'} <span class="field-hint">(المقاس المطلوب بالضبط: 1600×800 بكسل)</span></label>
+                    <label class="field-label">${data.bannerUrl ? 'تغيير صورة البانر' : 'رفع صورة البانر'} <span class="field-hint">(إجباري: المقاس المطلوب بالضبط 1600×700 بكسل — المقاسات المناسبة بس بتنقبل عشان يضل التصميم حترافي)</span></label>
                     <input type="file" id="banner-file-${restaurantId}" accept="image/*" required class="field-file">
                     <button type="submit" class="btn btn-primary btn-sm">رفع البانر لمراجعة الأدمن</button>
                     <p id="banner-msg-${restaurantId}" class="form-msg"></p>
@@ -362,18 +385,12 @@
                     const file = document.getElementById(`banner-file-${restaurantId}`).files[0];
                     if (!file) return;
 
-                    // التحقق من مقاس الصورة قبل الرفع: لازم يكون بالضبط 1600×800 بكسل
-                    const BANNER_W = 1600, BANNER_H = 800;
+                    // التحقق الإجباري من مقاس الصورة قبل الرفع: لازم يكون بالضبط 1600×700 بكسل (مطابق لحاوية البانر بالتصميم)
                     try {
-                        const dims = await readImageDimensions(file);
-                        if (dims.width !== BANNER_W || dims.height !== BANNER_H) {
-                            msg.className = "form-msg err";
-                            msg.innerText = `مقاس الصورة لازم يكون بالضبط ${BANNER_W}×${BANNER_H} بكسل. مقاس الصورة يلي اخترتها: ${dims.width}×${dims.height}.`;
-                            return;
-                        }
+                        await enforceImageDimensions(file, 1600, 700, "صورة البانر");
                     } catch (error) {
                         msg.className = "form-msg err";
-                        msg.innerText = "تعذر قراءة الصورة، جرب ملف صورة تاني.";
+                        msg.innerText = error.message;
                         return;
                     }
 
@@ -613,13 +630,6 @@
                                     <div id="new-restaurant-categories" class="category-chip-group"></div>
                                 </div>
                                 <div>
-                                    <label class="field-label">نوع المطعم</label>
-                                    <select id="new-restaurant-type" class="field">
-                                        <option value="home">منزلي</option>
-                                        <option value="commercial">تجاري</option>
-                                    </select>
-                                </div>
-                                <div>
                                     <label class="field-label">الحالة</label>
                                     <select id="new-restaurant-status" class="field">
                                         <option value="نشط" selected>نشط</option>
@@ -627,8 +637,12 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="field-label">صورة المطعم <span class="field-hint">(اختياري)</span></label>
+                                    <label class="field-label">صورة المطعم <span class="field-hint">(اختياري — المقاس الإجباري 800×600 بكسل)</span></label>
                                     <input type="file" id="new-restaurant-image" accept="image/*" class="field-file">
+                                </div>
+                                <div>
+                                    <label class="field-label">غلاف صفحة المطعم <span class="field-hint">(اختياري — المقاس الإجباري 1600×700 بكسل)</span></label>
+                                    <input type="file" id="new-restaurant-cover" accept="image/*" class="field-file">
                                 </div>
                                 <button type="submit" class="btn btn-primary btn-block">إنشاء المطعم</button>
                                 <p id="create-restaurant-message" class="form-msg text-center"></p>
@@ -645,9 +659,10 @@
                         const description = document.getElementById('new-restaurant-description').value.trim();
                         const phone = normalizeJordanPhone(document.getElementById('new-restaurant-phone').value);
                         const categories = getCheckedCategories('new-restaurant-categories');
-                        const restaurantType = document.getElementById('new-restaurant-type').value;
+                        const restaurantType = 'home';
                         const status = document.getElementById('new-restaurant-status').value;
                         const imageFile = document.getElementById('new-restaurant-image').files[0];
+                        const coverFile = document.getElementById('new-restaurant-cover').files[0];
 
                         if (!name) return;
                         if (categories.length === 0) {
@@ -655,17 +670,36 @@
                             msg.innerText = "لازم تختاري تصنيف واحد على الأقل للمطعم.";
                             return;
                         }
+                        if (imageFile) {
+                            try {
+                                await enforceImageDimensions(imageFile, 800, 600, "صورة المطعم");
+                            } catch (error) {
+                                msg.className = "form-msg err text-center mt-2";
+                                msg.innerText = error.message;
+                                return;
+                            }
+                        }
+                        if (coverFile) {
+                            try {
+                                await enforceImageDimensions(coverFile, 1600, 700, "غلاف صفحة المطعم");
+                            } catch (error) {
+                                msg.className = "form-msg err text-center mt-2";
+                                msg.innerText = error.message;
+                                return;
+                            }
+                        }
+
                         msg.className = "form-msg busy text-center mt-2";
                         msg.innerText = "جاري الإنشاء...";
 
                         try {
                             let imageUrl = "";
-                            if (imageFile) {
-                                imageUrl = await uploadToImgbb(imageFile);
-                            }
+                            let coverImageUrl = "";
+                            if (imageFile) imageUrl = await uploadToImgbb(imageFile);
+                            if (coverFile) coverImageUrl = await uploadToImgbb(coverFile);
 
                             await addDoc(collection(db, "restaurants"), {
-                                name, description, phone, categories, restaurantType, status, ownerEmail: currentUserEmail, imageUrl, createdAt: serverTimestamp()
+                                name, description, phone, categories, restaurantType, status, ownerEmail: currentUserEmail, imageUrl, coverImageUrl, createdAt: serverTimestamp()
                             });
                             msg.className = "form-msg ok text-center mt-2";
                             msg.innerText = "تم إنشاء المطعم بنجاح!";
@@ -685,19 +719,13 @@
                     container.innerHTML += `
                         <div class="panel overflow-hidden">
                             <div id="view-${restaurantId}">
-                                ${data.imageUrl
-                                    ? `<div class="relative"><img src="${data.imageUrl}" class="w-full h-44 object-cover"><span class="badge ${isActive ? 'badge-live' : 'badge-paused'} absolute top-3 right-3">${isActive ? ICONS.check : ''} ${data.status || 'نشط'}</span></div>`
+                                ${(data.coverImageUrl || data.imageUrl)
+                                    ? `<div class="relative"><img src="${data.coverImageUrl || data.imageUrl}" class="w-full h-44 object-cover"><span class="badge ${isActive ? 'badge-live' : 'badge-paused'} absolute top-3 right-3">${isActive ? ICONS.check : ''} ${data.status || 'نشط'}</span></div>`
                                     : ''}
                                 <div class="p-5">
                                     ${!data.imageUrl ? `<span class="badge ${isActive ? 'badge-live' : 'badge-paused'} mb-2">${isActive ? ICONS.check : ''} ${data.status || 'نشط'}</span>` : ''}
                                     <h2 class="font-display font-extrabold" style="font-size: 20px; color: var(--green-deep);">${data.name || 'مطعمي'}</h2>
                                     <p class="text-sm mt-1" style="color: var(--ink-soft);">${data.description || 'لسا ما ضفتي وصف لمطعمك.'}</p>
-                                    <div class="mt-2 flex items-center gap-1.5">
-                                        <span class="text-xs font-semibold" style="color: var(--ink-soft);">نوع المطعم:</span>
-                                        <span class="badge ${data.restaurantType === 'home' ? 'badge-cat' : 'badge-muted'}">
-                                            ${data.restaurantType === 'home' ? '🏠 منزلي' : '🏪 تجاري'}
-                                        </span>
-                                    </div>
                                     <div class="mt-3 flex flex-wrap gap-1.5 items-center">
                                         ${restaurantCategories(data).length
                                             ? restaurantCategories(data).map(c => `<span class="badge badge-cat">${(CATEGORY_LIST.find(x => x.key === c) || {}).icon || ''} ${c}</span>`).join('')
@@ -729,13 +757,6 @@
                                     <div id="edit-categories-${restaurantId}" class="category-chip-group"></div>
                                 </div>
                                 <div>
-                                    <label class="field-label">نوع المطعم</label>
-                                    <select id="edit-type-${restaurantId}" class="field">
-                                        <option value="home" ${data.restaurantType === 'home' ? 'selected' : ''}>منزلي</option>
-                                        <option value="commercial" ${data.restaurantType === 'commercial' || !data.restaurantType ? 'selected' : ''}>تجاري</option>
-                                    </select>
-                                </div>
-                                <div>
                                     <label class="field-label">الحالة</label>
                                     <select id="edit-status-${restaurantId}" class="field">
                                         <option value="نشط" ${data.status === 'نشط' || !data.status ? 'selected' : ''}>نشط</option>
@@ -743,8 +764,12 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="field-label">صورة المطعم <span class="field-hint">(اختياري)</span></label>
+                                    <label class="field-label">صورة المطعم <span class="field-hint">(اختياري — المقاس الإجباري 800×600 بكسل)</span></label>
                                     <input type="file" id="edit-image-${restaurantId}" accept="image/*" class="field-file">
+                                </div>
+                                <div>
+                                    <label class="field-label">غلاف صفحة المطعم <span class="field-hint">(اختياري — المقاس الإجباري 1600×700 بكسل)</span></label>
+                                    <input type="file" id="edit-cover-${restaurantId}" accept="image/*" class="field-file">
                                 </div>
                                 <div class="flex gap-2">
                                     <button data-id="${restaurantId}" class="save-restaurant-btn btn btn-primary">حفظ التعديلات</button>
@@ -765,7 +790,46 @@
                                     <div class="empty-state flex items-center justify-center gap-2"><span class="spinner"></span> جاري التحميل...</div>
                                 </div>
 
-                                <!-- نموذج إضافة صنف جديد مع حقل الوصف -->
+                                <!-- إدارة تصنيفات المنيو الخاصة بالمطعم -->
+                                <div class="subpanel p-4 space-y-3 mb-4">
+                                    <div class="flex items-center justify-between gap-3 flex-wrap">
+                                        <div>
+                                            <p class="font-semibold text-sm">📂 تصنيفات المنيو</p>
+                                            <p class="text-xs mt-1" style="color:var(--ink-soft);">أضف تصنيفات خاصة بمطعمك، وستظهر للزبائن كأقسام داخل المنيو.</p>
+                                        </div>
+                                        <button type="button" data-id="${restaurantId}" class="add-menu-category-btn btn btn-outline btn-sm">${ICONS.plus} إضافة تصنيف</button>
+                                    </div>
+                                    <div id="menu-categories-${restaurantId}" class="flex flex-wrap gap-2"></div>
+                                    <div id="menu-category-form-${restaurantId}" class="hidden grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
+                                        <input id="menu-category-name-${restaurantId}" class="field" maxlength="40" placeholder="مثال: مشاوي، بيتزا، عروض الغداء">
+                                        <button type="button" data-id="${restaurantId}" class="save-menu-category-btn btn btn-dark">حفظ التصنيف</button>
+                                    </div>
+                                    <p id="menu-category-msg-${restaurantId}" class="form-msg"></p>
+                                </div>
+
+                                <!-- إعدادات التوصيل الخاصة بالمطعم -->
+                                <div class="subpanel p-4 space-y-3 mb-4">
+                                    <div class="flex items-center justify-between gap-3 flex-wrap">
+                                        <div>
+                                            <p class="font-semibold text-sm">🚚 خدمة التوصيل</p>
+                                            <p class="text-xs mt-1" style="color:var(--ink-soft);">فعّل التوصيل وحدد رسومه إن وجدت.</p>
+                                        </div>
+                                        <label class="flex items-center gap-2 text-sm font-semibold cursor-pointer">
+                                            <input type="checkbox" id="delivery-enabled-${restaurantId}" ${data.deliveryEnabled ? 'checked' : ''}>
+                                            <span>متاحة</span>
+                                        </label>
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div>
+                                            <label class="field-label">رسوم التوصيل (د.أ)</label>
+                                            <input type="number" min="0" step="0.01" id="delivery-fee-${restaurantId}" class="field" value="${data.deliveryFee ?? 0}">
+                                        </div>
+                                        <button type="button" data-id="${restaurantId}" class="save-delivery-btn btn btn-dark self-end">حفظ إعدادات التوصيل</button>
+                                    </div>
+                                    <p id="delivery-msg-${restaurantId}" class="form-msg"></p>
+                                </div>
+
+                                <!-- نموذج إضافة صنف جديد مع السعر والخصم والصورة -->
                                 <form id="add-item-form-${restaurantId}" class="subpanel p-4 space-y-3">
                                     <p class="font-semibold text-sm flex items-center gap-1.5" style="color: var(--ink);">${ICONS.plus} إضافة صنف جديد</p>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -775,7 +839,11 @@
                                         </div>
                                         <div>
                                             <label class="field-label">السعر (د.أ)</label>
-                                            <input type="number" step="0.01" id="item-price-${restaurantId}" required class="field">
+                                            <input type="number" min="0" step="0.01" id="item-price-${restaurantId}" required class="field">
+                                        </div>
+                                        <div>
+                                            <label class="field-label">الخصم (%) <span class="field-hint">اختياري</span></label>
+                                            <input type="number" min="0" max="100" step="1" value="0" id="item-discount-${restaurantId}" class="field">
                                         </div>
                                     </div>
                                     <div>
@@ -786,12 +854,12 @@
                                         <label class="field-label">تصنيف الصنف</label>
                                         <select id="item-category-${restaurantId}" required class="field">
                                             <option value="">اختاري تصنيف الصنف</option>
-                                            ${CATEGORY_LIST.map(c => `<option value="${c.key}">${c.icon} ${c.key}</option>`).join('')}
+                                            ${menuCategoryOptions(getMenuCategoryList(data))}
                                         </select>
                                     </div>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
                                         <div>
-                                            <label class="field-label">صورة الصنف <span class="field-hint">(اختياري)</span></label>
+                                            <label class="field-label">صورة الصنف <span class="field-hint">اختياري — المقاس الإجباري للصورة: 800×800 بكسل</span></label>
                                             <input type="file" id="item-image-${restaurantId}" accept="image/*" class="field-file">
                                         </div>
                                         <button type="submit" class="btn btn-primary btn-block">إضافة الوجبة للمنيو</button>
@@ -803,6 +871,7 @@
                     `;
 
                     renderCategoryChips(`edit-categories-${restaurantId}`, restaurantCategories(data));
+                    renderMenuCategoryManager(restaurantId, data);
                 });
 
                 // تفعيل الأزرار والتفاعلات
@@ -830,9 +899,10 @@
                         const description = document.getElementById(`edit-description-${id}`).value.trim();
                         const phone = normalizeJordanPhone(document.getElementById(`edit-phone-${id}`).value);
                         const categories = getCheckedCategories(`edit-categories-${id}`);
-                        const restaurantType = document.getElementById(`edit-type-${id}`).value;
+                        const restaurantType = 'home';
                         const status = document.getElementById(`edit-status-${id}`).value;
                         const imageFile = document.getElementById(`edit-image-${id}`).files[0];
+                        const coverFile = document.getElementById(`edit-cover-${id}`).files[0];
 
                         if (!name) return;
                         if (categories.length === 0) {
@@ -840,14 +910,32 @@
                             msg.innerText = "لازم تختاري تصنيف واحد على الأقل للمطعم.";
                             return;
                         }
+                        if (imageFile) {
+                            try {
+                                await enforceImageDimensions(imageFile, 800, 600, "صورة المطعم");
+                            } catch (error) {
+                                msg.className = "form-msg err";
+                                msg.innerText = error.message;
+                                return;
+                            }
+                        }
+                        if (coverFile) {
+                            try {
+                                await enforceImageDimensions(coverFile, 1600, 700, "غلاف صفحة المطعم");
+                            } catch (error) {
+                                msg.className = "form-msg err";
+                                msg.innerText = error.message;
+                                return;
+                            }
+                        }
+
                         msg.className = "form-msg busy";
                         msg.innerText = "جاري الحفظ...";
 
                         try {
                             const updateData = { name, description, phone, categories, restaurantType, status };
-                            if (imageFile) {
-                                updateData.imageUrl = await uploadToImgbb(imageFile);
-                            }
+                            if (imageFile) updateData.imageUrl = await uploadToImgbb(imageFile);
+                            if (coverFile) updateData.coverImageUrl = await uploadToImgbb(coverFile);
                             await updateDoc(doc(db, "restaurants", id), updateData);
                             await loadMyRestaurant(currentUserEmail);
                         } catch (error) {
@@ -878,6 +966,53 @@
                 // ربط نماذج رفع البانر/الفيديو لكل مطعم
                 querySnapshot.forEach((docSnap) => bindPromoHandlers(docSnap.id));
 
+                container.querySelectorAll('.save-delivery-btn').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const id = btn.dataset.id;
+                        const msg = document.getElementById(`delivery-msg-${id}`);
+                        const enabled = document.getElementById(`delivery-enabled-${id}`).checked;
+                        const fee = parseFloat(document.getElementById(`delivery-fee-${id}`).value || 0);
+                        if (!Number.isFinite(fee) || fee < 0) { msg.className='form-msg err'; msg.innerText='أدخل رسوم توصيل صحيحة.'; return; }
+                        msg.className='form-msg busy'; msg.innerText='جاري الحفظ...'; btn.disabled=true;
+                        try {
+                            await updateDoc(doc(db, 'restaurants', id), { deliveryEnabled: enabled, deliveryFee: fee, updatedAt: serverTimestamp() });
+                            msg.className='form-msg ok'; msg.innerText='تم حفظ إعدادات التوصيل ✓';
+                        } catch (error) { msg.className='form-msg err'; msg.innerText='خطأ: '+error.message; }
+                        finally { btn.disabled=false; }
+                    });
+                });
+
+                container.querySelectorAll('.add-menu-category-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const id = btn.dataset.id;
+                        document.getElementById(`menu-category-form-${id}`).classList.remove('hidden');
+                        document.getElementById(`menu-category-name-${id}`).focus();
+                    });
+                });
+
+                container.querySelectorAll('.save-menu-category-btn').forEach(btn => {
+                    btn.addEventListener('click', async () => {
+                        const id = btn.dataset.id;
+                        const input = document.getElementById(`menu-category-name-${id}`);
+                        const msg = document.getElementById(`menu-category-msg-${id}`);
+                        const name = input.value.trim();
+                        if (!name) { msg.className='form-msg err'; msg.innerText='اكتب اسم التصنيف.'; return; }
+                        const restaurantSnap = await getDoc(doc(db, 'restaurants', id));
+                        if (!restaurantSnap.exists()) return;
+                        const current = getMenuCategoryList(restaurantSnap.data());
+                        if (current.some(c => c.key === name)) { msg.className='form-msg err'; msg.innerText='هذا التصنيف موجود مسبقاً.'; return; }
+                        msg.className='form-msg busy'; msg.innerText='جاري الحفظ...';
+                        try {
+                            const custom = Array.isArray(restaurantSnap.data().menuCategories) ? restaurantSnap.data().menuCategories : [];
+                            await updateDoc(doc(db, 'restaurants', id), { menuCategories: [...custom, name] });
+                            input.value='';
+                            document.getElementById(`menu-category-form-${id}`).classList.add('hidden');
+                            msg.className='form-msg ok'; msg.innerText='تمت إضافة التصنيف ✓';
+                            await loadMyRestaurant(currentUserEmail);
+                        } catch (error) { msg.className='form-msg err'; msg.innerText='خطأ: '+error.message; }
+                    });
+                });
+
                 // معالجة نموذج إضافة الصنف مع الوصف الجديد
                 container.querySelectorAll('[id^="add-item-form-"]').forEach(form => {
                     form.addEventListener('submit', async (e) => {
@@ -886,21 +1021,38 @@
                         const msg = document.getElementById(`item-message-${id}`);
                         const nameInput = document.getElementById(`item-name-${id}`);
                         const priceInput = document.getElementById(`item-price-${id}`);
+                        const discountInput = document.getElementById(`item-discount-${id}`);
                         const descInput = document.getElementById(`item-desc-${id}`);
                         const categoryInput = document.getElementById(`item-category-${id}`);
                         const imageInput = document.getElementById(`item-image-${id}`);
 
                         const name = nameInput.value.trim();
                         const price = parseFloat(priceInput.value);
+                        const discountPercent = parseFloat(discountInput.value || 0);
                         const description = descInput.value.trim();
                         const category = categoryInput.value;
                         const imageFile = imageInput.files[0];
 
-                        if (!name || isNaN(price)) return;
+                        if (!name || !Number.isFinite(price) || price < 0) return;
+                        if (!Number.isFinite(discountPercent) || discountPercent < 0 || discountPercent > 100) {
+                            msg.className = "form-msg err mt-2";
+                            msg.innerText = "الخصم لازم يكون بين 0% و100%.";
+                            return;
+                        }
                         if (!category) {
                             msg.className = "form-msg err mt-2";
                             msg.innerText = "لازم تختار تصنيف الصنف.";
                             return;
+                        }
+
+                        if (imageFile) {
+                            try {
+                                await enforceImageDimensions(imageFile, 800, 800, "صورة الصنف");
+                            } catch (error) {
+                                msg.className = "form-msg err mt-2";
+                                msg.innerText = error.message;
+                                return;
+                            }
                         }
 
                         msg.className = "form-msg busy mt-2";
@@ -917,14 +1069,18 @@
                                 restaurantId: id,
                                 name: name,
                                 price: price,
+                                discountPercent: discountPercent,
                                 description: description,
                                 category: category,
                                 imageUrl: imageUrl,
-                                createdAt: serverTimestamp()
+                                popular: false,
+                                createdAt: serverTimestamp(),
+                                updatedAt: serverTimestamp()
                             });
 
                             nameInput.value = "";
                             priceInput.value = "";
+                            discountInput.value = "0";
                             descInput.value = "";
                             categoryInput.value = "";
                             imageInput.value = "";
@@ -948,76 +1104,138 @@
             listEl.innerHTML = `<div class="empty-state flex items-center justify-center gap-2"><span class="spinner"></span> جاري التحميل...</div>`;
 
             try {
+                const restaurantSnap = await getDoc(doc(db, "restaurants", restaurantId));
+                const restaurantData = restaurantSnap.exists() ? restaurantSnap.data() : {};
+                const menuCategories = getMenuCategoryList(restaurantData);
                 const q = query(collection(db, "menuItems"), where("restaurantId", "==", restaurantId));
                 const querySnapshot = await getDocs(q);
 
                 if (querySnapshot.empty) {
-                    listEl.innerHTML = `<div class="empty-state">لا توجد أصناف مضافة بعد. ضيفي أول صنف من النموذج تحت.</div>`;
+                    listEl.innerHTML = `<div class="empty-state">لا توجد أصناف مضافة بعد. ضيف أول صنف من النموذج تحت.</div>`;
                     return;
                 }
 
                 listEl.innerHTML = "";
                 querySnapshot.forEach((itemDoc) => {
                     const item = itemDoc.data();
+                    const image = item.imageUrl || item.image || "";
                     listEl.innerHTML += `
-                        <div class="item-row">
-                            <div class="flex items-center gap-3 min-w-0">
-                                ${item.imageUrl ? `<img src="${item.imageUrl}" class="w-12 h-12 object-cover rounded-lg shrink-0">` : ''}
-                                <div class="min-w-0">
-                                    <h4 class="font-bold text-sm truncate" style="color: var(--ink);">${item.name} <span style="color: var(--ink-soft); font-weight: 500;">—</span> <span style="color: var(--saffron);">${item.price} د.أ</span></h4>
-                                    <p class="text-xs mb-1.5 truncate" style="color: var(--ink-soft);">${item.description || 'بدون وصف'}</p>
-                                    <div class="flex items-center gap-1.5 flex-wrap">
-                                        <select data-item-id="${itemDoc.id}" class="item-category-select text-[11px] font-medium rounded-full px-2 py-1" style="border: 1.5px solid var(--line); background: var(--panel); color: var(--ink);">
-                                            <option value="" ${!item.category ? 'selected' : ''}>بدون تصنيف</option>
-                                            ${CATEGORY_LIST.map(c => `<option value="${c.key}" ${item.category === c.key ? 'selected' : ''}>${c.icon} ${c.key}</option>`).join('')}
-                                        </select>
-                                        <button data-item-id="${itemDoc.id}" data-restaurant-id="${restaurantId}" class="save-item-category-btn text-[11px] font-semibold" style="color: var(--green);">حفظ التصنيف</button>
-                                        <span data-msg-for="${itemDoc.id}" class="text-[11px] font-semibold"></span>
+                        <div class="item-row block">
+                            <div class="flex items-start gap-3 min-w-0">
+                                ${image ? `<img src="${image}" class="w-16 h-16 object-cover rounded-xl shrink-0">` : `<div class="w-16 h-16 rounded-xl shrink-0 flex items-center justify-center" style="background:var(--sand);font-size:24px;">🍽️</div>`}
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <h4 class="font-bold text-sm" style="color: var(--ink);">${item.name || 'بدون اسم'}</h4>
+                                        ${item.popular ? `<span class="badge badge-live">🔥 الأكثر طلباً</span>` : ''}
+                                    </div>
+                                    <p class="text-xs mt-1" style="color: var(--ink-soft);">${item.description || 'بدون وصف'}</p>
+                                    <div class="mt-2 flex items-center gap-2 flex-wrap">
+                                        <strong style="color:var(--saffron);">${Number(item.price || 0).toFixed(2)} د.أ</strong>
+                                        ${Number(item.discountPercent || 0) > 0 ? `<span class="badge" style="background:var(--red-tint);color:var(--red);">خصم ${Number(item.discountPercent)}%</span>` : ''}
+                                        <span class="badge badge-cat">${(menuCategories.find(c => c.key === item.category)?.icon || '🍽️')} ${item.category || 'بدون تصنيف'}</span>
                                     </div>
                                 </div>
                             </div>
-                            <button data-item-id="${itemDoc.id}" data-restaurant-id="${restaurantId}" class="delete-item-btn btn btn-ghost btn-sm shrink-0" style="color: var(--red); padding: 8px;">${ICONS.trash}</button>
-                        </div>
-                    `;
+                            <div class="mt-3 flex gap-2 flex-wrap">
+                                <button data-item-id="${itemDoc.id}" data-restaurant-id="${restaurantId}" class="edit-item-btn btn btn-outline btn-sm">${ICONS.edit} تعديل</button>
+                                <button data-item-id="${itemDoc.id}" data-restaurant-id="${restaurantId}" class="delete-item-btn btn btn-ghost btn-sm" style="color: var(--red);">${ICONS.trash} حذف</button>
+                            </div>
+                            <div id="edit-item-${itemDoc.id}" class="hidden hairline mt-3 pt-3">
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div><label class="field-label">اسم الصنف</label><input id="edit-item-name-${itemDoc.id}" class="field" value="${(item.name || '').replace(/"/g,'&quot;')}"></div>
+                                    <div><label class="field-label">السعر (د.أ)</label><input id="edit-item-price-${itemDoc.id}" type="number" min="0" step="0.01" class="field" value="${item.price ?? ''}"></div>
+                                    <div><label class="field-label">الخصم (%)</label><input id="edit-item-discount-${itemDoc.id}" type="number" min="0" max="100" step="1" class="field" value="${item.discountPercent ?? 0}"></div>
+                                </div>
+                                <div class="mt-3"><label class="field-label">الوصف</label><textarea id="edit-item-desc-${itemDoc.id}" rows="2" class="field">${item.description || ''}</textarea></div>
+                                <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div><label class="field-label">التصنيف</label><select id="edit-item-category-${itemDoc.id}" class="field"><option value="">بدون تصنيف</option>${menuCategoryOptions(menuCategories, item.category || '')}</select></div>
+                                    <div>
+                                        <label class="field-label">صورة جديدة <span class="field-hint">المقاس الإجباري 800×800 فقط</span></label>
+                                        <input id="edit-item-image-${itemDoc.id}" type="file" accept="image/*" class="field-file">
+                                        ${image ? `<label class="mt-2 flex items-center gap-2 text-xs font-semibold cursor-pointer"><input id="edit-item-remove-image-${itemDoc.id}" type="checkbox"> حذف الصورة الحالية</label>` : ''}
+                                    </div>
+                                </div>
+                                <label class="mt-3 flex items-center gap-2 text-sm font-semibold cursor-pointer"><input id="edit-item-popular-${itemDoc.id}" type="checkbox" ${item.popular ? 'checked' : ''}> 🔥 عرض ضمن «الأكثر طلباً»</label>
+                                <div class="flex gap-2 mt-3 flex-wrap">
+                                    <button type="button" data-item-id="${itemDoc.id}" data-restaurant-id="${restaurantId}" class="save-item-btn btn btn-primary btn-sm">حفظ التعديل</button>
+                                    <button type="button" data-item-id="${itemDoc.id}" class="cancel-item-btn btn btn-ghost btn-sm">إلغاء</button>
+                                    <span id="edit-item-msg-${itemDoc.id}" class="form-msg"></span>
+                                </div>
+                            </div>
+                        </div>`;
                 });
 
-                listEl.querySelectorAll('.save-item-category-btn').forEach(btn => {
+                listEl.querySelectorAll('.edit-item-btn').forEach(btn => btn.addEventListener('click', () => {
+                    document.getElementById(`edit-item-${btn.dataset.itemId}`).classList.toggle('hidden');
+                }));
+                listEl.querySelectorAll('.cancel-item-btn').forEach(btn => btn.addEventListener('click', () => {
+                    document.getElementById(`edit-item-${btn.dataset.itemId}`).classList.add('hidden');
+                }));
+
+                listEl.querySelectorAll('.save-item-btn').forEach(btn => {
                     btn.addEventListener('click', async () => {
                         const itemId = btn.dataset.itemId;
-                        const select = listEl.querySelector(`.item-category-select[data-item-id="${itemId}"]`);
-                        const msgEl = listEl.querySelector(`[data-msg-for="${itemId}"]`);
-                        const newCategory = select.value;
-                        if (!newCategory) {
-                            msgEl.className = "form-msg err text-[11px]";
-                            msgEl.innerText = "اختر تصنيف أولاً";
-                            return;
+                        const msg = document.getElementById(`edit-item-msg-${itemId}`);
+                        const name = document.getElementById(`edit-item-name-${itemId}`).value.trim();
+                        const price = parseFloat(document.getElementById(`edit-item-price-${itemId}`).value);
+                        const discountPercent = parseFloat(document.getElementById(`edit-item-discount-${itemId}`).value || 0);
+                        const description = document.getElementById(`edit-item-desc-${itemId}`).value.trim();
+                        const category = document.getElementById(`edit-item-category-${itemId}`).value;
+                        const imageFile = document.getElementById(`edit-item-image-${itemId}`).files[0];
+                        const removeImageEl = document.getElementById(`edit-item-remove-image-${itemId}`);
+                        const removeImage = !!removeImageEl?.checked;
+                        const popular = document.getElementById(`edit-item-popular-${itemId}`).checked;
+                        if (!name || !Number.isFinite(price) || price < 0) { msg.className='form-msg err'; msg.innerText='أدخل اسم وسعر صحيح.'; return; }
+                        if (!Number.isFinite(discountPercent) || discountPercent < 0 || discountPercent > 100) { msg.className='form-msg err'; msg.innerText='الخصم لازم يكون بين 0% و100%.'; return; }
+                        if (imageFile && removeImage) { msg.className='form-msg err'; msg.innerText='اختاري تغيير الصورة أو حذفها، وليس الاثنين معاً.'; return; }
+                        if (imageFile) {
+                            try { await enforceImageDimensions(imageFile, 800, 800, 'صورة الصنف'); }
+                            catch (error) { msg.className='form-msg err'; msg.innerText=error.message; return; }
                         }
-                        msgEl.className = "form-msg busy text-[11px]";
-                        msgEl.innerText = "جاري الحفظ...";
+                        msg.className='form-msg busy'; msg.innerText='جاري الحفظ...'; btn.disabled=true;
                         try {
-                            await updateDoc(doc(db, "menuItems", itemId), { category: newCategory });
-                            msgEl.className = "form-msg ok text-[11px]";
-                            msgEl.innerText = "تم ✓";
-                        } catch (error) {
-                            msgEl.className = "form-msg err text-[11px]";
-                            msgEl.innerText = "خطأ: " + error.message;
-                        }
+                            const updateData = { name, price, discountPercent, description, category, popular, updatedAt: serverTimestamp() };
+                            if (imageFile) updateData.imageUrl = await uploadToImgbb(imageFile);
+                            if (removeImage) updateData.imageUrl = "";
+                            await updateDoc(doc(db, 'menuItems', itemId), updateData);
+                            msg.className='form-msg ok'; msg.innerText='تم الحفظ ✓';
+                            await loadMenuItems(restaurantId);
+                        } catch (error) { msg.className='form-msg err'; msg.innerText='خطأ: '+error.message; btn.disabled=false; }
                     });
                 });
 
                 listEl.querySelectorAll('.delete-item-btn').forEach(btn => {
                     btn.addEventListener('click', async () => {
+                        if (!confirm('هل تريد حذف هذا الصنف نهائياً من المنيو؟')) return;
                         try {
                             await deleteDoc(doc(db, "menuItems", btn.dataset.itemId));
                             await loadMenuItems(btn.dataset.restaurantId);
-                        } catch (error) {
-                            console.error("خطأ في حذف الصنف:", error);
-                        }
+                        } catch (error) { console.error("خطأ في حذف الصنف:", error); alert('تعذر حذف الصنف: ' + error.message); }
                     });
                 });
             } catch (error) {
                 listEl.innerHTML = `<p class="form-msg err">خطأ بتحميل الأصناف: ${error.message}</p>`;
             }
+        }
+
+        function renderMenuCategoryManager(restaurantId, data) {
+            const box = document.getElementById(`menu-categories-${restaurantId}`);
+            if (!box) return;
+            const custom = Array.isArray(data.menuCategories) ? data.menuCategories : [];
+            const customNames = custom.map(c => typeof c === 'string' ? c : c.key).filter(Boolean);
+            box.innerHTML = customNames.length
+                ? customNames.map(name => `<span class="badge badge-cat">${name}<button type="button" data-category="${name.replace(/"/g,'&quot;')}" data-id="${restaurantId}" class="delete-menu-category-btn" style="border:0;background:none;color:var(--red);cursor:pointer;font-weight:800;">×</button></span>`).join('')
+                : `<span class="text-xs" style="color:var(--ink-soft);">لا توجد تصنيفات خاصة بعد. التصنيفات الأساسية متاحة تلقائياً.</span>`;
+            box.querySelectorAll('.delete-menu-category-btn').forEach(btn => btn.addEventListener('click', async () => {
+                const name = btn.dataset.category;
+                if (!confirm(`حذف التصنيف «${name}»؟ الأصناف الموجودة عليه ستبقى، لكن ستظهر كتصنيف غير موجود ضمن الفلاتر حتى تغيّر تصنيفها.`)) return;
+                try {
+                    const snap = await getDoc(doc(db,'restaurants',restaurantId));
+                    const current = Array.isArray(snap.data()?.menuCategories) ? snap.data().menuCategories : [];
+                    await updateDoc(doc(db,'restaurants',restaurantId), { menuCategories: current.filter(c => (typeof c === 'string' ? c : c.key) !== name) });
+                    await loadMyRestaurant(currentUserEmail);
+                } catch(error) { alert('تعذر حذف التصنيف: ' + error.message); }
+            }));
         }
 
         window.logout = function() {
