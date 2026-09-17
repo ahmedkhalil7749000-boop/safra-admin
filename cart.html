@@ -47,10 +47,7 @@
                 <span>مجموع الأصناف</span>
                 <span id="grand-subtotal">0.00 د.أ</span>
             </div>
-            <div class="flex justify-between text-sm text-gray-600 mb-1">
-                <span id="delivery-fee-label">رسوم التوصيل</span>
-                <span id="grand-delivery-fee">0.00 د.أ</span>
-            </div>
+            <p class="text-xs text-gray-500 mb-1">🏠 استلام ذاتي من المطعم — بدون رسوم توصيل</p>
             <div class="flex justify-between font-bold text-gray-800 mt-2 pt-2 border-t">
                 <span>الإجمالي الكلي</span>
                 <span id="grand-total">0.00 د.أ</span>
@@ -67,8 +64,6 @@
         import { db } from "./firebase-config.js";
         import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { getCart, saveCart, groupCartByRestaurant } from "./cart-service.js";
-
-        const DELIVERY_FEE = 1.5; // رسوم توصيل لكل طلب/مطعم لحاله
 
         const groupsEl = document.getElementById('cart-groups');
         const emptyEl = document.getElementById('empty-cart');
@@ -104,8 +99,6 @@
 
             const groups = groupCartByRestaurant(cart);
             multiHintEl.classList.toggle('hidden', groups.length <= 1);
-            document.getElementById('delivery-fee-label').innerText =
-                groups.length > 1 ? `رسوم التوصيل (${groups.length} طلبات)` : "رسوم التوصيل";
 
             let grandSubtotal = 0;
 
@@ -173,12 +166,8 @@
                 groupsEl.appendChild(groupBox);
             }
 
-            const totalDeliveryFee = groups.length * DELIVERY_FEE;
-            const grandTotal = grandSubtotal + totalDeliveryFee;
-
             document.getElementById('grand-subtotal').innerText = grandSubtotal.toFixed(2) + " د.أ";
-            document.getElementById('grand-delivery-fee').innerText = totalDeliveryFee.toFixed(2) + " د.أ";
-            document.getElementById('grand-total').innerText = grandTotal.toFixed(2) + " د.أ";
+            document.getElementById('grand-total').innerText = grandSubtotal.toFixed(2) + " د.أ";
         }
 
         render();

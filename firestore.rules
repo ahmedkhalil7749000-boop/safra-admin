@@ -16,15 +16,6 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email == "ahmedkhalil7749000@gmail.com";
     }
 
-    // هل هو حساب كابتن توصيل مسجّل بهالدور فعلاً بوثيقة users تبعه؟
-    // (إصلاح: الكود الفعلي بكل الصفحات — captain-auth.html وdriver-dashboard.html —
-    // يخزّن role: "captain"، بينما هاي الدالة كانت تتحقق من role == "driver"،
-    // فكانت قواعد الطلبات تحت لا تتعرف على أي كابتن أبدًا.)
-    function isCaptain() {
-      return isSignedIn()
-             && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "captain";
-    }
-
     // =====================================================
     //                  users/{userId}
     // =====================================================
@@ -34,7 +25,7 @@ service cloud.firestore {
 
       // الإنشاء وقت التسجيل: بس صاحب الحساب نفسه، وبشرط تكون قيمة role صحيحة ومسموحة
       allow create: if isSignedIn() && request.auth.uid == userId
-                    && request.resource.data.role in ["customer", "restaurant_owner", "captain"];
+                    && request.resource.data.role in ["customer", "restaurant_owner"];
 
       // التعديل: بس صاحب الحساب، وممنوع يغيّر حقل role بنفسه (حماية من ترقية صلاحياته).
       // استثناء: لو الوثيقة أصلاً ناقصها role (حساب قديم أو غير مكتمل)، مسموح
@@ -45,7 +36,7 @@ service cloud.firestore {
       allow update: if (isSignedIn() && request.auth.uid == userId
                     && (request.resource.data.role == resource.data.role
                         || (!('role' in resource.data)
-                            && request.resource.data.role in ["customer", "restaurant_owner", "captain"])))
+                            && request.resource.data.role in ["customer", "restaurant_owner"])))
                     || isAdmin();
 
       // الحذف: غير مسموح من الواجهة إطلاقاً (فقط عبر Firebase Console يدويًا)
@@ -215,40 +206,21 @@ service cloud.firestore {
       allow create: if isSignedIn()
                     && (request.resource.data.customerId == request.auth.uid || request.resource.data.userId == request.auth.uid);
 
-      // القراءة: الأدمن، أو الزبون صاحب الطلب (بأي من الحقلين)، أو صاحب المطعم المرتبط بالطلب،
-      // أو كابتن التوصيل — إما طلب هو مكلّف فيه فعلاً، أو طلب متاح للاستلام
-      // (بانتظار سائق، ولسا ما في كابتن التزم فيه).
+      // القراءة: الأدمن، أو الزبون صاحب الطلب (بأي من الحقلين)، أو صاحب المطعم المرتبط بالطلب
       allow read: if isAdmin()
                   || (isSignedIn() && (resource.data.customerId == request.auth.uid || resource.data.userId == request.auth.uid))
                   || (isSignedIn()
-                      && get(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)).data.ownerEmail == request.auth.token.email)
-                  || (isCaptain()
-                      && (resource.data.driverId == request.auth.uid
-                          || (resource.data.status == "تم الشحن"
-                              && resource.data.deliveryMethod == "driver"
-                              && resource.data.driverId == null)));
+                      && get(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)).data.ownerEmail == request.auth.token.email);
 
       // التعديل: الأدمن يقدر يعدّل أي شيء بالطلب.
       // إصلاح: صاحب المطعم كان مسموح له يعدّل أي حقل بالطلب (حتى السعر وبيانات الزبون!).
-      // الآن مقيّد فقط بتحديث حالة الطلب، سبب الرفض، طريقة التسليم (سائق/استلام
-      // ذاتي)، ووقت التسليم المتوقع، وتصفير driverId لما يفتح الطلب لكباتن التوصيل.
+      // الآن مقيّد فقط بتحديث حالة الطلب، سبب الرفض، طريقة الاستلام (استلام ذاتي دائماً)
+      // ووقت التسليم المتوقع.
       allow update: if isAdmin()
                   || (isSignedIn()
                       && get(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)).data.ownerEmail == request.auth.token.email
                       && request.resource.data.diff(resource.data).affectedKeys()
-                            .hasOnly(['status', 'rejectionReason', 'deliveryMethod', 'estimatedDeliveryTime', 'scheduleNotified', 'driverId', 'updatedAt']))
-                  // كابتن توصيل يستلم طلب متاح لأول مرة (لسا ما في كابتن ملتزم فيه)
-                  || (isCaptain()
-                      && resource.data.status == "تم الشحن"
-                      && resource.data.deliveryMethod == "driver"
-                      && resource.data.driverId == null
-                      && request.resource.data.driverId == request.auth.uid
-                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['driverId', 'claimedAt', 'updatedAt']))
-                  // كابتن توصيل يأكّد تسليم طلب هو مكلّف فيه فعلاً
-                  || (isCaptain()
-                      && resource.data.driverId == request.auth.uid
-                      && request.resource.data.status == "تم التسليم"
-                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'deliveredAt', 'updatedAt']));
+                            .hasOnly(['status', 'rejectionReason', 'deliveryMethod', 'estimatedDeliveryTime', 'scheduleNotified', 'updatedAt']));
 
       // الحذف: الأدمن فقط
       allow delete: if isAdmin();

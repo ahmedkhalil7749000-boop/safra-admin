@@ -124,6 +124,14 @@
             return `<span class="px-2 py-0.5 rounded-full text-[11px] font-bold ${map[t] || 'bg-gray-100 text-gray-700'}">${t}</span>`;
         }
 
+        function subTargetId(s) {
+            return s.restaurantId || "";
+        }
+
+        function subTitle(s) {
+            return s.restaurantName || "مطعم";
+        }
+
         window.setSubTypeFilter = function(type) {
             activeSubTypeFilter = type;
             document.querySelectorAll('.sub-type-filter-btn').forEach(b => {
@@ -171,7 +179,7 @@
                     } else if (s.status === "نشط") {
                         actions = `
                             <span class="text-xs text-gray-500">حتى ${end ? fmtDate(end) : '-'}</span>
-                            <button data-id="${id}" data-rid="${s.restaurantId}" data-type="${s.type || 'أساسي'}" class="act-end bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-300">⛔ إنهاء الاشتراك</button>`;
+                            <button data-id="${id}" data-rid="${subTargetId(s)}" data-type="${s.type || 'أساسي'}" class="act-end bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-300">⛔ إنهاء الاشتراك</button>`;
                     } else {
                         actions = `<button data-id="${id}" class="act-delete text-gray-400 hover:text-red-500 text-xs">حذف السجل</button>`;
                     }
@@ -182,7 +190,7 @@
                         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div class="flex-1">
                                 <div class="flex items-center gap-2 mb-1 flex-wrap">
-                                    <h3 class="font-bold text-gray-800">${s.restaurantName || 'مطعم'}</h3>
+                                    <h3 class="font-bold text-gray-800">${subTitle(s)}</h3>
                                     ${typeBadge(s.type)}
                                     ${statusBadge(s.status)}
                                 </div>
@@ -242,8 +250,9 @@
                     activatedAt: serverTimestamp()
                 });
 
+                const targetId = subTargetId(s);
                 const { statusField, endDateField } = restaurantFieldsForType(s.type);
-                await updateDoc(doc(db, "restaurants", s.restaurantId), {
+                await updateDoc(doc(db, "restaurants", targetId), {
                     [statusField]: "نشط",
                     [endDateField]: Timestamp.fromDate(end)
                 });
@@ -283,12 +292,12 @@
             }
         }
 
-        async function endSubscription(subId, restaurantId, type) {
+        async function endSubscription(subId, targetId, type) {
             if (!confirm("متأكد إنك بدك تنهي هالاشتراك يدويًا؟")) return;
             try {
                 await updateDoc(doc(db, "subscriptions", subId), { status: "منتهي" });
                 const { statusField } = restaurantFieldsForType(type);
-                await updateDoc(doc(db, "restaurants", restaurantId), { [statusField]: "منتهي" });
+                await updateDoc(doc(db, "restaurants", targetId), { [statusField]: "منتهي" });
                 await loadSubscriptions();
             } catch (error) {
                 alert("خطأ أثناء الإنهاء: " + error.message);
@@ -442,7 +451,7 @@
                             <td class="py-3 px-4 font-medium text-gray-800">${data.address || 'العنوان غير متوفر'}</td>
                             <td class="py-3 px-4 text-gray-600">${itemsText}</td>
                             <td class="py-3 px-4">
-                                <span class="bg-safra-green/10 text-safra-green px-3 py-1 rounded-full text-xs font-semibold">رسوم: ${data.deliveryFee || 0}</span>
+                                <span class="bg-safra-green/10 text-safra-green px-3 py-1 rounded-full text-xs font-semibold">${(data.total || data.subtotal || 0)} د.أ</span>
                             </td>
                             <td class="py-3 px-4">
                                 <span class="text-xs text-gray-400 font-mono">${documentSnap.id.substring(0, 8)}...</span>
@@ -492,7 +501,6 @@
                             <select data-uid="${uid}" class="role-select text-xs border rounded-lg px-2 py-1.5">
                                 <option value="customer" ${currentRole === 'customer' ? 'selected' : ''}>زبون</option>
                                 <option value="restaurant_owner" ${currentRole === 'restaurant_owner' ? 'selected' : ''}>صاحب مطعم</option>
-                                <option value="captain" ${currentRole === 'captain' ? 'selected' : ''}>كابتن توصيل</option>
                                 <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>أدمن</option>
                             </select>
                             <button data-uid="${uid}" class="act-save-role bg-safra-gold text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-safra-gold-dark transition">حفظ</button>
@@ -812,7 +820,7 @@
                                 <tr class="border-b border-gray-200 text-gray-500 text-sm">
                                     <th class="py-3 px-4 font-semibold">العنوان</th>
                                     <th class="py-3 px-4 font-semibold">الأصناف والوجبات</th>
-                                    <th class="py-3 px-4 font-semibold">التوصيل</th>
+                                    <th class="py-3 px-4 font-semibold">الإجمالي</th>
                                     <th class="py-3 px-4 font-semibold">معرف الطلب</th>
                                 </tr>
                             </thead>

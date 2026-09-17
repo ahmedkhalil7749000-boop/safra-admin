@@ -198,6 +198,17 @@
         // ==== رفع الصور عبر imgbb بدل Firebase Storage (لتفادي الاشتراك المدفوع) ====
         const IMGBB_API_KEY = "7dfc52facabaef7d38eddf1c83976c5d";
 
+        // بيرجع مقاس صورة (عرض وطول بالبكسل) من ملف قبل رفعها، للتحقق من المقاس المطلوب
+        function readImageDimensions(file) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                const url = URL.createObjectURL(file);
+                img.onload = () => { URL.revokeObjectURL(url); resolve({ width: img.naturalWidth, height: img.naturalHeight }); };
+                img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("تعذر قراءة الصورة")); };
+                img.src = url;
+            });
+        }
+
         async function uploadToImgbb(file) {
             const formData = new FormData();
             formData.append("image", file);
@@ -215,6 +226,18 @@
         // ==== رفع الفيديوهات عبر Cloudinary (Unsigned Upload Preset) ====
         const CLOUDINARY_CLOUD_NAME = "a81hyco5";
         const CLOUDINARY_VIDEO_PRESET = "safra_videos";
+
+        // بيرجع مقاس فيديو (عرض وطول بالبكسل) من ملف قبل رفعه، للتحقق من المقاس المطلوب
+        function readVideoDimensions(file) {
+            return new Promise((resolve, reject) => {
+                const video = document.createElement('video');
+                const url = URL.createObjectURL(file);
+                video.preload = 'metadata';
+                video.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve({ width: video.videoWidth, height: video.videoHeight }); };
+                video.onerror = () => { URL.revokeObjectURL(url); reject(new Error("تعذر قراءة الفيديو")); };
+                video.src = url;
+            });
+        }
 
         async function uploadToCloudinary(file) {
             const formData = new FormData();
@@ -286,7 +309,7 @@
                 <div class="mb-3">${contentStatusBadge(data.bannerStatus)}</div>
                 ${data.bannerStatus === 'مرفوض' && data.bannerRejectReason ? `<p class="text-xs mb-2" style="color: var(--red);">سبب الرفض: ${data.bannerRejectReason}</p>` : ''}
                 <form id="banner-form-${restaurantId}" class="space-y-2">
-                    <label class="field-label">${data.bannerUrl ? 'تغيير صورة البانر' : 'رفع صورة البانر'} <span class="field-hint">(مقاس أفقي عريض يُفضّل، مثلاً 1200×500)</span></label>
+                    <label class="field-label">${data.bannerUrl ? 'تغيير صورة البانر' : 'رفع صورة البانر'} <span class="field-hint">(المقاس المطلوب بالضبط: 1600×800 بكسل)</span></label>
                     <input type="file" id="banner-file-${restaurantId}" accept="image/*" required class="field-file">
                     <button type="submit" class="btn btn-primary btn-sm">رفع البانر لمراجعة الأدمن</button>
                     <p id="banner-msg-${restaurantId}" class="form-msg"></p>
@@ -303,7 +326,7 @@
                 <div class="mb-3">${contentStatusBadge(data.videoStatus)}</div>
                 ${data.videoStatus === 'مرفوض' && data.videoRejectReason ? `<p class="text-xs mb-2" style="color: var(--red);">سبب الرفض: ${data.videoRejectReason}</p>` : ''}
                 <form id="video-form-${restaurantId}" class="space-y-2">
-                    <label class="field-label">${data.videoUrl ? 'تغيير فيديو المطعم' : 'رفع فيديو المطعم'} <span class="field-hint">(ملف فيديو من جهازك، مثلاً MP4)</span></label>
+                    <label class="field-label">${data.videoUrl ? 'تغيير فيديو المطعم' : 'رفع فيديو المطعم'} <span class="field-hint">(فيديو عمودي، المقاس المطلوب بالضبط: 1080×1920 بكسل، مثلاً MP4)</span></label>
                     ${data.videoUrl ? `<video src="${data.videoUrl}" class="w-full rounded-xl mb-2" style="max-height:180px;" controls></video>` : ''}
                     <input type="file" id="video-file-${restaurantId}" accept="video/*" ${data.videoUrl ? '' : 'required'} class="field-file">
                     <button type="submit" class="btn btn-primary btn-sm">إرسال الفيديو لمراجعة الأدمن</button>
@@ -338,6 +361,22 @@
                     const msg = document.getElementById(`banner-msg-${restaurantId}`);
                     const file = document.getElementById(`banner-file-${restaurantId}`).files[0];
                     if (!file) return;
+
+                    // التحقق من مقاس الصورة قبل الرفع: لازم يكون بالضبط 1600×800 بكسل
+                    const BANNER_W = 1600, BANNER_H = 800;
+                    try {
+                        const dims = await readImageDimensions(file);
+                        if (dims.width !== BANNER_W || dims.height !== BANNER_H) {
+                            msg.className = "form-msg err";
+                            msg.innerText = `مقاس الصورة لازم يكون بالضبط ${BANNER_W}×${BANNER_H} بكسل. مقاس الصورة يلي اخترتها: ${dims.width}×${dims.height}.`;
+                            return;
+                        }
+                    } catch (error) {
+                        msg.className = "form-msg err";
+                        msg.innerText = "تعذر قراءة الصورة، جرب ملف صورة تاني.";
+                        return;
+                    }
+
                     msg.className = "form-msg busy";
                     msg.innerText = "جاري رفع البانر...";
                     try {
@@ -365,6 +404,22 @@
                     const msg = document.getElementById(`video-msg-${restaurantId}`);
                     const file = document.getElementById(`video-file-${restaurantId}`).files[0];
                     if (!file) return;
+
+                    // التحقق من مقاس الفيديو قبل الرفع: لازم يكون بالضبط 1080×1920 بكسل (عمودي، ستاندرد ريلز)
+                    const VIDEO_W = 1080, VIDEO_H = 1920;
+                    try {
+                        const dims = await readVideoDimensions(file);
+                        if (dims.width !== VIDEO_W || dims.height !== VIDEO_H) {
+                            msg.className = "form-msg err";
+                            msg.innerText = `مقاس الفيديو لازم يكون بالضبط ${VIDEO_W}×${VIDEO_H} بكسل (عمودي). مقاس الفيديو يلي اخترتيه: ${dims.width}×${dims.height}.`;
+                            return;
+                        }
+                    } catch (error) {
+                        msg.className = "form-msg err";
+                        msg.innerText = "تعذر قراءة الفيديو، جرب ملف فيديو تاني.";
+                        return;
+                    }
+
                     msg.className = "form-msg busy";
                     msg.innerText = "جاري رفع الفيديو...";
                     try {

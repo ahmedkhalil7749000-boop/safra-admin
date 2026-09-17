@@ -431,8 +431,6 @@
                         <p>${r.description || ''}</p>
                         <div class="feature-meta">
                             <span class="rating-item"><i class="fa-solid fa-star"></i> ${r.rating ?? 0}</span>
-                            <span><i class="fa-regular fa-clock"></i> ${r.deliveryTimeMinutes ?? '-'} د</span>
-                            <span><i class="fa-solid fa-truck-fast"></i> ${r.deliveryFee ?? '-'} د.أ</span>
                         </div>
                     </div>
                 </div>
@@ -479,8 +477,6 @@
                             <span class="rating-item ${hasReviews ? '' : 'is-new'}">
                                 <i class="fa-solid fa-star"></i> ${hasReviews ? (r.rating ?? 0) : 'جديد'}
                             </span>
-                            <span><i class="fa-regular fa-clock"></i> ${r.deliveryTimeMinutes ?? '-'} د</span>
-                            <span><i class="fa-solid fa-truck-fast"></i> ${r.deliveryFee ?? '-'} د.أ</span>
                         </div>
                     </div>
                 </div>
