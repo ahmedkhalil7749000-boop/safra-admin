@@ -113,6 +113,38 @@
         const SUB_TYPES = ["أساسي", "بانر", "فيديو"];
         let activeSubTypeFilter = "الكل";
 
+        // ===== عد تنازلي حي لكل اشتراك نشط (كم باقي على انتهاء الاشتراك) =====
+        let subCountdownInterval = null;
+
+        function formatSubCountdown(remainingMs) {
+            if (remainingMs === null || isNaN(remainingMs)) return '-';
+            if (remainingMs <= 0) return 'انتهت المدة';
+            const days = Math.floor(remainingMs / (1000 * 60 * 60 * 24));
+            const hours = Math.floor((remainingMs / (1000 * 60 * 60)) % 24);
+            const minutes = Math.floor((remainingMs / (1000 * 60)) % 60);
+            if (days > 0) return `باقي ${days} يوم و ${hours} ساعة`;
+            if (hours > 0) return `باقي ${hours} ساعة و ${minutes} دقيقة`;
+            return `باقي ${minutes} دقيقة`;
+        }
+
+        function updateSubCountdowns() {
+            document.querySelectorAll('.sub-countdown').forEach(el => {
+                const endMs = parseInt(el.dataset.end, 10);
+                const remaining = endMs ? endMs - Date.now() : null;
+                el.textContent = formatSubCountdown(remaining);
+                el.classList.toggle('text-red-600', remaining !== null && remaining > 0 && remaining <= 3 * 24 * 60 * 60 * 1000);
+                el.classList.toggle('text-safra-green', remaining !== null && remaining > 3 * 24 * 60 * 60 * 1000);
+                el.classList.toggle('text-gray-400', remaining !== null && remaining <= 0);
+            });
+        }
+
+        function ensureSubCountdownTicker() {
+            updateSubCountdowns();
+            if (!subCountdownInterval) {
+                subCountdownInterval = setInterval(updateSubCountdowns, 60000); // تحديث كل دقيقة، كافي لعرض الأيام/الساعات
+            }
+        }
+
         function typeBadge(type) {
             const t = type || "أساسي";
             const map = { "أساسي": "bg-gray-100 text-gray-700", "بانر": "bg-purple-100 text-purple-700", "فيديو": "bg-pink-100 text-pink-700" };
@@ -173,7 +205,10 @@
                             <button data-id="${id}" class="act-reject bg-red-100 text-red-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-red-200">❌ رفض</button>`;
                     } else if (s.status === "نشط") {
                         actions = `
-                            <span class="text-xs text-gray-500">حتى ${end ? fmtDate(end) : '-'}</span>
+                            <div class="flex flex-col items-start sm:items-end gap-0.5">
+                                <span class="text-[11px] text-gray-400">حتى ${end ? fmtDate(end) : '-'}</span>
+                                <span class="sub-countdown text-xs font-bold" data-end="${end ? end.getTime() : ''}">-</span>
+                            </div>
                             <button data-id="${id}" data-rid="${subTargetId(s)}" data-type="${s.type || 'أساسي'}" class="act-end bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-300">⛔ إنهاء الاشتراك</button>`;
                     } else {
                         actions = `<button data-id="${id}" class="act-delete text-gray-400 hover:text-red-500 text-xs">حذف السجل</button>`;
@@ -209,6 +244,8 @@
                 box.querySelectorAll('.act-reject').forEach(btn => btn.addEventListener('click', () => rejectSubscription(btn.dataset.id)));
                 box.querySelectorAll('.act-end').forEach(btn => btn.addEventListener('click', () => endSubscription(btn.dataset.id, btn.dataset.rid, btn.dataset.type)));
                 box.querySelectorAll('.act-delete').forEach(btn => btn.addEventListener('click', () => deleteSubscriptionRecord(btn.dataset.id)));
+
+                ensureSubCountdownTicker();
             } catch (error) {
                 console.error("خطأ في جلب طلبات الاشتراك:", error);
                 box.innerHTML = `<p class="text-red-500 text-sm text-center py-4">تعذر تحميل طلبات الاشتراك: ${error.message}</p>`;
