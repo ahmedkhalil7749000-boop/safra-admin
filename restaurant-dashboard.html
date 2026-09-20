@@ -176,9 +176,10 @@
     <!-- تضمين فايربيس (Firebase v10.8.0) -->
     <script type="module">
         import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, serverTimestamp, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, serverTimestamp, orderBy, limit, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { initPushNotifications } from "./push-notifications.js";
         import { auth, db } from "./firebase-config.js";
+        import { CARE_AUDIENCES, CARE_TRAITS, CARE_COOK_NOTE, cleanCareTags } from "./care-tags.js";
 
         // تفعيل الإشعارات الفورية (Push) لصاحب المطعم (تنبيهات الطلبات المسبقة والجديدة)
         initPushNotifications();
@@ -211,6 +212,21 @@
 
         // تتحقق إجباريًا إنو مقاس الصورة يطابق المقاس المطلوب بالضبط، وترجع رسالة خطأ جاهزة بالعربي لو ما طابق
         // عشان نضمن تصميم حترافي وموحّد وما حدا يرفع صورة بأي مقاس ع كيفه
+        // مقاس صورة المطعم حسب النوع: الفود ترك صورته طولية (بطاقة عمودية بالصفحة الرئيسية)
+        function restaurantImageSpec(type) {
+            return type === 'foodtruck' ? { w: 800, h: 1200 } : { w: 800, h: 600 };
+        }
+        function restaurantImageHint(type) {
+            const s = restaurantImageSpec(type);
+            return `(اختياري — المقاس الإجباري ${s.w}×${s.h} بكسل${type === 'foodtruck' ? '، صورة طولية' : ''})`;
+        }
+        document.addEventListener('change', (e) => {
+            const sel = e.target.closest && e.target.closest('.rest-type-select');
+            if (!sel) return;
+            const hint = document.getElementById(sel.dataset.hint);
+            if (hint) hint.textContent = restaurantImageHint(sel.value);
+        });
+
         async function enforceImageDimensions(file, requiredWidth, requiredHeight, label) {
             const dims = await readImageDimensions(file);
             if (dims.width !== requiredWidth || dims.height !== requiredHeight) {
@@ -242,7 +258,7 @@
                 const video = document.createElement('video');
                 const url = URL.createObjectURL(file);
                 video.preload = 'metadata';
-                video.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve({ width: video.videoWidth, height: video.videoHeight }); };
+                video.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve({ width: video.videoWidth, height: video.videoHeight, duration: video.duration }); };
                 video.onerror = () => { URL.revokeObjectURL(url); reject(new Error("تعذر قراءة الفيديو")); };
                 video.src = url;
             });
@@ -323,18 +339,19 @@
         }
 
         // يبني قسم "الترويج" (البانر والفيديو) لمطعم معيّن حسب بياناته الحالية
-        function renderPromoSection(restaurantId, data) {
-            const bannerActive = isPromoActive(data, 'bannerSubscriptionStatus', 'bannerSubscriptionEndDate');
-            const videoActive = isPromoActive(data, 'videoSubscriptionStatus', 'videoSubscriptionEndDate');
+        function renderPromoSection(restaurantId, data, isAdminMode = false) {
+            // الأدمن يقدر يرفع/يغيّر البانر والفيديو لأي مطعم مباشرة، بغض النظر عن حالة اشتراكه
+            const bannerActive = isAdminMode || isPromoActive(data, 'bannerSubscriptionStatus', 'bannerSubscriptionEndDate');
+            const videoActive = isAdminMode || isPromoActive(data, 'videoSubscriptionStatus', 'videoSubscriptionEndDate');
 
             const bannerBlock = bannerActive ? `
                 ${data.bannerUrl ? `<img src="${data.bannerUrl}" class="w-full h-28 object-cover rounded-xl mb-3 border" style="border-color: var(--line);">` : ''}
-                <div class="mb-3">${contentStatusBadge(data.bannerStatus)}</div>
-                ${data.bannerStatus === 'مرفوض' && data.bannerRejectReason ? `<p class="text-xs mb-2" style="color: var(--red);">سبب الرفض: ${data.bannerRejectReason}</p>` : ''}
+                <div class="mb-3">${isAdminMode ? contentStatusBadge('معتمد') : contentStatusBadge(data.bannerStatus)}</div>
+                ${!isAdminMode && data.bannerStatus === 'مرفوض' && data.bannerRejectReason ? `<p class="text-xs mb-2" style="color: var(--red);">سبب الرفض: ${data.bannerRejectReason}</p>` : ''}
                 <form id="banner-form-${restaurantId}" class="space-y-2">
                     <label class="field-label">${data.bannerUrl ? 'تغيير صورة البانر' : 'رفع صورة البانر'} <span class="field-hint">(إجباري: المقاس المطلوب بالضبط 1600×700 بكسل — المقاسات المناسبة بس بتنقبل عشان يضل التصميم حترافي)</span></label>
                     <input type="file" id="banner-file-${restaurantId}" accept="image/*" required class="field-file">
-                    <button type="submit" class="btn btn-primary btn-sm">رفع البانر لمراجعة الأدمن</button>
+                    <button type="submit" class="btn btn-primary btn-sm">${isAdminMode ? (data.bannerUrl ? '📣 تحديث وتفعيل البانر فورًا' : '📣 رفع وتفعيل البانر فورًا') : 'رفع البانر لمراجعة الأدمن'}</button>
                     <p id="banner-msg-${restaurantId}" class="form-msg"></p>
                 </form>
             ` : `
@@ -346,13 +363,18 @@
             `;
 
             const videoBlock = videoActive ? `
-                <div class="mb-3">${contentStatusBadge(data.videoStatus)}</div>
-                ${data.videoStatus === 'مرفوض' && data.videoRejectReason ? `<p class="text-xs mb-2" style="color: var(--red);">سبب الرفض: ${data.videoRejectReason}</p>` : ''}
+                <div class="mb-3">${isAdminMode ? contentStatusBadge('معتمد') : contentStatusBadge(data.videoStatus)}</div>
+                ${!isAdminMode && data.videoStatus === 'مرفوض' && data.videoRejectReason ? `<p class="text-xs mb-2" style="color: var(--red);">سبب الرفض: ${data.videoRejectReason}</p>` : ''}
                 <form id="video-form-${restaurantId}" class="space-y-2">
-                    <label class="field-label">${data.videoUrl ? 'تغيير فيديو المطعم' : 'رفع فيديو المطعم'} <span class="field-hint">(فيديو عمودي، المقاس المطلوب بالضبط: 1080×1920 بكسل، مثلاً MP4)</span></label>
+                    <label class="field-label">نوع الفيديو</label>
+                    <select id="video-orientation-${restaurantId}" class="field-file">
+                        <option value="portrait" ${data.videoOrientation !== 'landscape' ? 'selected' : ''}>ريلز — عمودي (1080×1920)</option>
+                        <option value="landscape" ${data.videoOrientation === 'landscape' ? 'selected' : ''}>يوتيوب — عريض (1920×1080)</option>
+                    </select>
+                    <label class="field-label">${data.videoUrl ? 'تغيير فيديو المطعم' : 'رفع فيديو المطعم'} <span class="field-hint" id="video-size-hint-${restaurantId}">(إجباري: مدة لا تتجاوز 30 ثانية، والمقاس المطلوب حسب النوع بالضبط)</span></label>
                     ${data.videoUrl ? `<video src="${data.videoUrl}" class="w-full rounded-xl mb-2" style="max-height:180px;" controls></video>` : ''}
                     <input type="file" id="video-file-${restaurantId}" accept="video/*" ${data.videoUrl ? '' : 'required'} class="field-file">
-                    <button type="submit" class="btn btn-primary btn-sm">إرسال الفيديو لمراجعة الأدمن</button>
+                    <button type="submit" class="btn btn-primary btn-sm">${isAdminMode ? '📣 رفع وتفعيل الفيديو فورًا' : 'إرسال الفيديو لمراجعة الأدمن'}</button>
                     <p id="video-msg-${restaurantId}" class="form-msg"></p>
                 </form>
             ` : `
@@ -376,7 +398,7 @@
         }
 
         // يربط أحداث نماذج رفع البانر/الفيديو بعد إدراجها بالـ DOM
-        function bindPromoHandlers(restaurantId) {
+        function bindPromoHandlers(restaurantId, isAdminMode = false) {
             const bannerForm = document.getElementById(`banner-form-${restaurantId}`);
             if (bannerForm) {
                 bannerForm.addEventListener('submit', async (e) => {
@@ -398,15 +420,16 @@
                     msg.innerText = "جاري رفع البانر...";
                     try {
                         const bannerUrl = await uploadToImgbb(file);
+                        // لما الأدمن يرفع البانر بنفسه، بيتفعّل فورًا كمعتمد بدون ما يمر بخطوة مراجعة إضافية
                         await updateDoc(doc(db, "restaurants", restaurantId), {
                             bannerUrl,
-                            bannerStatus: "قيد المراجعة",
+                            bannerStatus: isAdminMode ? "معتمد" : "قيد المراجعة",
                             bannerRejectReason: "",
                             bannerSubmittedAt: serverTimestamp()
                         });
                         msg.className = "form-msg ok";
-                        msg.innerText = "تم الرفع! بانتظار موافقة الأدمن.";
-                        await loadMyRestaurant(currentUserEmail);
+                        msg.innerText = isAdminMode ? "تم رفع البانر وتفعيله بنجاح ✓" : "تم الرفع! بانتظار موافقة الأدمن.";
+                        await refreshView();
                     } catch (error) {
                         msg.className = "form-msg err";
                         msg.innerText = "خطأ: " + error.message;
@@ -420,15 +443,25 @@
                     e.preventDefault();
                     const msg = document.getElementById(`video-msg-${restaurantId}`);
                     const file = document.getElementById(`video-file-${restaurantId}`).files[0];
+                    const orientation = document.getElementById(`video-orientation-${restaurantId}`).value;
                     if (!file) return;
 
-                    // التحقق من مقاس الفيديو قبل الرفع: لازم يكون بالضبط 1080×1920 بكسل (عمودي، ستاندرد ريلز)
-                    const VIDEO_W = 1080, VIDEO_H = 1920;
+                    // التحقق من مقاس الفيديو قبل الرفع: لازم يطابق النوع المختار (ريلز عمودي أو يوتيوب عريض)
+                    const VIDEO_SIZES = {
+                        portrait: { w: 1080, h: 1920, label: "عمودي" },
+                        landscape: { w: 1920, h: 1080, label: "عريض" }
+                    };
+                    const { w: VIDEO_W, h: VIDEO_H, label: VIDEO_LABEL } = VIDEO_SIZES[orientation];
                     try {
                         const dims = await readVideoDimensions(file);
+                        if (dims.duration > 30) {
+                            msg.className = "form-msg err";
+                            msg.innerText = `مدة الفيديو يجب ألا تتجاوز 30 ثانية. مدة الفيديو المختار: ${dims.duration.toFixed(2)} ثانية.`;
+                            return;
+                        }
                         if (dims.width !== VIDEO_W || dims.height !== VIDEO_H) {
                             msg.className = "form-msg err";
-                            msg.innerText = `مقاس الفيديو لازم يكون بالضبط ${VIDEO_W}×${VIDEO_H} بكسل (عمودي). مقاس الفيديو يلي اخترتيه: ${dims.width}×${dims.height}.`;
+                            msg.innerText = `مقاس الفيديو لازم يكون بالضبط ${VIDEO_W}×${VIDEO_H} بكسل (${VIDEO_LABEL}). مقاس الفيديو يلي اخترتيه: ${dims.width}×${dims.height}.`;
                             return;
                         }
                     } catch (error) {
@@ -441,15 +474,17 @@
                     msg.innerText = "جاري رفع الفيديو...";
                     try {
                         const videoUrl = await uploadToCloudinary(file);
+                        // لما الأدمن يرفع الفيديو بنفسه، بيتفعّل فورًا كمعتمد بدون ما يمر بخطوة مراجعة إضافية
                         await updateDoc(doc(db, "restaurants", restaurantId), {
                             videoUrl,
-                            videoStatus: "قيد المراجعة",
+                            videoOrientation: orientation,
+                            videoStatus: isAdminMode ? "معتمد" : "قيد المراجعة",
                             videoRejectReason: "",
                             videoSubmittedAt: serverTimestamp()
                         });
                         msg.className = "form-msg ok";
-                        msg.innerText = "تم الرفع! بانتظار موافقة الأدمن.";
-                        await loadMyRestaurant(currentUserEmail);
+                        msg.innerText = isAdminMode ? "تم رفع الفيديو وتفعيله بنجاح ✓" : "تم الرفع! بانتظار موافقة الأدمن.";
+                        await refreshView();
                     } catch (error) {
                         msg.className = "form-msg err";
                         msg.innerText = "خطأ: " + error.message;
@@ -496,14 +531,63 @@
             return [...box.querySelectorAll('input[type="checkbox"]:checked')].map(i => i.value);
         }
 
+        // ==== "سفرة العافية": تحديد إذا الصنف مناسب للنفاس أو المريض أو كبار السن ====
+        // بيرسم شرائح تحديد متعدد داخل عنصر بمعرّف containerId (القراءة بنفس getCheckedCategories)
+        function renderCareChips(containerId, selected = []) {
+            const box = document.getElementById(containerId);
+            if (!box) return;
+            const chip = (key) => `
+                <label class="category-chip ${selected.includes(key) ? 'checked' : ''}">
+                    <input type="checkbox" value="${key}" ${selected.includes(key) ? 'checked' : ''} class="hidden">
+                    <span class="chip-check">${ICONS.check}</span>
+                    <span>${key}</span>
+                </label>`;
+            box.innerHTML = `
+                <p class="w-full text-xs font-semibold" style="color:var(--ink-soft);">مناسب لـ</p>
+                ${CARE_AUDIENCES.map(a => chip(a.key)).join('')}
+                <p class="w-full text-xs font-semibold mt-1" style="color:var(--ink-soft);">مواصفات</p>
+                ${CARE_TRAITS.map(t => chip(t.key)).join('')}
+            `;
+            box.querySelectorAll('.category-chip').forEach(c => {
+                const input = c.querySelector('input');
+                input.addEventListener('change', () => c.classList.toggle('checked', input.checked));
+            });
+        }
+
         let currentUserEmail = null;
+
+        // ==== وضع الأدمن: يسمح للأدمن (نفس بريد لوحة الإدارة) بإدارة أي مطعم مباشرة ====
+        // (نفس البريد المستخدم بالفحص داخل admin-dashboard.html)
+        const ADMIN_EMAIL = "ahmedkhalil7749000@gmail.com";
+        let isAdminUser = false;
+        let adminSelectedRestaurantId = null;
+
+        // يرجّع الدالة الصحيحة لإعادة تحميل العرض الحالي حسب الوضع (صاحب مطعم أو أدمن)
+        function refreshView() {
+            if (isAdminUser) return loadAdminRestaurant(adminSelectedRestaurantId);
+            return loadMyRestaurant(currentUserEmail);
+        }
 
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 document.getElementById('user-email').innerText = user.email;
                 currentUserEmail = user.email;
-                await loadMyRestaurant(user.email);
-                await loadSubscriptionBanner(user.uid);
+
+                if (user.email === ADMIN_EMAIL) {
+                    // ==== دخول الأدمن: يقدر يختار أي مطعم ويتحكم فيه بالكامل ====
+                    isAdminUser = true;
+                    document.getElementById('subscription-banner').classList.add('hidden');
+                    document.getElementById('nav-orders-link')?.classList.add('hidden');
+                    document.getElementById('nav-subscription-link')?.classList.add('hidden');
+                    document.getElementById('nav-admin-link')?.classList.remove('hidden');
+                    document.getElementById('page-title').innerText = 'إدارة مطاعم المنصة';
+                    document.getElementById('page-subtitle').innerText = 'اختر أي مطعم من القائمة تحت لتتحكم بأصنافه وصوره وبانره وفيديو الترويج له مباشرة.';
+                    await loadAdminPicker();
+                    await loadAdminRestaurant(null);
+                } else {
+                    await loadMyRestaurant(user.email);
+                    await loadSubscriptionBanner(user.uid);
+                }
             } else {
                 window.location.href = "Auth.html";
             }
@@ -606,6 +690,11 @@
                 container.innerHTML = "";
 
                 if (querySnapshot.empty) {
+                    let ownerType = 'home';
+                    try {
+                        const uDoc = await getDoc(doc(db, "users", auth.currentUser.uid));
+                        if (uDoc.exists() && uDoc.data().restaurantType === 'foodtruck') ownerType = 'foodtruck';
+                    } catch (e) { /* نكمل بالقيمة الافتراضية */ }
                     container.innerHTML = `
                         <div class="panel p-6 sm:p-7">
                             <div class="text-center mb-5">
@@ -613,6 +702,13 @@
                                 <p class="text-sm mt-1" style="color: var(--ink-soft);">عبّي بيانات مطعمك تحت، وخليه جاهز للزبائن بدقيقتين.</p>
                             </div>
                             <form id="create-restaurant-form" class="space-y-4 max-w-md mx-auto">
+                                <div>
+                                    <label class="field-label">نوع المشروع</label>
+                                    <select id="new-restaurant-type" class="field rest-type-select" data-hint="new-image-hint">
+                                        <option value="home" ${ownerType === 'home' ? 'selected' : ''}>مطعم / مطبخ بيتي</option>
+                                        <option value="foodtruck" ${ownerType === 'foodtruck' ? 'selected' : ''}>فود ترك (مركبة متنقلة)</option>
+                                    </select>
+                                </div>
                                 <div>
                                     <label class="field-label">اسم المطعم</label>
                                     <input type="text" id="new-restaurant-name" required class="field" placeholder="مثال: مطعم الأصالة">
@@ -637,7 +733,7 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="field-label">صورة المطعم <span class="field-hint">(اختياري — المقاس الإجباري 800×600 بكسل)</span></label>
+                                    <label class="field-label">صورة المطعم <span class="field-hint" id="new-image-hint">${restaurantImageHint(ownerType)}</span></label>
                                     <input type="file" id="new-restaurant-image" accept="image/*" class="field-file">
                                 </div>
                                 <div>
@@ -659,7 +755,7 @@
                         const description = document.getElementById('new-restaurant-description').value.trim();
                         const phone = normalizeJordanPhone(document.getElementById('new-restaurant-phone').value);
                         const categories = getCheckedCategories('new-restaurant-categories');
-                        const restaurantType = 'home';
+                        const restaurantType = document.getElementById('new-restaurant-type').value === 'foodtruck' ? 'foodtruck' : 'home';
                         const status = document.getElementById('new-restaurant-status').value;
                         const imageFile = document.getElementById('new-restaurant-image').files[0];
                         const coverFile = document.getElementById('new-restaurant-cover').files[0];
@@ -672,7 +768,8 @@
                         }
                         if (imageFile) {
                             try {
-                                await enforceImageDimensions(imageFile, 800, 600, "صورة المطعم");
+                                const spec = restaurantImageSpec(restaurantType);
+                                await enforceImageDimensions(imageFile, spec.w, spec.h, "صورة المطعم");
                             } catch (error) {
                                 msg.className = "form-msg err text-center mt-2";
                                 msg.innerText = error.message;
@@ -698,8 +795,18 @@
                             if (imageFile) imageUrl = await uploadToImgbb(imageFile);
                             if (coverFile) coverImageUrl = await uploadToImgbb(coverFile);
 
+                            // الشهر الأول مجاني تلقائيًا لكل مطعم جديد: نفعّل الاشتراك الأساسي
+                            // فورًا لمدة 30 يوم بدون أي دفع. بعد انتهاء الفترة التجريبية
+                            // بتتحول صفحة الاشتراكات تلقائيًا لطلب اختيار خطة ودفع فعلي.
+                            const TRIAL_DAYS = 30;
+                            const trialEnd = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+
                             await addDoc(collection(db, "restaurants"), {
-                                name, description, phone, categories, restaurantType, status, ownerEmail: currentUserEmail, imageUrl, coverImageUrl, createdAt: serverTimestamp()
+                                name, description, phone, categories, restaurantType, status, ownerEmail: currentUserEmail, imageUrl, coverImageUrl, createdAt: serverTimestamp(),
+                                subscriptionStatus: "تجريبي",
+                                subscriptionEndDate: Timestamp.fromDate(trialEnd),
+                                trialEndsAt: Timestamp.fromDate(trialEnd),
+                                trialUsed: true
                             });
                             msg.className = "form-msg ok text-center mt-2";
                             msg.innerText = "تم إنشاء المطعم بنجاح!";
@@ -712,9 +819,17 @@
                     return;
                 }
 
-                querySnapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    const restaurantId = docSnap.id;
+                const entries = querySnapshot.docs.map(d => ({ id: d.id, data: d.data() }));
+                renderRestaurantEntries(container, entries, false);
+            } catch (error) {
+                console.error("خطأ في جلب بيانات المطعم:", error);
+            }
+        }
+
+        // يبني بطاقة/بطاقات إدارة المطعم (تُستخدم لصاحب المطعم بأصنافها الأصلية، وللأدمن بوضعه الخاص)
+        function renderRestaurantEntries(container, entries, isAdminMode) {
+                container.innerHTML = "";
+                entries.forEach(({ id: restaurantId, data }) => {
                     const isActive = (data.status || 'نشط') === 'نشط';
                     container.innerHTML += `
                         <div class="panel overflow-hidden">
@@ -741,6 +856,13 @@
 
                             <div id="edit-form-${restaurantId}" class="hidden hairline p-5 space-y-4">
                                 <div>
+                                    <label class="field-label">نوع المشروع</label>
+                                    <select id="edit-type-${restaurantId}" class="field rest-type-select" data-hint="edit-image-hint-${restaurantId}">
+                                        <option value="home" ${data.restaurantType !== 'foodtruck' ? 'selected' : ''}>مطعم / مطبخ بيتي</option>
+                                        <option value="foodtruck" ${data.restaurantType === 'foodtruck' ? 'selected' : ''}>فود ترك (مركبة متنقلة)</option>
+                                    </select>
+                                </div>
+                                <div>
                                     <label class="field-label">اسم المطعم</label>
                                     <input type="text" id="edit-name-${restaurantId}" value="${data.name || ''}" class="field">
                                 </div>
@@ -764,7 +886,7 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="field-label">صورة المطعم <span class="field-hint">(اختياري — المقاس الإجباري 800×600 بكسل)</span></label>
+                                    <label class="field-label">صورة المطعم <span class="field-hint" id="edit-image-hint-${restaurantId}">${restaurantImageHint(data.restaurantType)}</span></label>
                                     <input type="file" id="edit-image-${restaurantId}" accept="image/*" class="field-file">
                                 </div>
                                 <div>
@@ -780,7 +902,7 @@
 
                             <!-- قسم الترويج: البانر والفيديو -->
                             <div id="promo-section-${restaurantId}" class="hidden hairline p-5 space-y-5">
-                                ${renderPromoSection(restaurantId, data)}
+                                ${renderPromoSection(restaurantId, data, isAdminMode)}
                             </div>
 
                             <!-- قسم إدارة الأصناف -->
@@ -857,6 +979,11 @@
                                             ${menuCategoryOptions(getMenuCategoryList(data))}
                                         </select>
                                     </div>
+                                    <div>
+                                        <label class="field-label">سفرة العافية <span class="field-hint">اختياري — أكل للنفاس أو المريض أو كبار السن</span></label>
+                                        <div id="item-care-${restaurantId}" class="category-chip-group"></div>
+                                        <p class="text-xs mt-2" style="color: var(--ink-soft);">${CARE_COOK_NOTE}</p>
+                                    </div>
                                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
                                         <div>
                                             <label class="field-label">صورة الصنف <span class="field-hint">اختياري — المقاس الإجباري للصورة: 800×800 بكسل</span></label>
@@ -871,6 +998,7 @@
                     `;
 
                     renderCategoryChips(`edit-categories-${restaurantId}`, restaurantCategories(data));
+                    renderCareChips(`item-care-${restaurantId}`);
                     renderMenuCategoryManager(restaurantId, data);
                 });
 
@@ -899,7 +1027,7 @@
                         const description = document.getElementById(`edit-description-${id}`).value.trim();
                         const phone = normalizeJordanPhone(document.getElementById(`edit-phone-${id}`).value);
                         const categories = getCheckedCategories(`edit-categories-${id}`);
-                        const restaurantType = 'home';
+                        const restaurantType = document.getElementById(`edit-type-${id}`).value === 'foodtruck' ? 'foodtruck' : 'home';
                         const status = document.getElementById(`edit-status-${id}`).value;
                         const imageFile = document.getElementById(`edit-image-${id}`).files[0];
                         const coverFile = document.getElementById(`edit-cover-${id}`).files[0];
@@ -912,7 +1040,8 @@
                         }
                         if (imageFile) {
                             try {
-                                await enforceImageDimensions(imageFile, 800, 600, "صورة المطعم");
+                                const spec = restaurantImageSpec(restaurantType);
+                                await enforceImageDimensions(imageFile, spec.w, spec.h, "صورة المطعم");
                             } catch (error) {
                                 msg.className = "form-msg err";
                                 msg.innerText = error.message;
@@ -937,7 +1066,7 @@
                             if (imageFile) updateData.imageUrl = await uploadToImgbb(imageFile);
                             if (coverFile) updateData.coverImageUrl = await uploadToImgbb(coverFile);
                             await updateDoc(doc(db, "restaurants", id), updateData);
-                            await loadMyRestaurant(currentUserEmail);
+                            await refreshView();
                         } catch (error) {
                             msg.className = "form-msg err";
                             msg.innerText = "خطأ: " + error.message;
@@ -964,7 +1093,7 @@
                 });
 
                 // ربط نماذج رفع البانر/الفيديو لكل مطعم
-                querySnapshot.forEach((docSnap) => bindPromoHandlers(docSnap.id));
+                entries.forEach(({ id }) => bindPromoHandlers(id, isAdminMode));
 
                 container.querySelectorAll('.save-delivery-btn').forEach(btn => {
                     btn.addEventListener('click', async () => {
@@ -1008,7 +1137,7 @@
                             input.value='';
                             document.getElementById(`menu-category-form-${id}`).classList.add('hidden');
                             msg.className='form-msg ok'; msg.innerText='تمت إضافة التصنيف ✓';
-                            await loadMyRestaurant(currentUserEmail);
+                            await refreshView();
                         } catch (error) { msg.className='form-msg err'; msg.innerText='خطأ: '+error.message; }
                     });
                 });
@@ -1072,6 +1201,7 @@
                                 discountPercent: discountPercent,
                                 description: description,
                                 category: category,
+                                careTags: getCheckedCategories(`item-care-${id}`),
                                 imageUrl: imageUrl,
                                 popular: false,
                                 createdAt: serverTimestamp(),
@@ -1084,6 +1214,7 @@
                             descInput.value = "";
                             categoryInput.value = "";
                             imageInput.value = "";
+                            renderCareChips(`item-care-${id}`);
                             msg.className = "form-msg ok mt-2";
                             msg.innerText = "تمت إضافة الوجبة بنجاح!";
                             await loadMenuItems(id);
@@ -1093,8 +1224,74 @@
                         }
                     });
                 });
+        }
+
+        // ==== وضع الأدمن: اختيار أي مطعم من قائمة كل مطاعم المنصة وإدارته مباشرة ====
+        let allRestaurantsCache = [];
+
+        async function loadAdminPicker() {
+            const box = document.getElementById('admin-restaurant-picker');
+            if (!box) return;
+            box.classList.remove('hidden');
+            box.innerHTML = `
+                <div class="panel p-5">
+                    <label class="field-label">🔎 اختر مطعم لإدارته</label>
+                    <input type="text" id="admin-restaurant-search" class="field" placeholder="اكتب اسم المطعم للبحث...">
+                    <div id="admin-restaurant-results" class="mt-3 space-y-1.5 max-h-64 overflow-y-auto">
+                        <div class="empty-state flex items-center justify-center gap-2"><span class="spinner"></span> جاري تحميل قائمة المطاعم...</div>
+                    </div>
+                </div>
+            `;
+            try {
+                const snap = await getDocs(collection(db, "restaurants"));
+                allRestaurantsCache = snap.docs.map(d => ({ id: d.id, name: d.data().name || 'مطعم بدون اسم', ownerEmail: d.data().ownerEmail || '' }));
+                allRestaurantsCache.sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+                renderAdminResults(allRestaurantsCache);
             } catch (error) {
-                console.error("خطأ في جلب بيانات المطعم:", error);
+                document.getElementById('admin-restaurant-results').innerHTML = `<p class="form-msg err">تعذر تحميل قائمة المطاعم: ${error.message}</p>`;
+            }
+            document.getElementById('admin-restaurant-search').addEventListener('input', (e) => {
+                const term = e.target.value.trim();
+                const filtered = term ? allRestaurantsCache.filter(r => r.name.includes(term)) : allRestaurantsCache;
+                renderAdminResults(filtered);
+            });
+        }
+
+        function renderAdminResults(list) {
+            const resultsBox = document.getElementById('admin-restaurant-results');
+            if (!resultsBox) return;
+            resultsBox.innerHTML = list.length ? list.map(r => `
+                <button type="button" data-id="${r.id}" class="admin-pick-restaurant-btn btn btn-outline btn-sm btn-block" style="justify-content: flex-start;">
+                    🍽️ <span class="font-semibold">${r.name}</span>
+                    ${r.ownerEmail ? `<span class="text-xs" style="color: var(--ink-soft);">— ${r.ownerEmail}</span>` : ''}
+                    ${r.id === adminSelectedRestaurantId ? `<span class="badge badge-live" style="margin-inline-start:auto;">قيد الإدارة الآن</span>` : ''}
+                </button>
+            `).join('') : `<p class="empty-state">ولا مطعم مطابق لبحثك</p>`;
+            resultsBox.querySelectorAll('.admin-pick-restaurant-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    adminSelectedRestaurantId = btn.dataset.id;
+                    renderAdminResults(list);
+                    loadAdminRestaurant(adminSelectedRestaurantId);
+                });
+            });
+        }
+
+        async function loadAdminRestaurant(restaurantId) {
+            const container = document.getElementById('restaurant-info');
+            if (!restaurantId) {
+                container.innerHTML = `<div class="panel p-6 empty-state">اختر مطعمًا من القائمة فوق للبدء بإدارته.</div>`;
+                return;
+            }
+            container.innerHTML = `<div class="panel p-6 flex items-center justify-center gap-2 text-sm" style="color: var(--ink-soft);"><span class="spinner"></span> جاري تحميل بيانات المطعم...</div>`;
+            try {
+                const snap = await getDoc(doc(db, "restaurants", restaurantId));
+                if (!snap.exists()) {
+                    container.innerHTML = `<div class="panel p-6 empty-state">هذا المطعم غير موجود أو تم حذفه.</div>`;
+                    return;
+                }
+                renderRestaurantEntries(container, [{ id: restaurantId, data: snap.data() }], true);
+            } catch (error) {
+                container.innerHTML = `<p class="form-msg err text-center">خطأ بتحميل المطعم: ${error.message}</p>`;
             }
         }
 
@@ -1133,6 +1330,7 @@
                                         <strong style="color:var(--saffron);">${Number(item.price || 0).toFixed(2)} د.أ</strong>
                                         ${Number(item.discountPercent || 0) > 0 ? `<span class="badge" style="background:var(--red-tint);color:var(--red);">خصم ${Number(item.discountPercent)}%</span>` : ''}
                                         <span class="badge badge-cat">${(menuCategories.find(c => c.key === item.category)?.icon || '🍽️')} ${item.category || 'بدون تصنيف'}</span>
+                                        ${cleanCareTags(item.careTags).map(t => `<span class="badge" style="background:#e8f0e5;color:#0b3b2c;">🤍 ${t}</span>`).join('')}
                                     </div>
                                 </div>
                             </div>
@@ -1155,6 +1353,10 @@
                                         ${image ? `<label class="mt-2 flex items-center gap-2 text-xs font-semibold cursor-pointer"><input id="edit-item-remove-image-${itemDoc.id}" type="checkbox"> حذف الصورة الحالية</label>` : ''}
                                     </div>
                                 </div>
+                                <div class="mt-3">
+                                    <label class="field-label">سفرة العافية <span class="field-hint">اختياري</span></label>
+                                    <div id="edit-item-care-${itemDoc.id}" class="category-chip-group"></div>
+                                </div>
                                 <label class="mt-3 flex items-center gap-2 text-sm font-semibold cursor-pointer"><input id="edit-item-popular-${itemDoc.id}" type="checkbox" ${item.popular ? 'checked' : ''}> 🔥 عرض ضمن «الأكثر طلباً»</label>
                                 <div class="flex gap-2 mt-3 flex-wrap">
                                     <button type="button" data-item-id="${itemDoc.id}" data-restaurant-id="${restaurantId}" class="save-item-btn btn btn-primary btn-sm">حفظ التعديل</button>
@@ -1164,6 +1366,9 @@
                             </div>
                         </div>`;
                 });
+
+                // الشرائح بتنرسم بعد ما يخلص بناء القائمة كلها (لأن += بيعيد بناء العناصر)
+                querySnapshot.forEach((itemDoc) => renderCareChips(`edit-item-care-${itemDoc.id}`, cleanCareTags(itemDoc.data().careTags)));
 
                 listEl.querySelectorAll('.edit-item-btn').forEach(btn => btn.addEventListener('click', () => {
                     document.getElementById(`edit-item-${btn.dataset.itemId}`).classList.toggle('hidden');
@@ -1194,7 +1399,7 @@
                         }
                         msg.className='form-msg busy'; msg.innerText='جاري الحفظ...'; btn.disabled=true;
                         try {
-                            const updateData = { name, price, discountPercent, description, category, popular, updatedAt: serverTimestamp() };
+                            const updateData = { name, price, discountPercent, description, category, popular, careTags: getCheckedCategories(`edit-item-care-${itemId}`), updatedAt: serverTimestamp() };
                             if (imageFile) updateData.imageUrl = await uploadToImgbb(imageFile);
                             if (removeImage) updateData.imageUrl = "";
                             await updateDoc(doc(db, 'menuItems', itemId), updateData);
@@ -1233,7 +1438,7 @@
                     const snap = await getDoc(doc(db,'restaurants',restaurantId));
                     const current = Array.isArray(snap.data()?.menuCategories) ? snap.data().menuCategories : [];
                     await updateDoc(doc(db,'restaurants',restaurantId), { menuCategories: current.filter(c => (typeof c === 'string' ? c : c.key) !== name) });
-                    await loadMyRestaurant(currentUserEmail);
+                    await refreshView();
                 } catch(error) { alert('تعذر حذف التصنيف: ' + error.message); }
             }));
         }
@@ -1256,8 +1461,9 @@
             </div>
         </div>
         <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
-            <a href="adman.html" class="btn btn-ghost btn-sm">إدارة الطلبات</a>
-            <a href="subscription.html" class="btn btn-ghost btn-sm">اشتراكي</a>
+            <a href="adman.html" id="nav-orders-link" class="btn btn-ghost btn-sm">إدارة الطلبات</a>
+            <a href="subscription.html" id="nav-subscription-link" class="btn btn-ghost btn-sm">اشتراكي</a>
+            <a href="admin-dashboard.html" id="nav-admin-link" class="btn btn-ghost btn-sm hidden">🔙 لوحة الإدارة</a>
             <span id="user-email" class="hidden sm:inline text-xs font-medium ms-1" style="color: var(--ink-soft);"></span>
             <button onclick="logout()" class="btn btn-danger-ghost btn-sm">خروج</button>
         </div>
@@ -1266,9 +1472,10 @@
     <main class="p-4 sm:p-6">
         <div id="subscription-banner" class="mb-5"></div>
         <div class="mb-4">
-            <h2 class="font-display font-extrabold" style="font-size: 22px; color: var(--green-deep);">مطعمي</h2>
-            <p class="text-sm" style="color: var(--ink-soft);">بيانات مطعمك، تصنيفاته، وقائمة الأصناف من مكان وحد.</p>
+            <h2 id="page-title" class="font-display font-extrabold" style="font-size: 22px; color: var(--green-deep);">مطعمي</h2>
+            <p id="page-subtitle" class="text-sm" style="color: var(--ink-soft);">بيانات مطعمك، تصنيفاته، وقائمة الأصناف من مكان وحد.</p>
         </div>
+        <div id="admin-restaurant-picker" class="hidden mb-5"></div>
         <div id="restaurant-info" class="grid grid-cols-1 gap-4">
             <div class="panel p-6 flex items-center justify-center gap-2 text-sm" style="color: var(--ink-soft);">
                 <span class="spinner"></span> جاري تحميل بيانات مطعمك...

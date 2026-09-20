@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>سفرة العافية - سفرة</title>
+    <link rel="stylesheet" href="app-shell.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=El+Messiri:wght@500;600;700&family=Cairo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'safra-dark': '#0b3b2c',
+              'safra-green': '#2e6f40',
+              'safra-cream': '#fbf9f5',
+              'safra-gold': '#d97706',
+              'safra-gold-dark': '#b45309',
+              'safra-line': '#e7e2d6',
+              'safra-muted': '#7c7669',
+            },
+            fontFamily: {
+              display: ['"El Messiri"', 'serif'],
+              sans: ['"Cairo"', 'sans-serif'],
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+        :root {
+            --dark: #0b3b2c;
+            --green: #2e6f40;
+            --cream: #fbf9f5;
+            --line: #e7e2d6;
+            --muted: #7c7669;
+            --ink: #1c1a16;
+            --gold: #d97706;
+            --tint: #e8f0e5;
+        }
+        body { font-family: 'Cairo', sans-serif; color: var(--ink); }
+        .font-display { font-family: 'El Messiri', serif; }
+
+        /* ===== لمين الأكل: ثلاث بطاقات كبيرة بتشتغل كفلتر ===== */
+        .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .tile {
+            display: flex; flex-direction: column; align-items: center; gap: 6px;
+            padding: 14px 6px 12px;
+            background: #fff; color: var(--ink);
+            border: 1.5px solid var(--line); border-radius: 20px;
+            text-align: center; cursor: pointer;
+            transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+        }
+        .tile .tile-icon {
+            width: 44px; height: 44px; border-radius: 50%;
+            display: grid; place-items: center;
+            background: var(--tint); color: var(--green); font-size: 18px;
+            transition: background-color .15s ease, color .15s ease;
+        }
+        .tile .tile-title { font-family: 'El Messiri', serif; font-weight: 600; font-size: 16px; line-height: 1.2; }
+        .tile .tile-hint { font-size: 10.5px; line-height: 1.45; color: var(--muted); }
+        .tile[aria-pressed="true"] { background: var(--dark); border-color: var(--dark); color: var(--cream); }
+        .tile[aria-pressed="true"] .tile-icon { background: rgba(255,255,255,.14); color: #fff; }
+        .tile[aria-pressed="true"] .tile-hint { color: rgba(251,249,245,.78); }
+
+        /* ===== مواصفات إضافية (تصفية متعددة) ===== */
+        .trait-row { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+        .trait-row::-webkit-scrollbar { display: none; }
+        .trait {
+            flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+            padding: 7px 13px; border-radius: 999px;
+            background: #fff; color: #4a463c; font-size: 12.5px; font-weight: 600;
+            border: 1.5px solid var(--line); cursor: pointer;
+            transition: background-color .15s ease, border-color .15s ease;
+        }
+        .trait i { font-size: 10px; display: none; }
+        .trait[aria-pressed="true"] { background: var(--tint); border-color: var(--green); color: var(--dark); }
+        .trait[aria-pressed="true"] i { display: inline; }
+
+        /* ===== بطاقة الصنف ===== */
+        .care-card {
+            display: flex; gap: 12px; align-items: stretch;
+            background: #fff; border: 1px solid var(--line); border-radius: 18px;
+            padding: 10px; text-decoration: none; color: inherit;
+        }
+        .care-card:active { background: #fdfcf9; }
+        .care-photo { width: 88px; height: 88px; border-radius: 14px; object-fit: cover; flex-shrink: 0; background: var(--tint); }
+        .care-photo-empty { display: grid; place-items: center; color: var(--green); font-size: 26px; }
+        .care-tag {
+            display: inline-block; padding: 2px 9px; border-radius: 999px;
+            background: var(--tint); color: var(--dark); font-size: 11px; font-weight: 700;
+        }
+        .care-tag.trait-tag { background: #fff; border: 1px solid var(--line); color: #5b5749; font-weight: 600; }
+
+        .disclaimer {
+            display: flex; gap: 10px; align-items: flex-start;
+            background: #fff; border: 1px solid var(--line); border-radius: 14px;
+            padding: 11px 13px; font-size: 12px; line-height: 1.7; color: #5b5749;
+        }
+        .disclaimer i { color: var(--green); margin-top: 4px; }
+
+        .tile:focus-visible, .trait:focus-visible, .care-card:focus-visible, .link-btn:focus-visible {
+            outline: 3px solid rgba(46,111,64,.35); outline-offset: 2px;
+        }
+        .link-btn {
+            display: inline-block; margin-top: 12px; padding: 9px 18px; border-radius: 12px;
+            background: var(--dark); color: #fff; font-size: 13px; font-weight: 700; text-decoration: none; border: 0; cursor: pointer;
+        }
+        .skeleton { height: 108px; border-radius: 18px; background: linear-gradient(90deg,#f1eee6 25%,#f8f6f0 37%,#f1eee6 63%); background-size: 400% 100%; animation: shimmer 1.4s ease infinite; }
+        @keyframes shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+        @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } .tile, .trait, .tile .tile-icon { transition: none; } }
+    </style>
+    <link rel="stylesheet" href="safra-3d.css">
+</head>
+<body class="app-narrow bg-safra-cream min-h-screen">
+    <!-- الهيدر المشترك: بيتحمّل تلقائيًا من shared-header.js -->
+    <div id="app-header"></div>
+    <script type="module" src="shared-header.js"></script>
+
+    <main class="p-4">
+        <div class="mb-4">
+            <h1 class="font-display font-semibold text-safra-dark" style="font-size: 27px; line-height: 1.2;">سفرة العافية</h1>
+            <p class="text-[13px] mt-1" style="color: var(--muted);">أكل بيتي خفيف من مطابخ البيوت، للنفاس والمريض وكبار السن.</p>
+        </div>
+
+        <div id="audience-tiles" class="tiles mb-4" role="group" aria-label="لمين الأكل؟"></div>
+
+        <div id="trait-chips" class="trait-row mb-4" role="group" aria-label="مواصفات الأكل"></div>
+
+        <p id="result-count" class="text-[12.5px] mb-3 hidden" style="color: var(--muted);"></p>
+
+        <div id="loading" class="grid gap-3">
+            <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+        </div>
+        <div id="error" class="hidden text-center text-red-600 bg-red-50 border border-red-100 rounded-xl py-8 px-4 text-sm" role="alert"></div>
+        <div id="empty" class="hidden text-center py-12 px-4">
+            <i class="fa-solid fa-bowl-food text-3xl mb-3" style="color: var(--line);"></i>
+            <p id="empty-title" class="text-sm font-bold text-safra-dark"></p>
+            <p id="empty-sub" class="text-xs mt-1" style="color: var(--muted);"></p>
+            <div id="empty-action"></div>
+        </div>
+
+        <div id="care-list" class="grid gap-3"></div>
+
+        <div class="disclaimer mt-6">
+            <i class="fa-solid fa-circle-info"></i>
+            <p id="disclaimer-text"></p>
+        </div>
+    </main>
+
+    <!-- شريط التنقل السفلي -->
+    <div id="app-bottom-nav"></div>
+    <script type="module" src="shared-bottom-nav.js"></script>
+
+    <script type="module">
+        import { db } from "./firebase-config.js";
+        import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { CARE_AUDIENCES, CARE_TRAITS, CARE_ALL_KEYS, CARE_AUDIENCE_KEYS, CARE_DISCLAIMER, cleanCareTags } from "./care-tags.js";
+
+        const tilesBox = document.getElementById('audience-tiles');
+        const traitsBox = document.getElementById('trait-chips');
+        const listBox = document.getElementById('care-list');
+        const loadingBox = document.getElementById('loading');
+        const errorBox = document.getElementById('error');
+        const emptyBox = document.getElementById('empty');
+        const emptyTitle = document.getElementById('empty-title');
+        const emptySub = document.getElementById('empty-sub');
+        const emptyAction = document.getElementById('empty-action');
+        const countLabel = document.getElementById('result-count');
+
+        document.getElementById('disclaimer-text').textContent = CARE_DISCLAIMER;
+
+        // تنظيف النصوص قبل وضعها بالصفحة (حماية من إدخال HTML)
+        const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        let allItems = [];
+        let activeAudience = null;
+        const activeTraits = new Set();
+
+        // رابط مباشر من الرئيسية: care-food.html?for=نفاس
+        const preset = new URLSearchParams(location.search).get('for');
+        if (CARE_AUDIENCE_KEYS.includes(preset)) activeAudience = preset;
+
+        function renderFilters() {
+            tilesBox.innerHTML = CARE_AUDIENCES.map(a => `
+                <button type="button" class="tile" data-key="${esc(a.key)}" aria-pressed="${activeAudience === a.key}">
+                    <span class="tile-icon"><i class="fa-solid ${a.icon}"></i></span>
+                    <span class="tile-title">${esc(a.label)}</span>
+                    <span class="tile-hint">${esc(a.hint)}</span>
+                </button>
+            `).join('');
+            traitsBox.innerHTML = CARE_TRAITS.map(t => `
+                <button type="button" class="trait" data-key="${esc(t.key)}" aria-pressed="${activeTraits.has(t.key)}">
+                    <i class="fa-solid fa-check"></i>${esc(t.key)}
+                </button>
+            `).join('');
+
+            tilesBox.querySelectorAll('.tile').forEach(btn => btn.addEventListener('click', () => {
+                activeAudience = activeAudience === btn.dataset.key ? null : btn.dataset.key;
+                renderFilters();
+                renderList();
+            }));
+            traitsBox.querySelectorAll('.trait').forEach(btn => btn.addEventListener('click', () => {
+                const k = btn.dataset.key;
+                activeTraits.has(k) ? activeTraits.delete(k) : activeTraits.add(k);
+                renderFilters();
+                renderList();
+            }));
+        }
+
+        function cardHtml(it) {
+            const img = it.imageUrl || it.image || '';
+            const audience = it.careTags.filter(t => CARE_AUDIENCE_KEYS.includes(t));
+            const traits = it.careTags.filter(t => !CARE_AUDIENCE_KEYS.includes(t));
+            const href = `meal-details.html?restaurantId=${encodeURIComponent(it.restaurantId)}&itemId=${encodeURIComponent(it.id)}`;
+            return `
+                <a class="care-card" href="${href}">
+                    ${img
+                        ? `<img class="care-photo" src="${esc(img)}" alt="${esc(it.name)}" loading="lazy">`
+                        : `<div class="care-photo care-photo-empty"><i class="fa-solid fa-bowl-food"></i></div>`}
+                    <div class="min-w-0 flex-1 flex flex-col">
+                        <h3 class="font-bold text-[15px] leading-snug">${esc(it.name)}</h3>
+                        <p class="text-[12px] mt-0.5" style="color: var(--muted);">من مطبخ ${esc(it.restaurantName)}</p>
+                        <p class="text-[12px] mt-1 line-clamp-2" style="color:#5b5749;">${esc(it.description)}</p>
+                        <div class="flex flex-wrap gap-1 mt-2">
+                            ${audience.map(t => `<span class="care-tag">${esc(t)}</span>`).join('')}
+                            ${traits.map(t => `<span class="care-tag trait-tag">${esc(t)}</span>`).join('')}
+                        </div>
+                        <p class="mt-auto pt-2 font-bold text-safra-gold text-[14px]">${Number(it.price || 0).toFixed(2)} د.أ</p>
+                    </div>
+                </a>`;
+        }
+
+        function showEmpty(title, sub, withReset) {
+            emptyTitle.textContent = title;
+            emptySub.textContent = sub;
+            emptyAction.innerHTML = withReset
+                ? `<button type="button" id="reset-filters" class="link-btn">إلغاء الفلاتر</button>`
+                : `<a href="restaurants.html" class="link-btn">تصفّح المطاعم</a>`;
+            emptyBox.classList.remove('hidden');
+            const reset = document.getElementById('reset-filters');
+            if (reset) reset.addEventListener('click', () => {
+                activeAudience = null; activeTraits.clear();
+                renderFilters(); renderList();
+            });
+        }
+
+        function renderList() {
+            listBox.innerHTML = '';
+            emptyBox.classList.add('hidden');
+
+            const shown = allItems.filter(it =>
+                (!activeAudience || it.careTags.includes(activeAudience)) &&
+                [...activeTraits].every(t => it.careTags.includes(t))
+            );
+
+            if (!allItems.length) {
+                countLabel.classList.add('hidden');
+                showEmpty('لسا ما في أصناف بهالقسم', 'المطابخ بتضيف أصنافها تدريجياً، ارجع بعد شوي.', false);
+                return;
+            }
+            if (!shown.length) {
+                countLabel.classList.add('hidden');
+                showEmpty('ما في أصناف بهالاختيار', 'جرّب تشيل فلتر أو تختار قسم ثاني.', true);
+                return;
+            }
+            countLabel.textContent = `${shown.length} صنف`;
+            countLabel.classList.remove('hidden');
+            listBox.innerHTML = shown.map(cardHtml).join('');
+        }
+
+        async function load() {
+            try {
+                const [itemsSnap, restSnap] = await Promise.all([
+                    getDocs(query(collection(db, "menuItems"), where("careTags", "array-contains-any", CARE_ALL_KEYS))),
+                    getDocs(collection(db, "restaurants"))
+                ]);
+                const restaurants = {};
+                restSnap.forEach(d => { restaurants[d.id] = d.data(); });
+
+                itemsSnap.forEach(d => {
+                    const it = d.data();
+                    const r = restaurants[it.restaurantId];
+                    // نخفي أصناف المطابخ الموقوفة أو المحذوفة
+                    if (!r || r.status === 'متوقف') return;
+                    allItems.push({ id: d.id, ...it, careTags: cleanCareTags(it.careTags), restaurantName: r.name || '' });
+                });
+                allItems.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+                loadingBox.classList.add('hidden');
+                renderList();
+            } catch (err) {
+                console.error(err);
+                loadingBox.classList.add('hidden');
+                errorBox.textContent = 'تعذّر تحميل الأصناف. تأكد من الاتصال وجرّب مرة ثانية.';
+                errorBox.classList.remove('hidden');
+            }
+        }
+
+        renderFilters();
+        load();
+    </script>
+</body>
+</html>

@@ -108,6 +108,7 @@
         }
         .mute-hint.show { opacity: 1; }
     </style>
+    <link rel="stylesheet" href="safra-3d.css">
 </head>
 <body>
 
@@ -164,7 +165,7 @@
             const ratingsCount = r.videoRatingsCount || 0;
             return `
                 <section class="reel" data-id="${id}">
-                    <video src="${r.videoUrl}" loop playsinline muted preload="metadata"></video>
+                    <video src="${r.videoUrl}" loop playsinline muted preload="metadata" controlslist="nodownload" data-max-duration="30"></video>
                     <div class="reel-overlay"></div>
 
                     <div class="reel-topbar">
@@ -259,6 +260,7 @@
 
         function bindSectionEvents(section, id) {
             const video = section.querySelector('video');
+                    video.addEventListener('timeupdate', () => { if (video.currentTime >= 30) { video.currentTime = 0; video.pause(); } });
             const likeBtn = section.querySelector('[data-action="like"]');
             const rateToggleBtn = section.querySelector('[data-action="rate-toggle"]');
             const ratingPop = section.querySelector('.rating-pop');

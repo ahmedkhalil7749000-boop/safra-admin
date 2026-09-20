@@ -1,59 +1,307 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>سفرة</title>
-    <meta http-equiv="refresh" content="0; url=home.html">
-    <link rel="canonical" href="home.html">
-    <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #0b3b2c;
-            font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
-        }
-        .splash {
-            text-align: center;
-            color: #ffffff;
-        }
-        .splash img {
-            width: 96px;
-            height: 96px;
-            border-radius: 20px;
-            margin-bottom: 16px;
-        }
-        .spinner {
-            width: 32px;
-            height: 32px;
-            margin: 16px auto 0;
-            border: 3px solid rgba(255,255,255,0.25);
-            border-top-color: #ffffff;
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-        p {
-            margin-top: 12px;
-            opacity: 0.85;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#efe6d6">
+<title>سفرة</title>
+<link rel="preload" as="image" href="safra-splash.webp" type="image/webp">
+<link rel="prefetch" href="home.html">
+<style>
+:root{
+  --green:#0b3b2c;
+  --gold:#c98a32;
+  --cream:#efe6d6;
+  /* نسبة الصورة الأصلية 941×1672 */
+  --ar-w:941;--ar-h:1672;
+  --show-ms:4600ms;           /* مدة ظهور الشاشة قبل الدخول تلقائياً */
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--cream);font-family:'Segoe UI',Tahoma,Arial,sans-serif}
+
+/* ===== الحاوية الكاملة ===== */
+.splash{
+  position:fixed;inset:0;z-index:99999;overflow:hidden;background:var(--cream);
+  opacity:1;transition:opacity .7s ease,transform .7s ease,visibility .7s;
+}
+.splash.is-hidden{opacity:0;visibility:hidden;transform:scale(1.03);pointer-events:none}
+
+/* خلفية مموهة تملأ الشاشة (تظهر على جانبي الصورة في الحاسوب/التابلت) */
+.backdrop{
+  position:absolute;inset:-6%;
+  background:url("safra-splash-bg.jpg") center/cover no-repeat;
+  filter:blur(22px) saturate(1.1);
+  transform:scale(1.1);
+  opacity:0;animation:fadeIn .9s ease .05s forwards;
+}
+
+/* ===== منصّة الصورة: تُعرض كاملة بدون قصّ الشعار ===== */
+.stage{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  height:100vh;height:min(100dvh, calc(100vw * var(--ar-h) / var(--ar-w)));
+  aspect-ratio:var(--ar-w)/var(--ar-h);
+  overflow:hidden;
+}
+/* شاشات الجوال الطويلة: تملأ الشاشة كلها (يُقصّ الجانبان فقط والشعار في المنتصف آمن) */
+@media (max-aspect-ratio: 941/1672){
+  .stage{inset:0;left:0;top:0;transform:none;width:100%;height:100%;aspect-ratio:auto}
+}
+/* شاشات عريضة (حاسوب/تابلت أفقي): ظل ناعم حول الصورة */
+@media (min-aspect-ratio: 1/1){
+  .stage{box-shadow:0 0 90px rgba(11,59,44,.28),0 0 0 1px rgba(255,255,255,.35)}
+}
+
+.kenburns{position:absolute;inset:0;animation:kenburns 6s ease-out .2s forwards;transform-origin:50% 38%}
+.art{
+  display:block;width:100%;height:100%;object-fit:cover;object-position:50% 50%;
+  opacity:0;filter:blur(10px);transform:scale(1.07);
+  animation:artIn 1.25s cubic-bezier(.2,.7,.2,1) .05s forwards;
+  user-select:none;-webkit-user-drag:none;
+}
+
+/* لمعة ضوء تمر على الشعار */
+.shine{
+  position:absolute;left:0;right:0;top:9%;height:32%;pointer-events:none;overflow:hidden;mix-blend-mode:soft-light;
+}
+.shine::after{
+  content:"";position:absolute;top:-10%;bottom:-10%;width:38%;left:-45%;
+  background:linear-gradient(105deg,transparent 0%,rgba(255,255,255,.95) 50%,transparent 100%);
+  transform:skewX(-14deg);animation:sweep 1.5s ease-in-out 1.15s forwards;
+}
+/* بخار فوق الأكلة */
+.steam{position:absolute;pointer-events:none}
+.steam i{
+  position:absolute;bottom:0;width:12%;aspect-ratio:1/1.6;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(255,255,255,.55),rgba(255,255,255,0));
+  filter:blur(7px);opacity:0;animation:steam 3.4s ease-in-out infinite;
+}
+.steam i:nth-child(1){left:8%;animation-delay:1.4s}
+.steam i:nth-child(2){left:38%;animation-delay:2.1s;width:14%}
+.steam i:nth-child(3){left:68%;animation-delay:1.8s}
+
+/* عناصر الواجهة فوق الصورة */
+.loader{
+  position:absolute;z-index:6;left:50%;transform:translateX(-50%);
+  bottom:calc(14px + env(safe-area-inset-bottom));width:min(46vw,220px);height:4px;border-radius:99px;
+  background:rgba(255,255,255,.35);overflow:hidden;backdrop-filter:blur(6px);
+  opacity:0;animation:fadeIn .5s ease .8s forwards;
+}
+.loader i{display:block;height:100%;width:100%;border-radius:inherit;background:linear-gradient(90deg,#e7b566,var(--gold));
+  transform-origin:100% 50%;transform:scaleX(0);animation:load var(--show-ms) linear .25s forwards}
+
+.skip{
+  position:absolute;z-index:6;left:50%;transform:translateX(-50%);
+  bottom:calc(34px + env(safe-area-inset-bottom));
+  border:1px solid rgba(255,255,255,.55);background:rgba(11,59,44,.72);color:#fff;
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  border-radius:999px;padding:10px 22px;font:600 14px/1 inherit;font-family:inherit;cursor:pointer;
+  opacity:0;animation:riseIn .6s ease 1.4s forwards;transition:background .2s,transform .2s;
+}
+.skip:hover{background:rgba(11,59,44,.92)}
+.skip:active{transform:translateX(-50%) scale(.96)}
+
+.sound-btn{
+  position:absolute;z-index:6;top:calc(14px + env(safe-area-inset-top));inset-inline-start:14px;
+  width:42px;height:42px;border-radius:50%;border:1px solid rgba(255,255,255,.5);
+  background:rgba(11,59,44,.6);color:#fff;font-size:18px;line-height:1;cursor:pointer;
+  -webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);display:grid;place-items:center;
+  opacity:0;animation:fadeIn .5s ease .6s forwards;
+}
+.sound-hint{
+  position:absolute;z-index:6;top:calc(20px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
+  color:#fff;background:rgba(11,59,44,.7);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:8px 14px;font-size:12px;white-space:nowrap;
+  opacity:0;transition:opacity .3s;pointer-events:none;
+}
+.sound-hint.show{opacity:1;animation:pulse 1.6s ease-in-out infinite}
+
+/* أوراق تتساقط على كامل الشاشة */
+.leaves{position:absolute;inset:0;z-index:4;pointer-events:none;overflow:hidden}
+.leaf{
+  position:absolute;top:-30px;width:var(--s,16px);height:calc(var(--s,16px)*.55);
+  border-radius:100% 0 100% 0;background:var(--c,#3f7d4f);opacity:0;
+  animation:fall var(--d,6s) linear var(--delay,0s) infinite;
+}
+
+/* ===== الحركات ===== */
+@keyframes artIn{to{opacity:1;filter:blur(0);transform:scale(1)}}
+@keyframes kenburns{from{transform:scale(1)}to{transform:scale(1.045)}}
+@keyframes fadeIn{to{opacity:1}}
+@keyframes riseIn{from{opacity:0;transform:translate(-50%,14px)}to{opacity:1;transform:translate(-50%,0)}}
+@keyframes sweep{to{left:120%}}
+@keyframes load{to{transform:scaleX(1)}}
+@keyframes pulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.06)}}
+@keyframes steam{
+  0%{opacity:0;transform:translateY(0) scale(.7)}
+  30%{opacity:.75}
+  100%{opacity:0;transform:translateY(-130%) scale(1.5)}
+}
+@keyframes fall{
+  0%{opacity:0;transform:translate3d(0,-30px,0) rotate(0deg)}
+  10%{opacity:.85}
+  90%{opacity:.7}
+  100%{opacity:0;transform:translate3d(var(--x,60px),105vh,0) rotate(var(--r,540deg))}
+}
+@media (prefers-reduced-motion:reduce){
+  .kenburns,.shine::after,.steam i,.leaf{animation:none!important}
+  .leaves,.steam,.shine{display:none}
+  .art{animation-duration:.01s}
+}
+</style>
 </head>
 <body>
-    <div class="splash">
-        <img src="logo.png" alt="سفرة" onerror="this.style.display='none'">
-        <div class="spinner"></div>
-        <p>جارِ التحويل...</p>
+
+<div class="splash" id="splash" role="img" aria-label="سفرة – أكلات بيوت .. أقرب إليك">
+  <div class="backdrop"></div>
+
+  <div class="stage">
+    <div class="kenburns">
+      <picture>
+        <source srcset="safra-splash.webp" type="image/webp">
+        <img class="art" src="safra-splash.png" alt="" decoding="async" fetchpriority="high" draggable="false">
+      </picture>
+      <div class="shine"></div>
+      <div class="steam" style="left:30%;top:47%;width:36%;height:16%">
+        <i></i><i></i><i></i>
+      </div>
     </div>
-    <script>
-        // تحويل فوري عن طريق JavaScript (احتياطي في حال meta refresh ما اشتغل)
-        window.location.replace("home.html");
-    </script>
+  </div>
+
+  <div class="leaves" id="leaves" aria-hidden="true"></div>
+
+  <button class="sound-btn" id="soundBtn" type="button" aria-label="تشغيل / إيقاف الصوت">🔊</button>
+  <div class="sound-hint" id="soundHint">🔊 المس الشاشة لتشغيل الصوت</div>
+
+  <div class="loader" aria-hidden="true"><i></i></div>
+  <button class="skip" id="skipBtn" type="button">دخول التطبيق</button>
+</div>
+
+<script>
+(function(){
+  'use strict';
+  var SHOW_MS = 4600;                       // نفس قيمة --show-ms
+  var splash  = document.getElementById('splash');
+  var skipBtn = document.getElementById('skipBtn');
+  var soundBtn= document.getElementById('soundBtn');
+  var hint    = document.getElementById('soundHint');
+  var reduce  = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var navigated = false, soundPlayed = false, ctx = null;
+  var muted = false;
+  try { muted = localStorage.getItem('safraSplashMuted') === '1'; } catch(e){}
+  soundBtn.textContent = muted ? '🔇' : '🔊';
+
+  /* ---------- أوراق متساقطة ---------- */
+  if (!reduce) {
+    var box = document.getElementById('leaves');
+    var colors = ['#3f7d4f','#5c9a5f','#2f6b45','#c98a32','#8bb36a'];
+    var count = Math.min(16, Math.max(8, Math.round(window.innerWidth / 90)));
+    for (var i = 0; i < count; i++) {
+      var l = document.createElement('span');
+      l.className = 'leaf';
+      l.style.left = (Math.random() * 100) + '%';
+      l.style.setProperty('--s', (10 + Math.random() * 14) + 'px');
+      l.style.setProperty('--c', colors[i % colors.length]);
+      l.style.setProperty('--d', (5 + Math.random() * 4) + 's');
+      l.style.setProperty('--delay', (Math.random() * 3.2) + 's');
+      l.style.setProperty('--x', ((Math.random() * 140) - 70) + 'px');
+      l.style.setProperty('--r', ((Math.random() > .5 ? 1 : -1) * (360 + Math.random() * 360)) + 'deg');
+      box.appendChild(l);
+    }
+  }
+
+  /* ---------- الصوت (مولَّد داخل المتصفح – بدون ملفات صوت) ---------- */
+  function noiseBuffer(c, secs){
+    var b = c.createBuffer(1, Math.floor(c.sampleRate * secs), c.sampleRate), d = b.getChannelData(0);
+    for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    return b;
+  }
+  function tone(c, dest, type, f, t0, dur, vol, lp){
+    var o = c.createOscillator(), g = c.createGain(), node = g;
+    o.type = type; o.frequency.setValueAtTime(f, t0);
+    g.gain.setValueAtTime(.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + .012);
+    g.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+    o.connect(g);
+    if (lp) { var fl = c.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = lp; g.connect(fl); node = fl; }
+    node.connect(dest); o.start(t0); o.stop(t0 + dur + .05);
+  }
+  function scheduleSound(){
+    if (soundPlayed || muted || !ctx) return;
+    soundPlayed = true;
+    var c = ctx, t = c.currentTime + .05;
+
+    var comp = c.createDynamicsCompressor(); comp.connect(c.destination);
+    var master = c.createGain(); master.gain.value = .55; master.connect(comp);
+
+    // 1) هسيس/وشوشة ناعمة عند الظهور
+    var n = c.createBufferSource(); n.buffer = noiseBuffer(c, .9);
+    var bp = c.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = .9;
+    bp.frequency.setValueAtTime(400, t); bp.frequency.exponentialRampToValueAtTime(3200, t + .7);
+    var ng = c.createGain(); ng.gain.setValueAtTime(.0001, t);
+    ng.gain.exponentialRampToValueAtTime(.09, t + .3); ng.gain.exponentialRampToValueAtTime(.0001, t + .85);
+    n.connect(bp); bp.connect(ng); ng.connect(master); n.start(t); n.stop(t + .9);
+
+    // 2) نغمة على مقام حجاز (ري – مي♭ – فا# – صول – لا – ري)
+    [293.66, 311.13, 369.99, 392.0, 440.0, 587.33].forEach(function(f, i){
+      var st = t + .45 + i * .15;
+      tone(c, master, 'triangle', f, st, .9, .22, 2600);
+      tone(c, master, 'sine', f * 2, st, .5, .05);
+    });
+
+    // 3) جرس المطبخ (ding)
+    var bt = t + 1.45;
+    [1318.5, 2637, 3951].forEach(function(f, i){ tone(c, master, 'sine', f, bt, 1.9 - i * .4, .16 / (i + 1)); });
+
+    // 4) وتر ختامي دافئ
+    [146.83, 220.0, 293.66, 369.99].forEach(function(f){ tone(c, master, 'sine', f, t + 1.5, 2.2, .11, 1800); });
+
+    // 5) بريق صغير
+    [2093, 2637, 3136, 4186].forEach(function(f, i){ tone(c, master, 'sine', f, t + 2.1 + i * .09, .45, .05); });
+  }
+  function ensureCtx(){
+    if (ctx) return ctx;
+    try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){ ctx = null; }
+    return ctx;
+  }
+  function tryPlay(){
+    if (muted || soundPlayed || navigated) return;
+    if (!ensureCtx()) return;
+    var start = function(){ if (ctx.state === 'running') { hint.classList.remove('show'); scheduleSound(); } else { hint.classList.add('show'); } };
+    if (ctx.state === 'running') { start(); return; }
+    var p = ctx.resume(); if (p && p.then) p.then(start, function(){ hint.classList.add('show'); }); else start();
+    setTimeout(function(){ if (ctx && ctx.state !== 'running' && !soundPlayed) hint.classList.add('show'); }, 250);
+  }
+
+  // أول لمسة/نقرة/زر يفعّل الصوت (سياسة المتصفحات تمنع التشغيل التلقائي قبل التفاعل)
+  ['pointerup','touchend','click','keydown'].forEach(function(evt){
+    window.addEventListener(evt, function h(e){
+      if (e.target === skipBtn || e.target === soundBtn) return;
+      tryPlay();
+    }, { passive: true });
+  });
+
+  soundBtn.addEventListener('click', function(){
+    muted = !muted;
+    try { localStorage.setItem('safraSplashMuted', muted ? '1' : '0'); } catch(e){}
+    soundBtn.textContent = muted ? '🔇' : '🔊';
+    if (muted) { hint.classList.remove('show'); if (ctx && ctx.state === 'running') ctx.suspend(); }
+    else { soundPlayed = false; if (ctx && ctx.state === 'suspended') ctx.resume().then(scheduleSound); else { tryPlay(); } }
+  });
+
+  /* ---------- الدخول للتطبيق ---------- */
+  function go(){
+    if (navigated) return; navigated = true;
+    hint.classList.remove('show');
+    splash.classList.add('is-hidden');
+    setTimeout(function(){ try { if (ctx) ctx.close(); } catch(e){} window.location.replace('home.html'); }, 650);
+  }
+  skipBtn.addEventListener('click', go);
+
+  // محاولة تشغيل الصوت تلقائياً + دخول تلقائي بعد انتهاء العرض
+  setTimeout(tryPlay, 150);
+  setTimeout(function(){ hint.classList.remove('show'); }, 3500);
+  setTimeout(go, SHOW_MS + 250);
+})();
+</script>
 </body>
 </html>

@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=El+Messiri:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
 <style>
 :root{
@@ -86,6 +87,15 @@ a{
   display:grid;
   place-items:center;
   font-size:18px;
+  overflow:hidden;
+}
+
+.icon.user-avatar{
+  background:var(--green);
+  color:#fff;
+  font-weight:800;
+  font-size:16px;
+  border-color:var(--green);
 }
 
 .location{
@@ -268,9 +278,54 @@ a{
   color:#3f4944;
 }
 
+/* CARE: سفرة العافية */
+
+.care-home{
+  background:var(--green);
+  border-radius:22px;
+  padding:16px 16px 14px;
+  color:#fff;
+}
+
+.care-home p{
+  margin:0 0 12px;
+  font-size:12px;
+  line-height:1.7;
+  color:rgba(255,255,255,.85);
+}
+
+.care-home-links{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:8px;
+}
+
+.care-home-links a{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+  padding:11px 4px;
+  border-radius:16px;
+  background:rgba(255,255,255,.1);
+  color:#fff;
+  text-decoration:none;
+  font-size:12px;
+  font-weight:700;
+}
+
+.care-home-links a:focus-visible{
+  outline:3px solid rgba(255,255,255,.6);
+  outline-offset:2px;
+}
+
+.care-home-links i{
+  font-size:17px;
+}
+
 /* BANNER */
 
-.banner{
+.banner-carousel{
   position:relative;
   height:210px;
   border-radius:25px;
@@ -279,8 +334,22 @@ a{
   box-shadow:0 14px 35px rgba(16,63,50,.12);
 }
 
-.banner img,
-.banner video{
+.banner-slide{
+  position:absolute;
+  inset:0;
+  display:block;
+  opacity:0;
+  visibility:hidden;
+  transition:opacity .5s ease;
+}
+
+.banner-slide.active{
+  opacity:1;
+  visibility:visible;
+}
+
+.banner-slide img,
+.banner-slide video{
   width:100%;
   height:100%;
   object-fit:cover;
@@ -320,6 +389,154 @@ a{
   margin:0;
   font-size:10px;
   opacity:.85;
+}
+
+.banner-dots{
+  display:flex;
+  justify-content:center;
+  gap:6px;
+  margin-top:10px;
+}
+
+.banner-dots span{
+  width:7px;
+  height:7px;
+  border-radius:50%;
+  background:var(--line);
+  cursor:pointer;
+  transition:background .25s ease, transform .25s ease;
+}
+
+.banner-dots span.active{
+  background:var(--gold);
+  transform:scale(1.2);
+}
+
+/* VIDEO BANNER (قسم مستقل خاص بالفيديو بس) */
+
+.video-banner{
+  background:#0d2921;
+  height:auto;
+  aspect-ratio:9/16;
+  max-height:520px;
+  transition:aspect-ratio .35s ease;
+}
+
+.video-banner.orientation-landscape{
+  aspect-ratio:16/9;
+  max-height:260px;
+}
+
+.video-badge{
+  position:absolute;
+  top:14px;
+  left:14px;
+  z-index:2;
+  display:flex;
+  align-items:center;
+  gap:5px;
+  background:rgba(0,0,0,.45);
+  backdrop-filter:blur(6px);
+  color:#fff;
+  font-size:10px;
+  font-weight:700;
+  padding:5px 10px;
+  border-radius:20px;
+}
+
+.video-sound-btn{
+  position:absolute;
+  top:12px;
+  right:12px;
+  z-index:2;
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  border:none;
+  cursor:pointer;
+  background:rgba(0,0,0,.45);
+  backdrop-filter:blur(6px);
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:13px;
+}
+
+.video-badge i{
+  color:var(--gold);
+  font-size:9px;
+}
+
+/* PARTNERS / الاشتراكات (بانرات المطاعم المشترِكة، منفصلة عن إعلانات المنصة) */
+
+#partners-section{
+  display:none; /* بتظهر تلقائيًا لما يوصل شريك مشترك نشط (loadPartnerSubscriptions) */
+}
+
+#partners-section.has-partners{
+  display:block;
+}
+
+.partners-scroll{
+  display:flex;
+  gap:12px;
+  overflow:auto;
+  padding-bottom:4px;
+  scrollbar-width:none;
+}
+
+.partners-scroll::-webkit-scrollbar{
+  display:none;
+}
+
+.partner-card{
+  position:relative;
+  flex:0 0 auto;
+  width:148px;
+  height:112px;
+  border-radius:18px;
+  overflow:hidden;
+  display:block;
+  box-shadow:0 10px 22px rgba(16,63,50,.16);
+}
+
+.partner-card img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+.partner-overlay{
+  position:absolute;
+  inset:0;
+  background:linear-gradient(0deg, rgba(0,0,0,.72), rgba(0,0,0,0) 60%);
+}
+
+.partner-badge{
+  position:absolute;
+  top:9px;
+  right:9px;
+  background:var(--gold);
+  color:#fff;
+  font-size:9px;
+  font-weight:800;
+  padding:3px 8px;
+  border-radius:20px;
+}
+
+.partner-name{
+  position:absolute;
+  bottom:9px;
+  right:11px;
+  left:11px;
+  color:#fff;
+  font-size:12px;
+  font-weight:700;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
 
 /* FEATURE */
@@ -574,6 +791,95 @@ a{
   font-weight:800;
 }
 
+/* FOOD TRUCKS — بطاقات عمودية: صورة كاملة + اسم + تقييم فقط */
+
+.trucks{
+  display:flex;
+  gap:12px;
+  overflow:auto;
+  scrollbar-width:none;
+  padding-bottom:3px;
+  scroll-snap-type:x proximity;
+}
+
+.trucks::-webkit-scrollbar{
+  display:none;
+}
+
+.truck-card{
+  position:relative;
+  flex:0 0 clamp(138px,38vw,190px);
+  aspect-ratio:2/3;
+  border-radius:24px;
+  overflow:hidden;
+  display:block;
+  background:#1c1410;
+  box-shadow:0 10px 24px rgba(40,20,0,.22);
+  scroll-snap-align:start;
+  transition:transform .25s ease, box-shadow .25s ease;
+}
+
+.truck-card:active{
+  transform:scale(.97);
+}
+
+@media (hover:hover){
+  .truck-card:hover{
+    transform:translateY(-4px);
+    box-shadow:0 16px 30px rgba(40,20,0,.3);
+  }
+}
+
+.truck-card img{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+.truck-card::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(to top,rgba(0,0,0,.82) 0%,rgba(0,0,0,.35) 32%,rgba(0,0,0,0) 58%);
+}
+
+.truck-info{
+  position:absolute;
+  z-index:1;
+  inset-inline:0;
+  bottom:0;
+  padding:12px 12px 13px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  align-items:flex-start;
+}
+
+.truck-info b{
+  color:#fff;
+  font-size:14px;
+  line-height:1.3;
+  text-shadow:0 1px 6px rgba(0,0,0,.5);
+  display:-webkit-box;
+  -webkit-line-clamp:2;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
+}
+
+.truck-rating{
+  background:rgba(255,255,255,.18);
+  -webkit-backdrop-filter:blur(6px);
+  backdrop-filter:blur(6px);
+  color:#ffd27a;
+  font-weight:800;
+  font-size:11px;
+  padding:3px 9px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.25);
+}
+
 /* PARTNER */
 
 .partner{
@@ -735,6 +1041,25 @@ a{
   flex-direction:column;
   align-items:center;
   gap:5px;
+  position:relative;
+}
+
+.nav a .nav-badge{
+  position:absolute;
+  top:-5px;
+  left:calc(50% + 8px);
+  background:#d92626;
+  color:#fff;
+  font-size:9px;
+  font-weight:700;
+  border-radius:9999px;
+  min-width:15px;
+  height:15px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:0 3px;
+  line-height:1;
 }
 
 .nav a.active{
@@ -743,8 +1068,24 @@ a{
 }
 
 .nav i{
-  font-size:18px;
+  font-size:22px;
   font-style:normal;
+  display:inline-block;
+  transition:transform .15s;
+}
+
+.nav a:active i{
+  transform:scale(.85);
+}
+
+@keyframes navIconTapHome{
+  0%{ transform:scale(1); }
+  40%{ transform:scale(1.3); }
+  100%{ transform:scale(1); }
+}
+
+.nav i.tap-animate, .nav a.tap-animate{
+  animation:navIconTapHome .35s ease;
 }
 
 .nav .main{
@@ -776,7 +1117,128 @@ a{
       0 20px 70px rgba(20,40,30,.12);
   }
 }
+
+/* === Responsive sizing: mobile + desktop === */
+html{overflow-x:hidden}
+body{min-width:0}
+.app{width:100%;max-width:1180px;margin:0 auto;padding-bottom:32px}
+.section{padding-inline:clamp(14px,2.2vw,28px)}
+.top{padding-inline:clamp(14px,2.2vw,28px)}
+.location{padding-inline:clamp(14px,2.2vw,28px)}
+.hero{margin-inline:clamp(14px,2.2vw,28px)}
+@media(min-width:700px){
+  .app{box-shadow:0 0 45px rgba(16,63,50,.08)}
+  .hero{min-height:300px;padding:clamp(28px,4vw,48px)}
+  .hero h1{font-size:clamp(29px,3.2vw,46px)}
+  .feature-card{min-height:260px}
+  .feature{grid-template-columns:minmax(0,1.25fr) minmax(0,1fr)}
+  .partners-scroll,.restaurants{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));overflow:visible}
+  .partner-card,.rest{width:auto;min-width:0}
+  .orbit{height:230px}
+  .orbit-card{width:clamp(110px,13vw,150px)}
+}
+@media(max-width:699px){
+  .app{max-width:100%;overflow:hidden}
+  .feature{grid-template-columns:minmax(0,1fr) minmax(0,.9fr)}
+  .feature-card{min-height:190px}
+}
+/* Every video is visible beside the others with fixed responsive dimensions */
+#video-banner-carousel.video-banner{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));
+  gap:12px;
+  height:auto!important;
+  min-height:0;
+  overflow:visible;
+  background:transparent;
+  box-shadow:none;
+  aspect-ratio:auto!important;
+}
+#video-banner-carousel.video-banner .banner-slide{
+  position:relative;
+  inset:auto;
+  display:block;
+  opacity:1;
+  visibility:visible;
+  width:100%;
+  height:clamp(230px,38vw,390px);
+  border-radius:20px;
+  overflow:hidden;
+  background:#0d2921;
+}
+#video-banner-carousel.video-banner .banner-slide video{height:100%;width:100%;object-fit:cover}
+#video-banner-carousel.video-banner .video-badge,
+#video-banner-carousel.video-banner .video-sound-btn{display:none}
+@media(max-width:480px){
+ #video-banner-carousel.video-banner{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ #video-banner-carousel.video-banner .banner-slide{height:250px;border-radius:15px}
+}
+
+
+/* === HERO: مقاسات مناسبة للجوال + صورة متحركة متغيّرة === */
+.hero .plate{display:none}
+.hero{padding:22px 18px 18px;min-height:0}
+.hero-row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:12px}
+.hero-text{flex:1 1 auto;min-width:0}
+.hero .eyebrow{font-size:11px;margin-bottom:6px}
+.hero h1{font-size:clamp(21px,6.3vw,28px);line-height:1.4;margin:0}
+.hero p{max-width:none;font-size:12.5px;line-height:1.75;margin:0 0 15px}
+.hero .search{padding:12px 14px;border-radius:15px}
+
+.hero-visual{
+  position:relative;flex:0 0 auto;width:clamp(96px,29vw,128px);aspect-ratio:1;
+  margin:6px 4px 10px 6px;animation:heroBob 4.2s ease-in-out infinite;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.hero-visual{transition:opacity .5s ease}
+.hero-visual.is-loading{opacity:0}
+.hero-visual .ring{
+  position:absolute;inset:-7px;border-radius:50%;
+  border:1.5px dashed rgba(239,189,97,.85);animation:heroSpin 20s linear infinite;
+}
+.dish-stack{
+  position:absolute;inset:0;border-radius:50%;overflow:hidden;background:#123f33;
+  box-shadow:0 0 0 4px rgba(255,255,255,.92),0 16px 30px rgba(0,0,0,.38);
+}
+.dish{
+  position:absolute;inset:0;width:100%;height:100%;object-fit:cover;
+  opacity:0;transform:scale(1.35) rotate(-14deg);
+  transition:opacity 1s ease,transform 1.1s cubic-bezier(.2,.7,.2,1);
+  will-change:transform,opacity;
+}
+.dish.is-on{opacity:1;transform:scale(1) rotate(0);animation:dishDrift 7s ease-out forwards}
+.dish.is-out{opacity:0;transform:scale(.8) rotate(14deg)}
+.dish-chip{
+  position:absolute;left:50%;bottom:-11px;transform:translateX(-50%);white-space:nowrap;
+  background:#fff;color:var(--green,#0d382d);font-size:11px;font-weight:700;line-height:1;
+  padding:6px 11px;border-radius:999px;box-shadow:0 6px 14px rgba(0,0,0,.22);
+  transition:opacity .35s ease,transform .35s ease;
+}
+.dish-chip.swap{opacity:0;transform:translateX(-50%) translateY(5px)}
+
+@keyframes heroBob{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-7px) rotate(2deg)}}
+@keyframes heroSpin{to{transform:rotate(360deg)}}
+@keyframes dishDrift{from{scale:1}to{scale:1.1}}
+
+@media(min-width:700px){
+  .hero{padding:clamp(28px,4vw,44px)}
+  .hero-row{gap:32px;margin-bottom:14px}
+  .hero .eyebrow{font-size:12px}
+  .hero p{font-size:14px;max-width:520px}
+  .hero .search{max-width:560px;font-size:13px;padding:14px 18px}
+  .hero-visual{width:clamp(170px,19vw,230px);margin:8px 16px 14px 8px}
+  .dish-chip{font-size:12.5px;padding:7px 14px}
+}
+@media(max-width:340px){
+  .hero-visual{width:88px}
+  .hero h1{font-size:20px}
+}
+@media(prefers-reduced-motion:reduce){
+  .hero-visual,.hero-visual .ring,.dish.is-on{animation:none}
+  .dish{transition:opacity .4s}
+}
 </style>
+    <link rel="stylesheet" href="safra-3d.css">
 </head>
 
 <body>
@@ -793,6 +1255,7 @@ a{
   </a>
 
   <div class="top-actions">
+    <a class="icon" id="auth-icon" href="Auth.html" title="تسجيل الدخول / إنشاء حساب">☻</a>
     <a class="icon" href="#">♡</a>
     <a class="icon" href="#">⌕</a>
   </div>
@@ -808,13 +1271,31 @@ a{
 
 <section class="hero">
 
-  <div class="eyebrow">
-    تجربة مختلفة في اكتشاف الأكل
-  </div>
+  <div class="hero-row">
+    <div class="hero-text">
+      <div class="eyebrow">
+        تجربة مختلفة في اكتشاف الأكل
+      </div>
 
-  <h1>
-    خلّي سفرتك تبدأ من مزاجك.
-  </h1>
+      <h1>
+        خلّي سفرتك تبدأ من مزاجك.
+      </h1>
+    </div>
+
+    <!-- صورة متغيّرة ومتحركة: تتبدّل كل فترة -->
+    <div class="hero-visual is-loading" id="heroVisual" role="img" aria-label="أطباق من سفرة">
+      <span class="ring" aria-hidden="true"></span>
+      <div class="dish-stack">
+        <img class="dish is-on" src="hero-dish-1.webp" data-name="رز باللحمة" alt="" width="420" height="420" decoding="async">
+        <img class="dish" src="hero-dish-2.webp" data-name="سلطة طازجة" alt="" width="420" height="420" loading="lazy" decoding="async">
+        <img class="dish" src="hero-dish-3.webp" data-name="حمّص" alt="" width="420" height="420" loading="lazy" decoding="async">
+        <img class="dish" src="hero-dish-4.webp" data-name="تشيز كيك" alt="" width="420" height="420" loading="lazy" decoding="async">
+        <img class="dish" src="hero-dish-5.webp" data-name="خبز طازج" alt="" width="420" height="420" loading="lazy" decoding="async">
+        <img class="dish" src="hero-dish-6.webp" data-name="زيتون" alt="" width="420" height="420" loading="lazy" decoding="async">
+      </div>
+      <span class="dish-chip" id="dishChip">رز باللحمة</span>
+    </div>
+  </div>
 
   <p>
     اختار إحساسك اليوم، وسفرة تفتح لك اقتراحات تناسب اللحظة.
@@ -826,8 +1307,6 @@ a{
       ابحث عن أكلة، مطعم أو صنف...
     </span>
   </div>
-
-  <div class="plate"></div>
 
 </section>
 
@@ -873,41 +1352,101 @@ a{
 </section>
 
 
-<!-- BANNER
-     مكان البانرات: بعد البحث/المزاج وقبل المطاعم
+<!-- CARE: سفرة العافية (أكل بيتي للنفاس والمريض وكبار السن) -->
+
+<section class="section" id="care-section">
+
+  <div class="section-head">
+    <h2>سفرة العافية</h2>
+    <span>أكل بيتي خفيف</span>
+  </div>
+
+  <div class="care-home">
+    <p>أكل من مطابخ البيوت لأيام النفاس والمرض، وللكبار بالسن.</p>
+    <div class="care-home-links">
+      <a href="care-food.html?for=%D9%86%D9%81%D8%A7%D8%B3"><i class="fa-solid fa-baby"></i>للنفاس</a>
+      <a href="care-food.html?for=%D9%85%D8%B1%D9%8A%D8%B6"><i class="fa-solid fa-mug-hot"></i>للمريض</a>
+      <a href="care-food.html?for=%D9%83%D8%A8%D8%A7%D8%B1%20%D8%A7%D9%84%D8%B3%D9%86"><i class="fa-solid fa-person-cane"></i>لكبار السن</a>
+    </div>
+  </div>
+
+</section>
+
+
+<!-- VIDEO BANNER
+     قسم مستقل خاص بإعلانات الفيديو بس (platformAds من نوع "فيديو")
+     بيختفي تلقائيًا إذا ما في ولا فيديو نشط مستهدف الرئيسية
+     شوف السكربت بآخر الصفحة (loadVideoBanners)
 -->
 
-<section class="section">
+<section class="section" id="video-banner-section" style="display:none;">
+
+  <div class="section-head">
+    <h2>فيديو سفرة</h2>
+    <span><i class="fa-solid fa-play"></i> فيديو</span>
+  </div>
+
+  <div class="banner-carousel video-banner" id="video-banner-carousel">
+    <span class="video-badge"><i class="fa-solid fa-video"></i> فيديو</span>
+    <button type="button" class="video-sound-btn" id="video-sound-btn" aria-label="تشغيل/كتم الصوت"><i class="fa-solid fa-volume-xmark"></i></button>
+    <!-- بيتعبى ديناميكيًا -->
+  </div>
+
+  <div class="banner-dots" id="video-banner-dots"></div>
+
+</section>
+
+
+<!-- IMAGE BANNER
+     قسم مستقل خاص بإعلانات الصور بس (platformAds من نوع صورة)
+     فيه سلايد افتراضي يظهر لغاية ما تجهز البيانات أو إذا ما في ولا إعلان نشط
+     شوف السكربت بآخر الصفحة (loadImageBanners)
+-->
+
+<section class="section" id="image-banner-section">
 
   <div class="section-head">
     <h2>عروض سفرة</h2>
     <span>مميز</span>
   </div>
 
-  <a class="banner" href="#">
+  <div class="banner-carousel" id="image-banner-carousel">
+    <a class="banner-slide active" href="#">
+      <img
+        src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1000&q=85"
+        alt="عرض سفرة"
+      >
+      <div class="banner-overlay"></div>
+      <div class="banner-content">
+        <small>عرض اليوم</small>
+        <h3>اكتشف سفرة جديدة اليوم</h3>
+        <p>أكلات ومطاعم مميزة بانتظارك</p>
+      </div>
+    </a>
+  </div>
 
-    <!-- يمكن استبدال الصورة لاحقاً بصورة البانر القادمة من الإدارة -->
+  <div class="banner-dots" id="image-banner-dots"></div>
 
-    <img
-      src="https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1000&q=85"
-      alt="عرض سفرة"
-    >
+</section>
 
-    <div class="banner-overlay"></div>
 
-    <div class="banner-content">
-      <small>عرض اليوم</small>
+<!-- PARTNERS (الاشتراكات)
+     قسم مستقل لبانرات المطاعم يلي دافعة اشتراك بانر نشط (bannerSubscriptionStatus)
+     منفصل تمامًا عن إعلانات المنصة (platformAds) يلي فوق
+     بيختفي تلقائيًا إذا ما في ولا شريك مشترك نشط
+     شوف السكربت بآخر الصفحة (loadPartnerSubscriptions)
+-->
 
-      <h3>
-        اكتشف سفرة جديدة اليوم
-      </h3>
+<section class="section" id="partners-section">
 
-      <p>
-        أكلات ومطاعم مميزة بانتظارك
-      </p>
-    </div>
+  <div class="section-head">
+    <h2>شركاؤنا المميزون</h2>
+    <span>اشتراك مميز</span>
+  </div>
 
-  </a>
+  <div class="partners-scroll" id="partners-scroll">
+    <!-- بيتعبى ديناميكيًا -->
+  </div>
 
 </section>
 
@@ -923,7 +1462,8 @@ a{
 
   <div class="feature">
 
-    <a class="feature-card" href="restaurant-page.html">
+    <!-- ديناميكي: بيتعبى من menuItems الحقيقية (loadHomeFeature بآخر الصفحة). المحتوى تحت افتراضي بس لغاية ما يجهز -->
+    <a class="feature-card" id="feature-card" href="restaurant-page.html">
 
       <img
         src="https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=85"
@@ -940,7 +1480,7 @@ a{
     </a>
 
 
-    <div class="mini-stack">
+    <div class="mini-stack" id="mini-stack">
 
       <a class="mini" href="restaurants.html">
 
@@ -1007,7 +1547,7 @@ a{
       </div>
 
 
-      <a class="orbit-card o1" href="restaurant-page.html">
+      <a class="orbit-card o1" id="orbit-o1" href="restaurant-page.html">
 
         <img
           src="https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=300&q=80"
@@ -1020,7 +1560,7 @@ a{
       </a>
 
 
-      <a class="orbit-card o2" href="restaurant-page.html">
+      <a class="orbit-card o2" id="orbit-o2" href="restaurant-page.html">
 
         <img
           src="https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=300&q=80"
@@ -1033,7 +1573,7 @@ a{
       </a>
 
 
-      <a class="orbit-card o3" href="restaurant-page.html">
+      <a class="orbit-card o3" id="orbit-o3" href="restaurant-page.html">
 
         <img
           src="https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=300&q=80"
@@ -1067,7 +1607,7 @@ a{
   </div>
 
 
-  <div class="restaurants">
+  <div class="restaurants" id="home-restaurants-row">
 
 
     <a class="rest" href="restaurant-page.html">
@@ -1126,6 +1666,30 @@ a{
 
     </a>
 
+
+  </div>
+
+</section>
+
+
+<!-- FOOD TRUCKS -->
+
+<section class="section" id="trucks-section">
+
+  <div class="section-head">
+    <h2>فود ترك 🚚</h2>
+    <span>مطاعم متنقلة</span>
+  </div>
+
+  <div class="trucks" id="home-trucks-row">
+
+    <a class="truck-card" href="restaurant-page.html">
+      <img src="foodtruck-demo.webp" alt="فود ترك الغروب" loading="lazy">
+      <div class="truck-info">
+        <b>فود ترك الغروب</b>
+        <span class="truck-rating">★ 4.8</span>
+      </div>
+    </a>
 
   </div>
 
@@ -1215,6 +1779,11 @@ a{
     طلباتي
   </a>
 
+  <a href="adman.html" id="nav-adman-home">
+    <i class="fa-solid fa-bell"></i>
+    إدارة الطلبات
+  </a>
+
   <a href="my-account.html">
     <i>◌</i>
     حسابي
@@ -1223,6 +1792,697 @@ a{
 </nav>
 
 </div>
+
+<!-- ربط زر الحساب بنظام تسجيل الدخول الموحّد (Firebase) المستخدم بباقي صفحات الموقع -->
+<script type="module">
+  import { auth, db } from "./firebase-config.js";
+  import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+  import { collection, getDocs, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+  // ===============================================================
+  //   بانرات الصفحة الرئيسية: جايّة من Firestore
+  //   1) بانر الفيديو   -> platformAds نوع "فيديو"           (قسم لحاله: #video-banner-section)
+  //   2) بانر الصور     -> platformAds نوع صورة               (قسم لحاله: #image-banner-section)
+  //   3) الاشتراكات     -> بانرات المطاعم المعتمدة من الأدمن،
+  //                         وبشرط يكون اشتراك البانر نشط وما انتهت مدته (قسم لحاله: #partners-section)
+  //   كل قسم بيتحمّل ويترسم لحاله، وبيختفي لحاله إذا ما في محتوى نشط إله
+  // ===============================================================
+
+  function isPromoActive(data, statusField, endDateField) {
+    if (data[statusField] !== 'نشط') return false;
+    const end = data[endDateField]?.toDate ? data[endDateField].toDate() : (data[endDateField] ? new Date(data[endDateField]) : null);
+    if (end && end.getTime() < Date.now()) return false;
+    return true;
+  }
+
+  // مطاعم كل الموقع بمكان واحد (id -> بيانات) حتى ما نكرر جلبها من Firestore لكل قسم
+  let restaurantsMapPromise = null;
+  function getRestaurantsMap() {
+    if (!restaurantsMapPromise) {
+      restaurantsMapPromise = getDocs(collection(db, "restaurants")).then(snap => {
+        const map = new Map();
+        snap.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
+        return map;
+      }).catch(error => {
+        console.error("تعذر تحميل المطاعم:", error);
+        return new Map();
+      });
+    }
+    return restaurantsMapPromise;
+  }
+
+  // كل سلايد بيصير نوع واحد بس (فيديو أو صورة) — ما في خلط بين النوعين بنفس القسم
+  function mediaSlideMarkup({ mediaType, mediaUrl, title, subtitle, small }) {
+    const media = mediaType === 'video'
+      ? `<video src="${mediaUrl}" autoplay muted loop playsinline></video>`
+      : `<img src="${mediaUrl}" alt="${title || 'عرض سفرة'}">`;
+    return `
+      ${media}
+      <div class="banner-overlay"></div>
+      <div class="banner-content">
+        <small>${small || 'عرض اليوم'}</small>
+        <h3>${title || 'اكتشف سفرة جديدة اليوم'}</h3>
+        ${subtitle ? `<p>${subtitle}</p>` : ''}
+      </div>`;
+  }
+
+  // بيحاول يشغّل صوت الفيديو الظاهر حاليًا؛ إذا المتصفح رفض (سياسة الـ autoplay)، بيرجعه مكتوم بهدوء بدون خطأ يبين للزائر
+  function trySoundOn(videoEl, carousel) {
+    if (!videoEl) return;
+    videoEl.muted = false;
+    const p = videoEl.play();
+    const finish = () => updateSoundIcon(carousel, videoEl.muted);
+    if (p && p.then) {
+      p.then(finish).catch(() => { videoEl.muted = true; videoEl.play().catch(() => {}); finish(); });
+    } else {
+      finish();
+    }
+  }
+  function trySoundOff(videoEl, carousel) {
+    if (videoEl) { videoEl.muted = true; updateSoundIcon(carousel, true); }
+  }
+  function updateSoundIcon(carousel, muted) {
+    const btn = carousel?.querySelector('.video-sound-btn');
+    if (!btn) return;
+    btn.innerHTML = muted ? '<i class="fa-solid fa-volume-xmark"></i>' : '<i class="fa-solid fa-volume-high"></i>';
+  }
+  // زرار كتم/تشغيل الصوت: بيتحكم بالسلايد النشط حاليًا. مربوط مرة وحدة على الحاوية نفسها (ما بتتغيّر) عشان يضل شغّال حتى لو تجدد محتوى الكاروسيل
+  function setupSoundToggle(carousel) {
+    if (carousel.dataset.soundBound) return;
+    carousel.dataset.soundBound = '1';
+    carousel.addEventListener('click', (e) => {
+      const btn = e.target.closest('.video-sound-btn');
+      if (!btn) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const video = carousel.querySelector('.banner-slide.active video');
+      if (!video) return;
+      if (video.muted) trySoundOn(video, carousel); else trySoundOff(video, carousel);
+    });
+  }
+
+  // محرّك كاروسيل عام (تدوير + نقاط) يستخدمه أي قسم بانر مستقل
+  // orientationAware: خاص ببانر الفيديو بس — بيبدّل شكل الحاوية (عريض يوتيوب / عمودي ريلز) حسب توجّه كل سلايد
+  function renderCarousel(carousel, dotsBox, slides, { keepExisting = false, orientationAware = false } = {}) {
+    if (!carousel || !slides.length) return;
+
+    const extraMarkup = keepExisting
+      ? (carousel.querySelector('.video-badge')?.outerHTML || '') + (carousel.querySelector('.video-sound-btn')?.outerHTML || '')
+      : '';
+
+    carousel.innerHTML = extraMarkup + slides.map((s, i) =>
+      `<a class="banner-slide${i === 0 ? ' active' : ''}" href="${s.href || '#'}" data-orientation="${s.orientation || 'portrait'}">${mediaSlideMarkup(s)}</a>`
+    ).join('');
+
+    if (orientationAware) setupSoundToggle(carousel);
+
+    function applyOrientation(slide) {
+      if (!orientationAware) return;
+      carousel.classList.toggle('orientation-landscape', slide.orientation === 'landscape');
+      const badge = carousel.querySelector('.video-badge');
+      if (badge) badge.innerHTML = slide.orientation === 'landscape'
+        ? '<i class="fa-solid fa-video"></i> يوتيوب'
+        : '<i class="fa-solid fa-video"></i> ريلز';
+    }
+    applyOrientation(slides[0]);
+    trySoundOn(carousel.querySelector('.banner-slide.active video'), carousel);
+
+    if (dotsBox) {
+      dotsBox.innerHTML = slides.length > 1
+        ? slides.map((_, i) => `<span data-i="${i}" class="${i === 0 ? 'active' : ''}"></span>`).join('')
+        : '';
+    }
+
+    if (slides.length <= 1 || orientationAware) return;
+
+    const slideEls = carousel.querySelectorAll('.banner-slide');
+    const dotEls = dotsBox ? dotsBox.querySelectorAll('span') : [];
+    let current = 0;
+
+    function goTo(index) {
+      trySoundOff(slideEls[current].querySelector('video'), carousel);
+      slideEls[current].classList.remove('active');
+      dotEls[current]?.classList.remove('active');
+      current = index;
+      slideEls[current].classList.add('active');
+      dotEls[current]?.classList.add('active');
+      applyOrientation(slides[current]);
+      trySoundOn(slideEls[current].querySelector('video'), carousel);
+    }
+
+    dotEls.forEach(dot => dot.addEventListener('click', (e) => {
+      e.preventDefault();
+      goTo(Number(dot.dataset.i));
+    }));
+
+    setInterval(() => goTo((current + 1) % slideEls.length), 5000);
+  }
+
+  // 1) بانر الفيديو — قسم مستقل، بيظهر بس إذا في فيديو نشط
+  async function loadVideoBanners() {
+    const section = document.getElementById('video-banner-section');
+    const carousel = document.getElementById('video-banner-carousel');
+    const dotsBox = document.getElementById('video-banner-dots');
+    if (!carousel) return;
+
+    const slides = [];
+
+    // أ) فيديوهات إعلانات المنصة
+    try {
+      const adsSnap = await getDocs(collection(db, "platformAds"));
+      adsSnap.forEach(d => {
+        const ad = d.data();
+        const targetsHome = ad.target === 'الكل' || ad.target === 'الرئيسية';
+        if (ad.status === 'نشط' && targetsHome && ad.mediaUrl && ad.type === 'فيديو') {
+          slides.push({
+            mediaType: 'video',
+            mediaUrl: ad.mediaUrl,
+            title: ad.title || '',
+            href: ad.linkUrl || '#',
+            orientation: ad.orientation === 'landscape' ? 'landscape' : 'portrait' // إعلانات قديمة بدون الحقل = ريلز عمودي زي ما كانت
+          });
+        }
+      });
+    } catch (error) {
+      console.error("تعذر تحميل إعلانات الفيديو:", error);
+    }
+
+    // ب) فيديوهات المطاعم المعتمدة من الأدمن + اشتراك الفيديو نشط وما انتهت مدته
+    try {
+      const restaurantsMap = await getRestaurantsMap();
+      restaurantsMap.forEach(r => {
+        if (r.videoUrl && r.videoStatus === 'معتمد' && isPromoActive(r, 'videoSubscriptionStatus', 'videoSubscriptionEndDate')) {
+          slides.push({
+            mediaType: 'video',
+            mediaUrl: r.videoUrl,
+            title: r.name || '',
+            subtitle: 'اكتشف الآن',
+            href: `restaurant-page.html?id=${r.id}`,
+            orientation: r.videoOrientation === 'landscape' ? 'landscape' : 'portrait'
+          });
+        }
+      });
+    } catch (error) {
+      console.error("تعذر تحميل فيديوهات المطاعم:", error);
+    }
+
+    if (!slides.length) return; // القسم أصلاً display:none بالـ HTML لغاية ما يتعبى
+
+    renderCarousel(carousel, dotsBox, slides, { keepExisting: true, orientationAware: true });
+    if (section) section.style.display = 'block';
+  }
+
+  // 2) بانر الصور — قسم مستقل، فيه سلايد افتراضي إذا ما في إعلان نشط
+  async function loadImageBanners() {
+    const carousel = document.getElementById('image-banner-carousel');
+    const dotsBox = document.getElementById('image-banner-dots');
+    if (!carousel) return;
+
+    const slides = [];
+    try {
+      const adsSnap = await getDocs(collection(db, "platformAds"));
+      adsSnap.forEach(d => {
+        const ad = d.data();
+        const targetsHome = ad.target === 'الكل' || ad.target === 'الرئيسية';
+        if (ad.status === 'نشط' && targetsHome && ad.mediaUrl && ad.type !== 'فيديو') {
+          slides.push({ mediaType: 'image', mediaUrl: ad.mediaUrl, title: ad.title || '', href: ad.linkUrl || '#' });
+        }
+      });
+    } catch (error) {
+      console.error("تعذر تحميل إعلانات الصور:", error);
+    }
+
+    // إذا ما في ولا سلايد ديناميكي، منخلي السلايد الافتراضي يلي موجود بالصفحة كما هو
+    if (!slides.length) return;
+
+    renderCarousel(carousel, dotsBox, slides);
+  }
+
+  // 3) الاشتراكات (partners) — بانرات المطاعم الدافعة اشتراك بانر نشط، قسم مستقل تمامًا عن إعلانات المنصة
+  async function loadPartnerSubscriptions() {
+    const section = document.getElementById('partners-section');
+    const scrollBox = document.getElementById('partners-scroll');
+    if (!scrollBox) return;
+
+    const partners = [];
+    try {
+      const restaurantsMap = await getRestaurantsMap();
+      restaurantsMap.forEach(r => {
+        if (r.bannerUrl && r.bannerStatus === 'معتمد' && isPromoActive(r, 'bannerSubscriptionStatus', 'bannerSubscriptionEndDate')) {
+          partners.push(r);
+        }
+      });
+    } catch (error) {
+      console.error("تعذر تحميل بانرات الشركاء المشتركين:", error);
+    }
+
+    if (!partners.length) return; // القسم أصلاً display:none بالـ CSS لغاية ما يتعبى
+
+    scrollBox.innerHTML = partners.map(r => `
+      <a class="partner-card" href="restaurant-page.html?id=${r.id}">
+        <img src="${r.bannerUrl}" alt="${r.name || 'مطعم شريك'}">
+        <div class="partner-overlay"></div>
+        <span class="partner-badge">مميز</span>
+        <div class="partner-name">${r.name || ''}</div>
+      </a>
+    `).join('');
+
+    if (section) section.classList.add('has-partners');
+  }
+
+  loadVideoBanners();
+  loadImageBanners();
+  loadPartnerSubscriptions();
+
+  // ===============================================================
+  //   "لقطة اليوم": بتتعبى من menuItems الحقيقية (أصناف مطاعم فعلية)
+  //   بدل الصور الثابتة. الأصناف المعلّمة "الأكثر طلباً" (popular)
+  //   إلها أولوية، وبعدين الأصناف يلي مطعمها الأعلى تقييمًا.
+  //   ملاحظة: ما في تحكم إداري لهاد القسم بـ admin-dashboard —
+  //   بيتغذى مباشرة من قاعدة البيانات متل باقي أقسام الصفحة.
+  // ===============================================================
+
+  function mealImage(item, fallback) {
+    return item.imageUrl || item.image || fallback;
+  }
+
+  function featureMealMarkup(entry) {
+    const ratingText = entry.restaurant.rating ? `⭐ ${entry.restaurant.rating}` : 'جديد';
+    return `
+      <img
+        src="${mealImage(entry.item, 'https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=85')}"
+        alt="${entry.item.name || 'وجبة'}"
+      >
+      <div class="feature-info">
+        <b>${entry.item.name || 'وجبة تستاهل التجربة'}</b>
+        <small>${entry.restaurant.name || 'نكهة اليوم'} · ${ratingText}</small>
+      </div>`;
+  }
+
+  function miniMealMarkup(entry, fallbackImg) {
+    const tag = entry.item.popular ? 'الأكثر طلباً' : (entry.item.category || entry.restaurant.name || 'من مطاعم قريبة');
+    return `
+      <img src="${mealImage(entry.item, fallbackImg)}" alt="${entry.item.name || 'وجبة'}">
+      <div>
+        <b>${entry.item.name || ''}</b>
+        <small>${tag}</small>
+      </div>`;
+  }
+
+  async function loadHomeFeature() {
+    const featureCard = document.getElementById('feature-card');
+    const miniStack = document.getElementById('mini-stack');
+    if (!featureCard || !miniStack) return;
+
+    try {
+      const restaurantsMap = await getRestaurantsMap();
+      const itemsSnap = await getDocs(collection(db, "menuItems"));
+
+      const entries = [];
+      itemsSnap.forEach(d => {
+        const item = d.data();
+        const restaurant = restaurantsMap.get(item.restaurantId);
+        // نستبعد أصناف المطاعم المتوقفة، وأي صنف بلا صورة حتى ما تنكسر الواجهة
+        if (!restaurant || restaurant.status === 'متوقف' || !mealImage(item)) return;
+        entries.push({ id: d.id, restaurantId: item.restaurantId, item, restaurant });
+      });
+
+      if (!entries.length) return; // ما في أصناف حقيقية بعد: منخلي المحتوى الافتراضي بالصفحة كما هو
+
+      entries.sort((a, b) => {
+        const pa = a.item.popular ? 1 : 0, pb = b.item.popular ? 1 : 0;
+        if (pb !== pa) return pb - pa;
+        return (b.restaurant.rating ?? 0) - (a.restaurant.rating ?? 0);
+      });
+
+      const featured = entries[0];
+      featureCard.href = `meal-details.html?restaurantId=${featured.restaurantId}&itemId=${featured.id}`;
+      featureCard.innerHTML = featureMealMarkup(featured);
+
+      // نحاول ننوّع المطاعم بالبطاقتين الصغار قدر الإمكان
+      const rest = entries.slice(1);
+      const minis = rest.filter(e => e.restaurantId !== featured.restaurantId).slice(0, 2);
+      if (minis.length < 2) {
+        rest.forEach(e => { if (minis.length < 2 && !minis.includes(e)) minis.push(e); });
+      }
+
+      if (minis.length) {
+        const fallbackImgs = [
+          'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?auto=format&fit=crop&w=300&q=80',
+          'https://images.unsplash.com/photo-1550547660-d9450f859349?auto=format&fit=crop&w=300&q=80'
+        ];
+        miniStack.innerHTML = minis.map((entry, i) => `
+          <a class="mini" href="meal-details.html?restaurantId=${entry.restaurantId}&itemId=${entry.id}">
+            ${miniMealMarkup(entry, fallbackImgs[i] || fallbackImgs[0])}
+          </a>`).join('');
+      }
+    } catch (error) {
+      console.error("تعذر تحميل لقطة اليوم:", error);
+    }
+  }
+
+  loadHomeFeature();
+
+  // ===============================================================
+  //   "سفرة حولك" (orbit) و"مطاعم تستاهل": بتتعبى من restaurants
+  //   الحقيقية بدل الصور الثابتة. ما في حقل موقع (location) أصلاً
+  //   بالبيانات، فـ"حولك" هون تنويع حسب التصنيف (مش قرب جغرافي فعلي)
+  //   حتى ما يطلع نفس المطعم بكل الأقسام قد الإمكان.
+  // ===============================================================
+
+  function isRestaurantClosed(r) {
+    return r.status === 'متوقف';
+  }
+
+  function restaurantCategories(r) {
+    if (Array.isArray(r.categories) && r.categories.length) return r.categories;
+    if (r.category) return [r.category];
+    return [];
+  }
+
+  function restImage(r, fallback) {
+    return r.imageUrl || fallback;
+  }
+
+  function restRatingLabel(r) {
+    return r.reviewsCount ? `★ ${r.rating ?? 0}` : 'جديد';
+  }
+
+  // تنويع وهمي حسب التصنيف بدل الموقع الجغرافي الفعلي (غير متوفر بالبيانات)
+  function diversifyByCategory(list, count) {
+    const buckets = new Map();
+    list.forEach(r => {
+      const key = restaurantCategories(r)[0] || 'عام';
+      if (!buckets.has(key)) buckets.set(key, []);
+      buckets.get(key).push(r);
+    });
+    buckets.forEach(arr => arr.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)));
+    const keys = [...buckets.keys()];
+    const result = [];
+    let i = 0;
+    while (result.length < count && keys.some(k => buckets.get(k).length)) {
+      const key = keys[i % keys.length];
+      const arr = buckets.get(key);
+      if (arr.length) result.push(arr.shift());
+      i++;
+    }
+    return result;
+  }
+
+  async function loadHomeAround() {
+    const slotIds = ['orbit-o1', 'orbit-o2', 'orbit-o3'];
+    const slots = slotIds.map(id => document.getElementById(id));
+    if (slots.some(el => !el)) return;
+
+    try {
+      const restaurantsMap = await getRestaurantsMap();
+      const all = [...restaurantsMap.values()].filter(r => r.restaurantType !== 'foodtruck');
+      if (!all.length) return; // ما في بيانات حقيقية بعد: منخلي المحتوى الافتراضي كما هو
+
+      const open = all.filter(r => !isRestaurantClosed(r));
+      const pool = open.length ? open : all;
+
+      let picks = diversifyByCategory(pool, slots.length);
+      if (picks.length < slots.length) {
+        pool.slice().sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).forEach(r => {
+          if (picks.length < slots.length && !picks.includes(r)) picks.push(r);
+        });
+      }
+      if (!picks.length) return;
+
+      const fallbackImgs = [
+        'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=300&q=80',
+        'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=300&q=80',
+        'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=300&q=80'
+      ];
+
+      picks.forEach((r, i) => {
+        const el = slots[i];
+        if (!el || !r) return;
+        const cats = restaurantCategories(r);
+        const small = r.rating ? `⭐ ${r.rating}` : (cats[0] || (isRestaurantClosed(r) ? 'مغلق حاليًا' : 'مفتوح الآن'));
+        el.href = `restaurant-page.html?id=${r.id}`;
+        el.innerHTML = `
+          <img src="${restImage(r, fallbackImgs[i % fallbackImgs.length])}" alt="${r.name || 'مطعم'}">
+          <b>${r.name || ''}</b>
+          <small>${small}</small>`;
+      });
+    } catch (error) {
+      console.error("تعذر تحميل سفرة حولك:", error);
+    }
+  }
+
+  loadHomeAround();
+
+  async function loadHomeRestaurants() {
+    const row = document.getElementById('home-restaurants-row');
+    if (!row) return;
+
+    try {
+      const restaurantsMap = await getRestaurantsMap();
+      const all = [...restaurantsMap.values()].filter(r => r.restaurantType !== 'foodtruck');
+      if (!all.length) return; // ما في بيانات حقيقية بعد: منخلي المحتوى الافتراضي كما هو
+
+      const open = all.filter(r => !isRestaurantClosed(r));
+      const pool = open.length ? open : all;
+      const top = pool.slice().sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0)).slice(0, 8);
+      if (!top.length) return;
+
+      const fallbackImgs = [
+        'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=500&q=80',
+        'https://images.unsplash.com/photo-1552566626-52f8b828add9?auto=format&fit=crop&w=500&q=80',
+        'https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=500&q=80'
+      ];
+
+      row.innerHTML = top.map((r, i) => {
+        const cats = restaurantCategories(r);
+        const ratingLabel = restRatingLabel(r);
+        const metaTail = cats[0] ? ` · ${cats[0]}` : '';
+        return `
+          <a class="rest" href="restaurant-page.html?id=${r.id}">
+            <img src="${restImage(r, fallbackImgs[i % fallbackImgs.length])}" alt="${r.name || 'مطعم'}">
+            <b>${r.name || ''}</b>
+            <small><span class="rating">${ratingLabel}</span>${metaTail}</small>
+          </a>`;
+      }).join('');
+    } catch (error) {
+      console.error("تعذر تحميل مطاعم تستاهل:", error);
+    }
+  }
+
+  loadHomeRestaurants();
+
+  // ===== فود ترك: بطاقات عمودية (صورة + اسم + تقييم فقط) =====
+  async function loadHomeFoodTrucks() {
+    const row = document.getElementById('home-trucks-row');
+    if (!row) return;
+
+    try {
+      const restaurantsMap = await getRestaurantsMap();
+      const trucks = [...restaurantsMap.values()]
+        .filter(r => r.restaurantType === 'foodtruck' && !isRestaurantClosed(r))
+        .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+      if (!trucks.length) return; // ما في فود ترك حقيقي بعد: منخلي البطاقة الافتراضية
+
+      row.innerHTML = trucks.map(r => `
+        <a class="truck-card" href="restaurant-page.html?id=${r.id}">
+          <img src="${restImage(r, 'foodtruck-demo.webp')}" alt="${r.name || 'فود ترك'}" loading="lazy">
+          <div class="truck-info">
+            <b>${r.name || ''}</b>
+            <span class="truck-rating">${restRatingLabel(r)}</span>
+          </div>
+        </a>`).join('');
+    } catch (error) {
+      console.error("تعذر تحميل الفود ترك:", error);
+    }
+  }
+
+  loadHomeFoodTrucks();
+
+  const authIcon = document.getElementById('auth-icon');
+
+  onAuthStateChanged(auth, (user) => {
+    if (!authIcon) return;
+
+    if (user) {
+      // المستخدم مسجّل دخول: نوديه لصفحة حسابه، ونعرض أول حرف من بريده كأفتار
+      authIcon.href = "my-account.html";
+      authIcon.title = user.email;
+      authIcon.classList.add('user-avatar');
+      authIcon.textContent = (user.email || "؟").trim().charAt(0).toUpperCase();
+    } else {
+      // ما في تسجيل دخول: الزر يوديه لصفحة تسجيل الدخول / إنشاء حساب
+      authIcon.href = "Auth.html";
+      authIcon.title = "تسجيل الدخول / إنشاء حساب";
+      authIcon.classList.remove('user-avatar');
+      authIcon.textContent = "☻";
+    }
+  });
+
+  // ===============================================================
+  //   بادج "إدارة الطلبات" بالشريط السفلي: بتظهر بس لصاحب المطعم
+  //   لما يكون عنده طلبات "قيد المعالجة" (نفس منطق adman.html)
+  // ===============================================================
+  function renderAdminOrdersBadgeHome(count) {
+    const adminLink = document.getElementById('nav-adman-home');
+    if (!adminLink) return;
+    const existing = adminLink.querySelector('.nav-badge');
+    if (existing) existing.remove();
+    if (count > 0) {
+      const badge = document.createElement('span');
+      badge.className = 'nav-badge';
+      badge.textContent = count > 9 ? '9+' : count;
+      adminLink.appendChild(badge);
+    }
+  }
+
+  let homeOrdersUnsubscribe = null;
+
+  onAuthStateChanged(auth, async (user) => {
+    if (homeOrdersUnsubscribe) {
+      homeOrdersUnsubscribe();
+      homeOrdersUnsubscribe = null;
+    }
+    if (!user) {
+      renderAdminOrdersBadgeHome(0);
+      return;
+    }
+    try {
+      const restQ = query(collection(db, "restaurants"), where("ownerEmail", "==", user.email));
+      const restSnap = await getDocs(restQ);
+      if (restSnap.empty) {
+        renderAdminOrdersBadgeHome(0);
+        return;
+      }
+      const myRestaurantId = restSnap.docs[0].id;
+      const ordersQ = query(
+        collection(db, "orders"),
+        where("restaurantId", "==", myRestaurantId),
+        where("status", "==", "قيد المعالجة")
+      );
+      homeOrdersUnsubscribe = onSnapshot(ordersQ, (snap) => {
+        renderAdminOrdersBadgeHome(snap.size);
+      });
+    } catch (e) {
+      renderAdminOrdersBadgeHome(0);
+    }
+  });
+
+  // ===== صوت وحركة خفيفة عند الضغط على أي عنصر بالشريط السفلي =====
+  function playNavTapSoundHome() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === 'suspended') ctx.resume();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.type = 'sine';
+      o.frequency.setValueAtTime(880, ctx.currentTime);
+      o.frequency.exponentialRampToValueAtTime(1300, ctx.currentTime + 0.08);
+      g.gain.setValueAtTime(0.15, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.12);
+      o.start();
+      o.stop(ctx.currentTime + 0.13);
+    } catch (e) { /* تجاهل لو المتصفح ما يدعم الصوت */ }
+  }
+
+  document.querySelectorAll('.nav a').forEach((link) => {
+    link.addEventListener('click', function (e) {
+      e.preventDefault();
+      const icon = link.querySelector('i') || link;
+      icon.classList.remove('tap-animate');
+      void icon.offsetWidth; // إعادة تشغيل الأنيميشن من الصفر
+      icon.classList.add('tap-animate');
+      playNavTapSoundHome();
+      const href = link.getAttribute('href');
+      setTimeout(() => { window.location.href = href; }, 150);
+    });
+  });
+</script>
+
+    <script src="safra-theme.js"></script>
+<script>
+/* صورة الهيرو: تتبدّل كل فترة مع حركة — والصور بتنضبط من لوحة الإدارة (تبويب: صور الرئيسية) */
+(function(){
+  var box=document.getElementById('heroVisual'); if(!box) return;
+  var stack=box.querySelector('.dish-stack'), chip=document.getElementById('dishChip');
+  var defaultsHTML=stack.innerHTML, defaultInterval=3800;
+  var imgs=[], i=0, INTERVAL=defaultInterval, timer=null, revealed=false;
+  function collect(){imgs=[].slice.call(stack.querySelectorAll('.dish'));}
+  function setChip(t){chip.textContent=t||'';chip.style.display=t?'':'none';}
+  function show(n){
+    if(imgs.length<2) return;
+    var prev=imgs[i]; i=(n+imgs.length)%imgs.length; var cur=imgs[i];
+    if(prev===cur) return;
+    prev.classList.remove('is-on'); prev.classList.add('is-out');
+    setTimeout(function(){prev.classList.remove('is-out');},1150);
+    cur.classList.remove('is-out'); void cur.offsetWidth; cur.classList.add('is-on');
+    chip.classList.add('swap');
+    setTimeout(function(){setChip(cur.getAttribute('data-name'));chip.classList.remove('swap');},300);
+  }
+  function stop(){if(timer){clearInterval(timer);timer=null;}}
+  function start(){stop(); if(imgs.length<2) return; timer=setInterval(function(){show(i+1);},INTERVAL);}
+  function reveal(){ if(revealed) return; revealed=true; box.classList.remove('is-loading'); }
+  /* items: [{imageUrl,name}] — إذا فاضية بنرجع للصور الافتراضية */
+  function set(items,ms){
+    stack.innerHTML='';
+    if(items&&items.length){
+      items.forEach(function(it,k){
+        var im=document.createElement('img');
+        im.className='dish'+(k===0?' is-on':'');
+        im.src=it.imageUrl; im.alt=''; im.width=420; im.height=420; im.decoding='async';
+        im.setAttribute('data-name',it.name||'');
+        stack.appendChild(im);
+      });
+      INTERVAL=ms||defaultInterval;
+    }else{
+      stack.innerHTML=defaultsHTML; INTERVAL=defaultInterval;
+    }
+    collect(); i=0; setChip(imgs[0]&&imgs[0].getAttribute('data-name')); start(); reveal();
+  }
+  box.addEventListener('click',function(){show(i+1);start();});
+  document.addEventListener('visibilitychange',function(){document.hidden?stop():start();});
+  window.safraHero={set:set,reveal:reveal};
+  collect(); setChip(imgs[0]&&imgs[0].getAttribute('data-name')); start();
+  setTimeout(reveal,1600); /* إذا تأخّر الاتصال بنعرض الافتراضي */
+})();
+</script>
+<script type="module">
+/* تحميل صور الهيرو من Firebase (لوحة الإدارة → 🍲 صور الرئيسية) */
+import { db } from "./firebase-config.js";
+import { collection, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+var CACHE_KEY='safraHeroCfg', lastSig=null;
+function apply(cfg){
+  if(!window.safraHero) return;
+  var sig=JSON.stringify(cfg||null);
+  if(sig===lastSig) { window.safraHero.reveal(); return; }
+  lastSig=sig;
+  window.safraHero.set(cfg&&cfg.items,cfg&&cfg.ms);
+}
+try{ var c=JSON.parse(localStorage.getItem(CACHE_KEY)||'null'); if(c&&c.items&&c.items.length) apply(c); }catch(e){}
+
+(async function(){
+  try{
+    var res=await Promise.all([
+      getDocs(collection(db,'heroDishes')),
+      getDoc(doc(db,'siteSettings','homeHero')).catch(function(){return null;})
+    ]);
+    var items=[];
+    res[0].forEach(function(d){
+      var x=d.data();
+      if(x.status==='نشط'&&x.imageUrl) items.push({imageUrl:x.imageUrl,name:x.name||'',order:Number(x.order)||0});
+    });
+    items.sort(function(a,b){return a.order-b.order;});
+    var sec=res[1]&&res[1].exists()?Number(res[1].data().heroIntervalSec):0;
+    var ms=(sec>=2&&sec<=30)?sec*1000:0;
+    var cfg=items.length?{items:items.map(function(x){return {imageUrl:x.imageUrl,name:x.name};}),ms:ms}:null;
+    try{ cfg?localStorage.setItem(CACHE_KEY,JSON.stringify(cfg)):localStorage.removeItem(CACHE_KEY); }catch(e){}
+    apply(cfg);
+  }catch(e){ console.warn('hero dishes:',e); if(window.safraHero) window.safraHero.reveal(); }
+})();
+</script>
 
 </body>
 </html>

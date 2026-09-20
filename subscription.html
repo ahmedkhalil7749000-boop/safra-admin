@@ -31,6 +31,7 @@
         .type-tab i { display: block; font-size: 16px; margin-bottom: 4px; }
         .type-tab.active { border-color: #d97706; background: #fff7ed; color: #b45309; }
     </style>
+    <link rel="stylesheet" href="safra-3d.css">
 </head>
 <body class="app-wide bg-safra-cream font-sans min-h-screen text-gray-800">
 
@@ -136,6 +137,7 @@
         let currentUser = null;
         let myRestaurant = null; // { id, name, ... }
         let activeType = 'basic';
+        let trialCountdownInterval = null; // مؤقت العد التنازلي للفترة التجريبية (لازم نلغيه عند تغيير التبويب)
 
         // كل الاشتراكات (كل الأنواع) لهذا المطعم — نجيبهم مرة وحدة ونفلتر بالجافاسكربت
         // (نفس أسلوب المشروع: تفادي orderBy + where معًا لتفادي الحاجة لفهرس مركّب)
@@ -226,12 +228,40 @@
             const cfg = TYPE_CONFIG[typeId];
             const sub = latestSubForType(typeId);
 
+            if (trialCountdownInterval) {
+                clearInterval(trialCountdownInterval);
+                trialCountdownInterval = null;
+            }
+
             content.innerHTML = `<p class="text-xs text-gray-500 text-center -mt-2 mb-1">${cfg.tagline}</p>`;
             await renderContent(typeId, sub);
         }
 
         async function renderContent(typeId, sub) {
             const cfg = TYPE_CONFIG[typeId];
+
+            // ====== الشهر الأول مجاني (فترة تجريبية) — فقط للاشتراك الأساسي، ولا يوجد
+            // طلب اشتراك فعلي (مدفوع) بعد لهذا المطعم. الحقول مأخوذة مباشرة من وثيقة
+            // المطعم لأنها بتنعبّى تلقائيًا لحظة إنشاء المطعم (شوف restaurant-dashboard.html) ======
+            if (typeId === 'basic' && !sub && myRestaurant.subscriptionStatus === "تجريبي") {
+                const trialEnd = myRestaurant.trialEndsAt?.toDate
+                    ? myRestaurant.trialEndsAt.toDate()
+                    : (myRestaurant.subscriptionEndDate?.toDate ? myRestaurant.subscriptionEndDate.toDate() : null);
+
+                if (trialEnd && trialEnd.getTime() > Date.now()) {
+                    renderTrialCountdown(typeId, trialEnd);
+                    return;
+                }
+
+                // انتهت الفترة التجريبية: حدّث حالة المطعم مرة وحدة، وكمل الكود تحت
+                // بشكل طبيعي (رح يعرض خطط الاشتراك العادية لأنه ما في sub فعلي بعد)
+                if (trialEnd) {
+                    try {
+                        await updateDoc(doc(db, "restaurants", myRestaurant.id), { subscriptionStatus: "منتهي" });
+                        myRestaurant.subscriptionStatus = "منتهي";
+                    } catch (e) { /* تجاهل، بيتحدث لاحقًا */ }
+                }
+            }
 
             // اشتراك فعّال وما زال ساري
             if (sub && sub.status === "نشط") {
@@ -291,6 +321,56 @@
 
             // لا يوجد اشتراك من هالنوع، أو تم رفضه، أو انتهى: اعرض خطط هالنوع
             await renderPlanSelection(typeId, sub);
+        }
+
+        function renderTrialCountdown(typeId, trialEnd) {
+            const cfg = TYPE_CONFIG[typeId];
+
+            content.innerHTML += `
+                <div class="bg-white border-2 border-safra-gold rounded-xl p-6 text-center">
+                    <i class="fa-solid fa-gift text-4xl text-safra-gold mb-3"></i>
+                    <h2 class="text-lg font-bold text-safra-dark mb-1">أول شهر مجاني 🎉</h2>
+                    <p class="text-gray-600 text-sm mb-4">مطعم "${myRestaurant.name}" مفعّل مجانًا على ${cfg.label} حتى تاريخ <span class="font-semibold">${fmtDate(Timestamp.fromDate(trialEnd))}</span>. بعد انتهاء الفترة، اختر خطة اشتراك وادفع للاستمرار بدون انقطاع.</p>
+
+                    <div id="trial-countdown" class="grid grid-cols-4 gap-2 max-w-xs mx-auto mb-5"></div>
+
+                    <button type="button" id="choose-plan-early-btn" class="text-sm text-safra-gold underline font-semibold">اختر خطة اشتراك الآن</button>
+                </div>
+            `;
+
+            const countdownEl = document.getElementById('trial-countdown');
+            const unitLabel = (value, label) => `
+                <div class="bg-safra-cream rounded-lg py-2">
+                    <div class="text-xl font-black text-safra-dark tabular-nums">${String(value).padStart(2, '0')}</div>
+                    <div class="text-[10px] text-gray-500">${label}</div>
+                </div>`;
+
+            function tick() {
+                const remainingMs = trialEnd.getTime() - Date.now();
+                if (remainingMs <= 0) {
+                    clearInterval(trialCountdownInterval);
+                    trialCountdownInterval = null;
+                    renderType(typeId); // انتهت الفترة التجريبية أثناء وجود المستخدم على الصفحة: أعد الرسم
+                    return;
+                }
+                const days = Math.floor(remainingMs / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((remainingMs / (1000 * 60 * 60)) % 24);
+                const minutes = Math.floor((remainingMs / (1000 * 60)) % 60);
+                const seconds = Math.floor((remainingMs / 1000) % 60);
+                countdownEl.innerHTML =
+                    unitLabel(days, 'يوم') + unitLabel(hours, 'ساعة') + unitLabel(minutes, 'دقيقة') + unitLabel(seconds, 'ثانية');
+            }
+
+            tick();
+            trialCountdownInterval = setInterval(tick, 1000);
+
+            document.getElementById('choose-plan-early-btn').addEventListener('click', () => {
+                if (trialCountdownInterval) {
+                    clearInterval(trialCountdownInterval);
+                    trialCountdownInterval = null;
+                }
+                renderPlanSelection(typeId, null);
+            });
         }
 
         async function markExpired(typeId, sub) {

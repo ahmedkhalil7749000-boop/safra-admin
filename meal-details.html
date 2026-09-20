@@ -11,16 +11,17 @@
         theme: {
           extend: {
             colors: {
-              'safra-dark': '#0b3b2c',
-              'safra-green': '#2e6f40',
-              'safra-cream': '#fbf9f5',
-              'safra-gold': '#d97706',
-              'safra-gold-dark': '#b45309',
+              'safra-dark': '#063B2C',
+              'safra-green': '#16B77E',
+              'safra-cream': '#FAF8F3',
+              'safra-gold': '#EFBD61',
+              'safra-gold-dark': '#c9973e',
             }
           }
         }
       }
     </script>
+    <link rel="stylesheet" href="safra-3d.css">
 </head>
 <body class="app-narrow bg-safra-cream min-h-screen">
     <!-- الهيدر المشترك: بيتحمّل تلقائيًا من shared-header.js -->
@@ -38,6 +39,10 @@
             <div class="p-5">
                 <h1 id="m-name" class="text-2xl font-bold text-gray-800"></h1>
                 <p id="m-description" class="text-gray-500 mt-2"></p>
+                <div id="m-care" class="hidden mt-3">
+                    <div id="m-care-tags" class="flex flex-wrap gap-1.5"></div>
+                    <p id="m-care-note" class="text-xs text-gray-500 mt-2 leading-relaxed"></p>
+                </div>
                 <div class="flex justify-between items-center mt-4">
                     <span id="m-price" class="text-xl font-bold text-safra-gold"></span>
                 </div>
@@ -70,6 +75,7 @@
         import { db } from "./firebase-config.js";
         import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { addToCart as addToCartService } from "./cart-service.js";
+        import { CARE_DISCLAIMER, cleanCareTags } from "./care-tags.js";
 
         const params = new URLSearchParams(window.location.search);
         const restaurantId = params.get('restaurantId');
@@ -101,7 +107,7 @@
                 itemId,
                 name: itemData.name,
                 price: itemData.price,
-                image: itemData.image || '',
+                image: itemData.imageUrl || itemData.image || '',
                 notes: document.getElementById('m-notes').value,
                 qty
             };
@@ -129,10 +135,24 @@
 
                 itemData = itemDoc.data();
 
-                document.getElementById('m-image').src = itemData.image || 'https://via.placeholder.com/800x300?text=No+Image';
+                document.getElementById('m-image').src = itemData.imageUrl || itemData.image || 'https://via.placeholder.com/800x300?text=No+Image';
                 document.getElementById('m-name').innerText = itemData.name;
                 document.getElementById('m-description').innerText = itemData.description || '';
                 document.getElementById('m-price').innerText = itemData.price + " د.أ";
+
+                // "سفرة العافية": وسوم الصنف + تنبيه إنها من اختيار الطباخة
+                const careTags = cleanCareTags(itemData.careTags);
+                if (careTags.length) {
+                    const tagsBox = document.getElementById('m-care-tags');
+                    careTags.forEach(t => {
+                        const el = document.createElement('span');
+                        el.textContent = t;
+                        el.style.cssText = 'background:#e8f0e5;color:#0b3b2c;font-size:12px;font-weight:700;padding:3px 11px;border-radius:999px;';
+                        tagsBox.appendChild(el);
+                    });
+                    document.getElementById('m-care-note').textContent = CARE_DISCLAIMER;
+                    document.getElementById('m-care').classList.remove('hidden');
+                }
 
                 loading.classList.add('hidden');
                 mealBox.classList.remove('hidden');
@@ -156,5 +176,6 @@
 
         loadMeal();
     </script>
+    <script src="safra-theme.js"></script>
 </body>
 </html>

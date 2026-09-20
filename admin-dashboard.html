@@ -24,25 +24,13 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { getFirestore, collection, getDocs, doc, getDoc, addDoc, updateDoc, deleteDoc, query, where, orderBy, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyCp_boObC6rDyAcLYJ-FBqm8_QwRQXShUk",
-            authDomain: "safra-project-3.firebaseapp.com",
-            projectId: "safra-project-3",
-            storageBucket: "safra-project-3.firebasestorage.app",
-            messagingSenderId: "352714677428",
-            appId: "1:352714677428:web:5e3ae3b812beb9b5fe0be1"
-        };
+        import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { collection, getDocs, onSnapshot, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, query, where, orderBy, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { app, auth, db } from "./firebase-config.js";
+        import { initPushNotifications } from "./push-notifications.js";
 
         // البريد الوحيد المسموح له بالدخول للوحة الإدارة
         const ADMIN_EMAIL = "ahmedkhalil7749000@gmail.com";
-
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
 
         // هذا الفحص في الواجهة فقط للتوجيه؛ الحماية الحقيقية للبيانات
         // يجب أن تكون في قواعد أمان Firestore (راجع الرسالة المرفقة بالكود)
@@ -78,19 +66,26 @@
             await loadUsers();
             await loadHomeReview();
             await loadPlatformAds();
+            await loadHeroDishes();
+            initPushNotifications(); // تسجيل توكن الإشعارات الفورية (FCM) لجهاز الأدمن — بيطلب إذن المتصفح لو أول مرة
         });
 
         // ===============================================================
         //                  تبديل التبويبات (طلبات / اشتراكات / الرئيسية / إعلانات المنصة / المستخدمين)
         // ===============================================================
         window.showTab = function(tab) {
-            const tabs = ['orders', 'subscriptions', 'home', 'platform-ads', 'users'];
+            const tabs = ['orders', 'subscriptions', 'home', 'platform-ads', 'hero-dishes', 'users'];
             tabs.forEach(t => {
                 document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
-                document.getElementById('btn-tab-' + t).className = t === tab
+                const extra = t === 'orders' ? 'relative ' : '';
+                document.getElementById('btn-tab-' + t).className = extra + (t === tab
                     ? "px-4 py-2 rounded-lg text-sm font-semibold bg-safra-gold text-white"
-                    : "px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200";
+                    : "px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200");
             });
+            if (tab === 'orders') {
+                unseenOrdersCount = 0;
+                updateOrdersBadge();
+            }
         }
 
         // ===============================================================
@@ -424,44 +419,234 @@
             }
         }
 
-        // جلب وعرض الطلبات من جدول orders الفعلي في فايربيس
+        // تحويل رقم أردني محلي (07xxxxxxxx) أو أي صيغة قريبة إلى صيغة دولية لرابط واتساب
+        function toWhatsAppNumber(phone) {
+            if (!phone) return "";
+            let n = String(phone).replace(/[^\d+]/g, "");
+            if (n.startsWith("+")) n = n.slice(1);
+            if (n.startsWith("00")) n = n.slice(2);
+            if (n.startsWith("0")) n = "962" + n.slice(1);
+            if (!n.startsWith("962")) n = "962" + n;
+            return n;
+        }
+
+        let ordersCache = [];
+        let restaurantsCacheMap = {};
+        let currentOrderTypeFilter = "الكل";
+        let unseenOrdersCount = 0;
+        let ordersInitialLoadDone = false;
+        let originalDocTitle = document.title;
+
+        window.setOrderTypeFilter = function setOrderTypeFilter(type) {
+            currentOrderTypeFilter = type;
+            document.querySelectorAll('.order-type-filter-btn').forEach(b => {
+                b.className = "order-type-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold " +
+                    (b.dataset.type === type ? "bg-safra-gold text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200");
+            });
+            renderOrders();
+        }
+
+        // ===============================================================
+        //                  تنبيهات الطلبات الجديدة
+        // ===============================================================
+        function updateOrdersBadge() {
+            const badge = document.getElementById('orders-badge');
+            if (!badge) return;
+            if (unseenOrdersCount > 0) {
+                badge.textContent = unseenOrdersCount > 99 ? '99+' : String(unseenOrdersCount);
+                badge.classList.remove('hidden');
+                document.title = `(${unseenOrdersCount}) طلب جديد! - ${originalDocTitle}`;
+            } else {
+                badge.classList.add('hidden');
+                document.title = originalDocTitle;
+            }
+        }
+
+        function playNewOrderSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                [880, 660].forEach((freq, i) => {
+                    const o = ctx.createOscillator();
+                    const g = ctx.createGain();
+                    o.connect(g); g.connect(ctx.destination);
+                    o.type = 'sine';
+                    o.frequency.value = freq;
+                    const start = ctx.currentTime + i * 0.18;
+                    g.gain.setValueAtTime(0.001, start);
+                    g.gain.exponentialRampToValueAtTime(0.2, start + 0.02);
+                    g.gain.exponentialRampToValueAtTime(0.001, start + 0.16);
+                    o.start(start);
+                    o.stop(start + 0.18);
+                });
+            } catch (e) { /* تجاهل إن كان المتصفح لا يدعم الصوت */ }
+        }
+
+        window.enableOrderNotifications = function enableOrderNotifications() {
+            if (!('Notification' in window)) {
+                alert('هذا المتصفح لا يدعم تنبيهات النظام.');
+                return;
+            }
+            // initPushNotifications بتطلب إذن الإشعارات وتسجّل توكن FCM
+            // عشان توصلك تنبيهات فعلية حتى لو صفحة لوحة الإدارة مسكّرة أو التاب مغلق.
+            initPushNotifications();
+            setTimeout(() => {
+                if (Notification.permission === 'granted') {
+                    playNewOrderSound();
+                    alert('تم تفعيل التنبيهات ✅ رح توصلك إشعارات حتى لو الصفحة مسكّرة.');
+                } else if (Notification.permission === 'denied') {
+                    alert('التنبيهات محظورة من إعدادات المتصفح. فعّلها يدوياً من إعدادات الموقع.');
+                } else {
+                    alert('لسا ما تم تفعيل التنبيهات. حاول مرة ثانية.');
+                }
+            }, 1200);
+        }
+
+        function notifyNewOrders(newOrders) {
+            unseenOrdersCount += newOrders.length;
+            updateOrdersBadge();
+            playNewOrderSound();
+            if ('Notification' in window && Notification.permission === 'granted') {
+                newOrders.forEach(({ data }) => {
+                    const rest = restaurantsCacheMap[data.restaurantId] || {};
+                    new Notification('🔔 طلب جديد', {
+                        body: `طلب جديد من: ${rest.name || 'مطعم غير معروف'}`,
+                        tag: 'safra-new-order'
+                    });
+                });
+            }
+        }
+
+        // جلب وعرض الطلبات من جدول orders الفعلي في فايربيس (تحديث لحظي) مع ربطها ببيانات المطعم
         async function loadOrders() {
             try {
-                const querySnapshot = await getDocs(collection(db, "orders"));
-                const tbody = document.getElementById('restaurants-table-body');
-                if(!tbody) return;
-                tbody.innerHTML = "";
+                const restaurantsSnap = await getDocs(collection(db, "restaurants"));
+                restaurantsCacheMap = {};
+                restaurantsSnap.forEach((rDoc) => {
+                    restaurantsCacheMap[rDoc.id] = rDoc.data();
+                });
 
-                if (querySnapshot.empty) {
-                    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-6 text-gray-400">لا توجد طلبات مسجلة حالياً</td></tr>`;
-                    return;
-                }
-
-                querySnapshot.forEach((documentSnap) => {
-                    const data = documentSnap.data();
-                    
-                    // استخراج تفاصيل الوجبات إن وجدت
-                    let itemsText = "طلب عام";
-                    if (data.items && data.items.length > 0) {
-                        itemsText = data.items.map(i => `${i.name} (عدد: ${i.price || 1})`).join(', ');
+                onSnapshot(collection(db, "orders"), (snapshot) => {
+                    if (ordersInitialLoadDone) {
+                        const added = snapshot.docChanges()
+                            .filter(c => c.type === 'added')
+                            .map(c => ({ id: c.doc.id, data: c.doc.data() }));
+                        if (added.length > 0) notifyNewOrders(added);
                     }
 
-                    tbody.innerHTML += `
-                        <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
-                            <td class="py-3 px-4 font-medium text-gray-800">${data.address || 'العنوان غير متوفر'}</td>
-                            <td class="py-3 px-4 text-gray-600">${itemsText}</td>
-                            <td class="py-3 px-4">
-                                <span class="bg-safra-green/10 text-safra-green px-3 py-1 rounded-full text-xs font-semibold">${(data.total || data.subtotal || 0)} د.أ</span>
-                            </td>
-                            <td class="py-3 px-4">
-                                <span class="text-xs text-gray-400 font-mono">${documentSnap.id.substring(0, 8)}...</span>
-                            </td>
-                        </tr>
-                    `;
+                    ordersCache = [];
+                    snapshot.forEach((documentSnap) => {
+                        ordersCache.push({ id: documentSnap.id, data: documentSnap.data() });
+                    });
+                    renderOrders();
+                    ordersInitialLoadDone = true;
+                }, (error) => {
+                    console.error("خطأ في متابعة الطلبات:", error);
                 });
             } catch (error) {
                 console.error("خطأ في جلب الطلبات:", error);
             }
+        }
+
+        // الطلبات المعروضة حالياً حسب فلتر النوع (الكل / مطعم بيتي / فود ترك)
+        function getFilteredOrders() {
+            return ordersCache.filter(({ data }) => {
+                if (currentOrderTypeFilter === "الكل") return true;
+                const rest = restaurantsCacheMap[data.restaurantId] || {};
+                const type = rest.restaurantType === 'foodtruck' ? 'foodtruck' : 'home';
+                return type === currentOrderTypeFilter;
+            });
+        }
+
+        // حذف طلب واحد نهائياً (الجدول بيتحدّث لحظياً لأن onSnapshot شغّال)
+        window.deleteOrder = async function deleteOrder(orderId) {
+            if (!confirm("حذف هذا الطلب نهائيًا؟ لا يمكن التراجع.")) return;
+            try {
+                await deleteDoc(doc(db, "orders", orderId));
+            } catch (error) {
+                alert("خطأ أثناء حذف الطلب: " + error.message);
+            }
+        }
+
+        // حذف كل الطلبات المعروضة حالياً (تحترم فلتر النوع المختار).
+        // Firestore يسمح بـ 500 عملية كحد أقصى بالدفعة الواحدة، فنقسّمها.
+        window.deleteAllOrders = async function deleteAllOrders() {
+            const list = getFilteredOrders();
+            if (list.length === 0) {
+                alert("لا توجد طلبات لحذفها.");
+                return;
+            }
+            const scope = currentOrderTypeFilter === "الكل"
+                ? "كل الطلبات"
+                : (currentOrderTypeFilter === "foodtruck" ? "كل طلبات الفود ترك" : "كل طلبات المطاعم / المطابخ البيتية");
+            if (!confirm(`سيتم حذف ${scope} (${list.length} طلب) نهائيًا. لا يمكن التراجع. هل أنت متأكد؟`)) return;
+
+            const btn = document.getElementById('btn-delete-all-orders');
+            if (btn) { btn.disabled = true; btn.classList.add('opacity-50'); }
+            try {
+                for (let i = 0; i < list.length; i += 400) {
+                    const batch = writeBatch(db);
+                    list.slice(i, i + 400).forEach(({ id }) => batch.delete(doc(db, "orders", id)));
+                    await batch.commit();
+                }
+            } catch (error) {
+                alert("خطأ أثناء الحذف: " + error.message);
+            } finally {
+                if (btn) { btn.disabled = false; btn.classList.remove('opacity-50'); }
+            }
+        }
+
+        function renderOrders() {
+            const tbody = document.getElementById('restaurants-table-body');
+            if (!tbody) return;
+
+            const filtered = getFilteredOrders();
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-6 text-gray-400">لا توجد طلبات مسجلة حالياً</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = "";
+            filtered.forEach(({ id, data }) => {
+                const rest = restaurantsCacheMap[data.restaurantId] || {};
+                const restName = rest.name || 'مطعم غير معروف';
+                const isFoodtruck = rest.restaurantType === 'foodtruck';
+                const typeBadge = isFoodtruck
+                    ? `<span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full text-[10px] font-semibold">🚚 فود ترك</span>`
+                    : `<span class="bg-safra-gold/10 text-safra-gold-dark px-2 py-0.5 rounded-full text-[10px] font-semibold">🍽️ مطعم/بيتي</span>`;
+
+                // استخراج تفاصيل الوجبات إن وجدت
+                let itemsText = "طلب عام";
+                if (data.items && data.items.length > 0) {
+                    itemsText = data.items.map(i => `${i.name} (عدد: ${i.price || 1})`).join(', ');
+                }
+
+                const waNumber = toWhatsAppNumber(rest.phone);
+                const waBtn = waNumber
+                    ? `<a href="https://wa.me/${waNumber}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-green-100"><i class="fa-brands fa-whatsapp"></i> راسل المطعم</a>`
+                    : `<span class="text-xs text-gray-300">لا يوجد رقم</span>`;
+
+                tbody.innerHTML += `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                        <td class="py-3 px-4">
+                            <p class="font-semibold text-gray-800 text-sm">${restName}</p>
+                            ${typeBadge}
+                        </td>
+                        <td class="py-3 px-4 font-medium text-gray-800">${data.address || 'العنوان غير متوفر'}</td>
+                        <td class="py-3 px-4 text-gray-600">${itemsText}</td>
+                        <td class="py-3 px-4">
+                            <span class="bg-safra-green/10 text-safra-green px-3 py-1 rounded-full text-xs font-semibold">${(data.total || data.subtotal || 0)} د.أ</span>
+                        </td>
+                        <td class="py-3 px-4">
+                            <span class="text-xs text-gray-400 font-mono">${id.substring(0, 8)}...</span>
+                        </td>
+                        <td class="py-3 px-4">${waBtn}</td>
+                        <td class="py-3 px-4">
+                            <button onclick="deleteOrder('${id}')" class="inline-flex items-center gap-1 bg-red-50 text-red-600 px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-red-100">🗑️ حذف</button>
+                        </td>
+                    </tr>
+                `;
+            });
         }
 
         // ===============================================================
@@ -686,7 +871,7 @@
                 const video = document.createElement('video');
                 const url = URL.createObjectURL(file);
                 video.preload = 'metadata';
-                video.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve({ width: video.videoWidth, height: video.videoHeight }); };
+                video.onloadedmetadata = () => { URL.revokeObjectURL(url); resolve({ width: video.videoWidth, height: video.videoHeight, duration: video.duration }); };
                 video.onerror = () => { URL.revokeObjectURL(url); reject(new Error("تعذر قراءة الفيديو")); };
                 video.src = url;
             });
@@ -698,11 +883,23 @@
                 throw new Error(`مقاس ${label} لازم يكون بالضبط ${w}×${h} بكسل (المقاسات المناسبة بس بتنقبل). مقاس الملف يلي اخترته: ${dims.width}×${dims.height}.`);
             }
         }
-        async function enforceAdVideoDimensions(file, w, h, label) {
+        async function enforceAdVideoDimensions(file, w, h, label, orientationLabel) {
             const dims = await readAdVideoDimensions(file);
             if (dims.width !== w || dims.height !== h) {
-                throw new Error(`مقاس ${label} لازم يكون بالضبط ${w}×${h} بكسل عمودي (المقاسات المناسبة بس بتنقبل). مقاس الملف يلي اخترته: ${dims.width}×${dims.height}.`);
+                throw new Error(`مقاس ${label} لازم يكون بالضبط ${w}×${h} بكسل (${orientationLabel}). مقاس الملف يلي اخترته: ${dims.width}×${dims.height}.`);
             }
+        }
+
+        // مقاسات الفيديو المسموحة حسب النوع المختار (ريلز عمودي / يوتيوب عريض)
+        const AD_VIDEO_SIZES = {
+            portrait: { w: 1080, h: 1920, label: "عمودي (ريلز)" },
+            landscape: { w: 1920, h: 1080, label: "عريض (يوتيوب)" }
+        };
+
+        window.updateAdVideoSizeHint = function() {
+            const orientation = document.getElementById('ad-video-orientation').value;
+            const size = AD_VIDEO_SIZES[orientation];
+            document.getElementById('ad-video-size-hint').innerText = `(إجباري: ${size.w}×${size.h} بكسل ${size.label})`;
         }
 
         window.toggleAdTypeFields = function() {
@@ -734,17 +931,24 @@
                 } else {
                     const file = document.getElementById('ad-video-file').files[0];
                     const url = document.getElementById('ad-video-url').value.trim();
+                    const orientation = document.getElementById('ad-video-orientation').value;
                     if (file) {
-                        // تحقق إجباري: ما بتنقبل غير المقاس المناسب 1080×1920 عمودي
-                        await enforceAdVideoDimensions(file, 1080, 1920, "فيديو الإعلان");
+                        // تحقق إجباري: المقاس لازم يطابق النوع المختار (ريلز عمودي أو يوتيوب عريض)
+                        const size = AD_VIDEO_SIZES[orientation];
+                        await enforceAdVideoDimensions(file, size.w, size.h, "فيديو الإعلان", size.label);
+                        const duration = await readAdVideoDimensions(file);
+                        if (duration.duration > 30) {
+                            throw new Error(`مدة الفيديو يجب ألا تتجاوز 30 ثانية. مدة الفيديو المختار: ${duration.duration.toFixed(2)} ثانية.`);
+                        }
                         msg.innerText = "جاري الرفع...";
                         mediaUrl = await uploadAdVideo(file);
                     }
-                    else if (url) mediaUrl = url;
+                    else if (url) throw new Error("لضمان مدة 30 ثانية بالضبط، ارفع ملف الفيديو بدل الرابط");
                     else throw new Error("لازم ترفع ملف فيديو أو تضيف رابط يوتيوب");
                 }
                 await addDoc(collection(db, "platformAds"), {
                     type, title, linkUrl, mediaUrl, target,
+                    orientation: type === 'فيديو' ? document.getElementById('ad-video-orientation').value : null,
                     status: "نشط",
                     createdAt: serverTimestamp()
                 });
@@ -784,7 +988,7 @@
                                 : `<div class="w-20 h-12 rounded-lg border bg-gray-800 flex items-center justify-center text-white text-lg">🎬</div>`}
                             <div class="min-w-0">
                                 <p class="text-sm font-semibold text-gray-800 truncate">${ad.title || (ad.type === 'بانر' ? 'بانر بدون عنوان' : 'فيديو بدون عنوان')}</p>
-                                <p class="text-xs text-gray-400">${ad.type}${ad.linkUrl ? ' · مرتبط برابط' : ''} · ${ad.target === 'الرئيسية' ? 'الرئيسية فقط' : ad.target === 'المطاعم' ? 'صفحة المطاعم فقط' : 'الرئيسية + المطاعم'}</p>
+                                <p class="text-xs text-gray-400">${ad.type}${ad.type === 'فيديو' ? (ad.orientation === 'landscape' ? ' (عريض/يوتيوب)' : ' (عمودي/ريلز)') : ''}${ad.linkUrl ? ' · مرتبط برابط' : ''} · ${ad.target === 'الرئيسية' ? 'الرئيسية فقط' : ad.target === 'المطاعم' ? 'صفحة المطاعم فقط' : 'الرئيسية + المطاعم'}</p>
                             </div>
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
@@ -813,6 +1017,190 @@
             }
         }
 
+        // ===============================================================
+        //        صور الرئيسية المتحركة (الدائرة اللي بتتبدّل بأول الصفحة الرئيسية)
+        //        collection: heroDishes   |  إعداد السرعة: siteSettings/homeHero
+        // ===============================================================
+        const HERO_SIZE = 600;      // المقاس النهائي (مربع)
+        const HERO_MIN_SIDE = 400;  // أقل ضلع مقبول للصورة الأصلية
+        let heroCroppedBlob = null;
+
+        function esc(t) {
+            return String(t == null ? '' : t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        // بيقصّ الصورة لمربع من المنتصف وبيصغّرها/بيكبّرها لـ 600×600
+        async function cropToSquareBlob(file) {
+            const img = await new Promise((resolve, reject) => {
+                const url = URL.createObjectURL(file);
+                const im = new Image();
+                im.onload = () => { URL.revokeObjectURL(url); resolve(im); };
+                im.onerror = () => { URL.revokeObjectURL(url); reject(new Error("تعذر قراءة الصورة")); };
+                im.src = url;
+            });
+            const w = img.naturalWidth, h = img.naturalHeight, side = Math.min(w, h);
+            if (side < HERO_MIN_SIDE) {
+                throw new Error(`الصورة صغيرة (${w}×${h}). أقل مقاس مقبول ${HERO_MIN_SIDE}×${HERO_MIN_SIDE} والأفضل ${HERO_SIZE}×${HERO_SIZE}.`);
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = HERO_SIZE; canvas.height = HERO_SIZE;
+            const ctx = canvas.getContext('2d');
+            ctx.imageSmoothingQuality = 'high';
+            ctx.drawImage(img, (w - side) / 2, (h - side) / 2, side, side, 0, 0, HERO_SIZE, HERO_SIZE);
+            const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.88));
+            if (!blob) throw new Error("تعذر تجهيز الصورة");
+            return { blob, w, h };
+        }
+
+        window.previewHeroDish = async function() {
+            const file = document.getElementById('hero-dish-file').files[0];
+            const box = document.getElementById('hero-dish-preview-box');
+            const msg = document.getElementById('hero-dish-msg');
+            heroCroppedBlob = null; msg.innerText = "";
+            if (!file) { box.classList.add('hidden'); return; }
+            try {
+                const { blob, w, h } = await cropToSquareBlob(file);
+                heroCroppedBlob = blob;
+                const prev = document.getElementById('hero-dish-preview');
+                if (prev.dataset.url) URL.revokeObjectURL(prev.dataset.url);
+                prev.dataset.url = URL.createObjectURL(blob);
+                prev.src = prev.dataset.url;
+                document.getElementById('hero-dish-preview-info').innerText =
+                    `الأصلية ${w}×${h} ← جاهزة ${HERO_SIZE}×${HERO_SIZE} (مقصوصة من المنتصف). هيك رح تظهر بالدائرة.`;
+                box.classList.remove('hidden');
+            } catch (error) {
+                box.classList.add('hidden');
+                msg.className = "sm:col-span-2 text-xs font-semibold text-red-600";
+                msg.innerText = "خطأ: " + error.message;
+            }
+        }
+
+        window.addHeroDish = async function(e) {
+            e.preventDefault();
+            const btn = document.getElementById('hero-dish-submit');
+            const msg = document.getElementById('hero-dish-msg');
+            btn.disabled = true;
+            msg.className = "sm:col-span-2 text-xs font-semibold text-gray-500";
+            msg.innerText = "جاري التجهيز...";
+            try {
+                const file = document.getElementById('hero-dish-file').files[0];
+                if (!file) throw new Error("اختار صورة أول");
+                if (!heroCroppedBlob) { const r = await cropToSquareBlob(file); heroCroppedBlob = r.blob; }
+                msg.innerText = "جاري الرفع...";
+                const imageUrl = await uploadAdImage(new File([heroCroppedBlob], "dish.jpg", { type: "image/jpeg" }));
+                const snap = await getDocs(collection(db, "heroDishes"));
+                let maxOrder = -1;
+                snap.forEach(d => { const o = Number(d.data().order); if (!isNaN(o) && o > maxOrder) maxOrder = o; });
+                await addDoc(collection(db, "heroDishes"), {
+                    imageUrl,
+                    name: document.getElementById('hero-dish-name').value.trim(),
+                    order: maxOrder + 1,
+                    status: "نشط",
+                    createdAt: serverTimestamp()
+                });
+                msg.className = "sm:col-span-2 text-xs font-semibold text-green-600";
+                msg.innerText = "تمت إضافة الصورة بنجاح!";
+                document.getElementById('hero-dish-form').reset();
+                document.getElementById('hero-dish-preview-box').classList.add('hidden');
+                heroCroppedBlob = null;
+                await loadHeroDishes();
+            } catch (error) {
+                msg.className = "sm:col-span-2 text-xs font-semibold text-red-600";
+                msg.innerText = "خطأ: " + error.message;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        window.saveHeroInterval = async function() {
+            const msg = document.getElementById('hero-interval-msg');
+            try {
+                const sec = Number(document.getElementById('hero-interval').value);
+                await setDoc(doc(db, "siteSettings", "homeHero"), { heroIntervalSec: sec, updatedAt: serverTimestamp() }, { merge: true });
+                msg.className = "text-xs font-semibold text-green-600";
+                msg.innerText = "تم الحفظ";
+            } catch (error) {
+                msg.className = "text-xs font-semibold text-red-600";
+                msg.innerText = "خطأ: " + error.message;
+            }
+        }
+
+        let heroDishesCache = [];
+
+        async function loadHeroDishes() {
+            const box = document.getElementById('hero-dishes-list');
+            if (!box) return;
+            try {
+                try {
+                    const st = await getDoc(doc(db, "siteSettings", "homeHero"));
+                    if (st.exists() && st.data().heroIntervalSec) {
+                        const sel = document.getElementById('hero-interval');
+                        const v = String(st.data().heroIntervalSec);
+                        if ([...sel.options].some(o => o.value === v)) sel.value = v;
+                    }
+                } catch (_) { /* الإعداد اختياري */ }
+
+                const snap = await getDocs(collection(db, "heroDishes"));
+                const list = [];
+                snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+                list.sort((a, b) => (Number(a.order) || 0) - (Number(b.order) || 0) || ((a.createdAt?.toMillis?.() || 0) - (b.createdAt?.toMillis?.() || 0)));
+                heroDishesCache = list;
+                if (!list.length) {
+                    box.innerHTML = `<p class="text-center text-gray-400 py-6">ما في صور بعد — بتظهر الصور الافتراضية بالتطبيق</p>`;
+                    return;
+                }
+                box.innerHTML = "";
+                list.forEach((it, idx) => {
+                    const row = document.createElement('div');
+                    row.className = "flex items-center justify-between gap-3 border border-gray-100 rounded-xl p-3 flex-wrap";
+                    row.innerHTML = `
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="text-xs text-gray-400 w-5 text-center">${idx + 1}</span>
+                            <img src="${esc(it.imageUrl)}" alt="" class="w-14 h-14 rounded-full object-cover border-2 border-white shadow ${it.status === 'نشط' ? '' : 'opacity-40 grayscale'}">
+                            <p class="text-sm font-semibold text-gray-800 truncate">${esc(it.name) || '<span class="text-gray-400">بدون اسم</span>'}</p>
+                        </div>
+                        <div class="flex items-center gap-3 shrink-0 flex-wrap">
+                            <span class="text-xs font-semibold px-2 py-1 rounded-full ${it.status === 'نشط' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}">${esc(it.status)}</span>
+                            <button data-i="${idx}" data-dir="-1" class="hero-move-btn text-sm px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 ${idx === 0 ? 'opacity-30 pointer-events-none' : ''}" title="قدّم">▲</button>
+                            <button data-i="${idx}" data-dir="1" class="hero-move-btn text-sm px-2 py-1 rounded bg-gray-100 hover:bg-gray-200 ${idx === list.length - 1 ? 'opacity-30 pointer-events-none' : ''}" title="أخّر">▼</button>
+                            <button data-id="${esc(it.id)}" class="hero-rename-btn text-xs font-semibold text-gray-600 hover:underline">الاسم</button>
+                            <button data-id="${esc(it.id)}" data-status="${esc(it.status)}" class="hero-toggle-btn text-xs font-semibold text-blue-600 hover:underline">${it.status === 'نشط' ? 'إيقاف' : 'تفعيل'}</button>
+                            <button data-id="${esc(it.id)}" class="hero-delete-btn text-xs font-semibold text-red-600 hover:underline">حذف</button>
+                        </div>`;
+                    box.appendChild(row);
+                });
+                box.querySelectorAll('.hero-move-btn').forEach(btn => btn.addEventListener('click', async () => {
+                    const i = Number(btn.dataset.i), j = i + Number(btn.dataset.dir);
+                    if (j < 0 || j >= heroDishesCache.length) return;
+                    const arr = heroDishesCache.slice();
+                    [arr[i], arr[j]] = [arr[j], arr[i]];
+                    try {
+                        await Promise.all(arr.map((it, k) => Number(it.order) === k ? null : updateDoc(doc(db, "heroDishes", it.id), { order: k })));
+                        await loadHeroDishes();
+                    } catch (error) { alert("خطأ: " + error.message); }
+                }));
+                box.querySelectorAll('.hero-rename-btn').forEach(btn => btn.addEventListener('click', async () => {
+                    const cur = heroDishesCache.find(x => x.id === btn.dataset.id);
+                    const name = prompt("اسم الطبق:", cur?.name || "");
+                    if (name === null) return;
+                    try { await updateDoc(doc(db, "heroDishes", btn.dataset.id), { name: name.trim().slice(0, 30) }); await loadHeroDishes(); }
+                    catch (error) { alert("خطأ: " + error.message); }
+                }));
+                box.querySelectorAll('.hero-toggle-btn').forEach(btn => btn.addEventListener('click', async () => {
+                    const newStatus = btn.dataset.status === 'نشط' ? 'غير نشط' : 'نشط';
+                    try { await updateDoc(doc(db, "heroDishes", btn.dataset.id), { status: newStatus }); await loadHeroDishes(); }
+                    catch (error) { alert("خطأ: " + error.message); }
+                }));
+                box.querySelectorAll('.hero-delete-btn').forEach(btn => btn.addEventListener('click', async () => {
+                    if (!confirm("متأكد من حذف هذه الصورة؟")) return;
+                    try { await deleteDoc(doc(db, "heroDishes", btn.dataset.id)); await loadHeroDishes(); }
+                    catch (error) { alert("خطأ: " + error.message); }
+                }));
+            } catch (error) {
+                box.innerHTML = `<p class="text-red-500 text-sm text-center py-4">تعذر التحميل: ${esc(error.message)}</p>`;
+            }
+        }
+
         window.logout = function() {
             signOut(auth).then(() => {
                 window.location.replace("Auth.html");
@@ -834,6 +1222,14 @@
                 <h1 class="text-sm sm:text-lg font-bold text-safra-gold truncate">لوحة الإدارة</h1>
             </div>
             <div class="flex items-center gap-3 sm:gap-4">
+                <button onclick="enableOrderNotifications()" class="bg-yellow-50 text-yellow-700 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-yellow-100 transition flex items-center gap-1.5" title="فعّل تنبيهات المتصفح عند وصول طلب جديد">
+                    <i class="fa-solid fa-bell"></i>
+                    <span class="hidden sm:inline">تفعيل التنبيهات</span>
+                </button>
+                <a href="https://wa.me/962787000190" target="_blank" rel="noopener" class="bg-green-50 text-green-700 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-green-100 transition flex items-center gap-1.5">
+                    <i class="fa-brands fa-whatsapp"></i>
+                    <span class="hidden sm:inline">واتساب</span>
+                </a>
                 <a href="index.html" class="text-gray-600 text-xs sm:text-sm hover:text-safra-gold">الرئيسية</a>
                 <button onclick="logout()" class="bg-red-50 text-red-600 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-medium hover:bg-red-100 transition">تسجيل خروج</button>
             </div>
@@ -841,34 +1237,53 @@
 
         <main class="p-4 sm:p-6 w-full">
 
-            <div class="flex items-center gap-2 mb-5">
-                <button id="btn-tab-orders" onclick="showTab('orders')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-safra-gold text-white">الطلبات</button>
+            <div class="flex items-center gap-2 mb-3 flex-wrap">
+                <a href="restaurant-dashboard.html" class="px-4 py-2 rounded-lg text-sm font-semibold bg-safra-dark text-white hover:opacity-90 flex items-center gap-1.5">
+                    🍽️ إدارة المطاعم (أصناف، صور، بانر، فيديو)
+                </a>
+            </div>
+
+            <div class="flex items-center gap-2 mb-5 flex-wrap">
+                <button id="btn-tab-orders" onclick="showTab('orders')" class="relative px-4 py-2 rounded-lg text-sm font-semibold bg-safra-gold text-white">
+                    الطلبات
+                    <span id="orders-badge" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-none">0</span>
+                </button>
                 <button id="btn-tab-subscriptions" onclick="showTab('subscriptions')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">الاشتراكات</button>
                 <button id="btn-tab-home" onclick="showTab('home')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">الرئيسية</button>
                 <button id="btn-tab-platform-ads" onclick="showTab('platform-ads')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">📣 إعلانات المنصة</button>
+                <button id="btn-tab-hero-dishes" onclick="showTab('hero-dishes')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">🍲 صور الرئيسية</button>
                 <button id="btn-tab-users" onclick="showTab('users')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">المستخدمين</button>
             </div>
 
             <!-- ===== تبويب: الطلبات ===== -->
             <div id="tab-orders">
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <div class="flex justify-between items-center mb-6">
+                    <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
                         <h2 class="text-lg font-bold text-gray-800">سجل الطلبات الواردة</h2>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button data-type="الكل" onclick="setOrderTypeFilter('الكل')" class="order-type-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-safra-gold text-white">الكل</button>
+                            <button data-type="home" onclick="setOrderTypeFilter('home')" class="order-type-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">🍽️ مطعم / مطبخ بيتي</button>
+                            <button data-type="foodtruck" onclick="setOrderTypeFilter('foodtruck')" class="order-type-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">🚚 فود ترك</button>
+                            <button id="btn-delete-all-orders" onclick="deleteAllOrders()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-red-50 text-red-600 hover:bg-red-100">🗑️ حذف الكل</button>
+                        </div>
                     </div>
 
                     <div class="overflow-x-auto">
                         <table class="w-full text-right border-collapse">
                             <thead>
                                 <tr class="border-b border-gray-200 text-gray-500 text-sm">
+                                    <th class="py-3 px-4 font-semibold">المطعم</th>
                                     <th class="py-3 px-4 font-semibold">العنوان</th>
                                     <th class="py-3 px-4 font-semibold">الأصناف والوجبات</th>
                                     <th class="py-3 px-4 font-semibold">الإجمالي</th>
                                     <th class="py-3 px-4 font-semibold">معرف الطلب</th>
+                                    <th class="py-3 px-4 font-semibold">تواصل</th>
+                                    <th class="py-3 px-4 font-semibold">حذف</th>
                                 </tr>
                             </thead>
                             <tbody id="restaurants-table-body">
                                 <tr>
-                                    <td colspan="4" class="text-center py-6 text-gray-400">جاري التحميل...</td>
+                                    <td colspan="7" class="text-center py-6 text-gray-400">جاري التحميل...</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -996,8 +1411,15 @@
                             <input type="file" id="ad-banner-file" accept="image/*" class="w-full px-3 py-2 border rounded-lg text-sm">
                         </div>
                         <div id="ad-video-field" class="hidden sm:col-span-2 grid sm:grid-cols-2 gap-3">
+                            <div class="sm:col-span-2">
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">نوع الفيديو</label>
+                                <select id="ad-video-orientation" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="updateAdVideoSizeHint()">
+                                    <option value="portrait">ريلز — عمودي (1080×1920)</option>
+                                    <option value="landscape">يوتيوب — عريض (1920×1080)</option>
+                                </select>
+                            </div>
                             <div>
-                                <label class="block text-xs font-semibold text-gray-600 mb-1">رفع ملف فيديو من جهازك <span class="text-red-500 font-bold">(إجباري: 1080×1920 بكسل عمودي)</span></label>
+                                <label class="block text-xs font-semibold text-gray-600 mb-1">رفع ملف فيديو من جهازك <span id="ad-video-size-hint" class="text-red-500 font-bold">(إجباري: 1080×1920 بكسل عمودي)</span></label>
                                 <input type="file" id="ad-video-file" accept="video/*" class="w-full px-3 py-2 border rounded-lg text-sm">
                             </div>
                             <div>
@@ -1017,6 +1439,63 @@
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                     <h2 class="text-lg font-bold text-gray-800 mb-4">📋 الإعلانات الحالية</h2>
                     <div id="platform-ads-list" class="space-y-3">
+                        <p class="text-center text-gray-400 py-6">جاري التحميل...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== تبويب: صور الرئيسية المتحركة (الدائرة اللي بتتبدّل بأول الصفحة الرئيسية) ===== -->
+            <div id="tab-hero-dishes" class="hidden space-y-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-2">🍲 إضافة صورة للدائرة المتحركة</h2>
+                    <p class="text-xs text-gray-400 mb-3">هاي الصور بتظهر بأول الصفحة الرئيسية (قسم «خلّي سفرتك تبدأ من مزاجك») وبتتبدّل كل فترة مع حركة. وبتظهر فورًا بعد الإضافة.</p>
+
+                    <div class="rounded-xl bg-amber-50 border border-amber-200 p-3 mb-4 text-sm text-amber-900 leading-7">
+                        <b>📐 المقاس المطلوب:</b> صورة <b>مربعة 600×600 بكسل</b> (أقل مقاس مقبول 400×400).<br>
+                        <b>💡 نصيحة:</b> خلّي الطبق بمنتصف الصورة لأنها بتنعرض داخل دائرة وزواياها بتنقص.<br>
+                        <b>✂️ بدون تعب:</b> إذا رفعت صورة بمقاس ثاني (عريضة أو طويلة) بنقصّها لمربع من المنتصف وبنصغّرها لحالنا، وبتشوف المعاينة قبل الحفظ.
+                    </div>
+
+                    <form id="hero-dish-form" onsubmit="addHeroDish(event)" class="grid sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">الصورة</label>
+                            <input type="file" id="hero-dish-file" accept="image/*" onchange="previewHeroDish()" class="w-full px-3 py-2 border rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-gray-600 mb-1">اسم الطبق (بيظهر تحت الصورة، اختياري)</label>
+                            <input type="text" id="hero-dish-name" maxlength="30" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="مثال: منسف">
+                        </div>
+                        <div id="hero-dish-preview-box" class="hidden sm:col-span-2 flex items-center gap-3">
+                            <img id="hero-dish-preview" alt="" class="w-24 h-24 rounded-full object-cover border-4 border-white shadow">
+                            <p id="hero-dish-preview-info" class="text-xs text-gray-500"></p>
+                        </div>
+                        <button type="submit" id="hero-dish-submit" class="sm:col-span-2 bg-safra-gold text-white py-2 rounded-lg text-sm font-semibold hover:bg-safra-gold-dark transition">إضافة الصورة</button>
+                        <p id="hero-dish-msg" class="sm:col-span-2 text-xs font-semibold"></p>
+                    </form>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-3">⏱️ سرعة التبديل</h2>
+                    <div class="flex items-center gap-3 flex-wrap">
+                        <label for="hero-interval" class="text-sm text-gray-600">تتبدّل الصورة كل</label>
+                        <select id="hero-interval" class="px-3 py-2 border rounded-lg text-sm">
+                            <option value="2">2 ثانية</option>
+                            <option value="3">3 ثواني</option>
+                            <option value="4" selected>4 ثواني</option>
+                            <option value="5">5 ثواني</option>
+                            <option value="7">7 ثواني</option>
+                            <option value="10">10 ثواني</option>
+                            <option value="15">15 ثانية</option>
+                        </select>
+                        <button onclick="saveHeroInterval()" class="bg-safra-dark text-white px-4 py-2 rounded-lg text-sm font-semibold hover:opacity-90">حفظ</button>
+                        <span id="hero-interval-msg" class="text-xs font-semibold"></span>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-1">📋 الصور الحالية</h2>
+                    <p class="text-xs text-gray-400 mb-4">الترتيب هون هو ترتيب الظهور. إذا ما في ولا صورة نشطة، بتظهر الصور الافتراضية اللي بالتطبيق.</p>
+                    <div id="hero-dishes-list" class="space-y-3">
                         <p class="text-center text-gray-400 py-6">جاري التحميل...</p>
                     </div>
                 </div>

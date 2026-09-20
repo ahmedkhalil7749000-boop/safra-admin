@@ -15,11 +15,11 @@
         theme: {
           extend: {
             colors: {
-              'safra-dark': '#0b3b2c',
-              'safra-green': '#2e6f40',
-              'safra-cream': '#fbf9f5',
-              'safra-gold': '#d97706',
-              'safra-gold-dark': '#b45309',
+              'safra-dark': '#063B2C',
+              'safra-green': '#16B77E',
+              'safra-cream': '#FAF8F3',
+              'safra-gold': '#EFBD61',
+              'safra-gold-dark': '#c9973e',
               'safra-line': '#e7e2d6',
               'safra-muted': '#7c7669',
             },
@@ -310,48 +310,89 @@ body.app-narrow{background:radial-gradient(circle at 8% 0%,rgba(22,183,126,.10),
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important;animation:none!important}}
 
 </style>
+    <link rel="stylesheet" href="safra-3d.css">
+
+<style id="restaurants-hybrid-override">
+body.app-narrow{background:#f7f7f4!important;color:#17211b!important}
+.restaurants-hybrid-page{width:min(1180px,calc(100% - 28px));margin:0 auto;padding:20px 0 32px}
+.restaurants-top{padding:4px 0 0}.restaurants-title-row{display:flex;align-items:center;justify-content:space-between;gap:15px;margin-bottom:16px}.restaurants-kicker{font-size:13px;font-weight:800;color:#0d6b45;margin-bottom:4px}.restaurants-title-row h1{margin:0;font-family:'El Messiri',serif;font-size:28px;line-height:1.25;color:#17211b}.restaurants-title-row p{margin:5px 0 0;color:#777;font-size:12px}.restaurants-count-pill{background:#fff;border:1px solid #e8e8e4;border-radius:30px;padding:9px 14px;font-size:12px;color:#0d6b45;font-weight:800;white-space:nowrap}
+.hybrid-search{margin:0!important}.hybrid-search input{height:54px!important;border-radius:18px!important;border:1px solid #e6e6e0!important;padding:12px 48px 12px 18px!important;box-shadow:0 8px 24px rgba(0,0,0,.05)!important;font-size:14px!important}.hybrid-search i{right:18px!important;color:#0d6b45!important;font-size:16px!important}
+.hybrid-category-wrap{margin:18px 0 0}.hybrid-category-title{font-size:13px;font-weight:800;color:#17211b;margin-bottom:9px}.category-tabs{gap:8px!important;border:0!important;padding:0!important}.tab-item{padding:10px 15px!important;border:1px solid #e4e4de!important;border-radius:30px!important;background:#fff!important;color:#666!important;font-size:12.5px!important}.tab-item::after{display:none!important}.tab-item[aria-pressed="true"]{background:#0d6b45!important;color:#fff!important;border-color:#0d6b45!important}.tab-item[disabled]{opacity:.35}
+.hybrid-banner{margin:22px 0 26px;min-height:178px;border-radius:25px;padding:25px 28px;display:flex;align-items:center;justify-content:space-between;gap:20px;overflow:hidden;color:#fff;background:radial-gradient(circle at 90% 20%,rgba(104,226,178,.3),transparent 32%),linear-gradient(110deg,#0b5d3d,#13875a);box-shadow:0 12px 30px rgba(13,107,69,.16)}.hybrid-banner span{font-size:12px;opacity:.82;font-weight:700}.hybrid-banner h2{font-family:'El Messiri',serif;font-size:29px;margin:5px 0}.hybrid-banner p{font-size:13px;margin:0;opacity:.88}.hybrid-banner-icon{font-size:88px;filter:drop-shadow(0 12px 16px rgba(0,0,0,.25));margin-left:10px}
+.hybrid-section{margin-top:28px}.hybrid-section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin-bottom:13px}.hybrid-section-head span{display:block;color:#8a8a83;font-size:11px;font-weight:700;margin-bottom:2px}.hybrid-section-head h2{margin:0;font-family:'El Messiri',serif;color:#17211b;font-size:21px}.hybrid-section-head a{font-size:12px;color:#0d6b45;font-weight:800;text-decoration:none}.hybrid-sort{font-size:12px!important;color:#0d6b45!important;background:#edf6f1;padding:7px 11px;border-radius:20px;margin:0!important}
+.feature-eyebrow{display:none!important}.feature-photo-wrap{border-radius:23px!important;aspect-ratio:16/8!important;box-shadow:0 10px 28px rgba(0,0,0,.08)}.feature-text{right:22px!important;left:22px!important;bottom:20px!important}.feature-text h2{font-size:25px!important}.feature-meta{margin-top:8px!important}
+.hybrid-arrivals .arrivals-heading{font-family:'El Messiri',serif;font-size:21px!important;margin:0 0 12px!important;color:#17211b}.arrival-card{flex-basis:210px!important;background:#fff;border:1px solid #e9e9e3;border-radius:18px;overflow:hidden;padding-bottom:10px}.arrival-photo{border-radius:0!important;aspect-ratio:16/10!important}.arrival-name{font-size:13px!important;padding:0 11px;margin-top:9px!important}.arrival-card .photo-wash{display:none}
+.banner-slide{flex-basis:88%!important;border-radius:20px!important}
+.all-restaurants-section{margin-top:32px}.resto-grid{gap:16px!important}.resto-card{background:#fff;border:1px solid #e9e9e3;border-radius:20px;overflow:hidden;box-shadow:0 5px 18px rgba(0,0,0,.035)}.resto-house{border-radius:0!important}.resto-body{padding:13px 14px 15px!important}.resto-body h3{font-size:15px!important}.resto-desc{font-size:11.5px!important}.resto-photo-wrap{aspect-ratio:4/3!important}.resto-card.is-wide .resto-house{grid-template-columns:1.15fr .85fr!important}.resto-card.is-wide .resto-body{padding:18px!important}.resto-card.is-wide .resto-body h3{font-size:19px!important}
+@media(max-width:650px){.restaurants-hybrid-page{width:calc(100% - 20px);padding-top:15px}.restaurants-title-row h1{font-size:23px}.restaurants-count-pill{padding:7px 10px}.hybrid-banner{min-height:158px;padding:20px;border-radius:21px}.hybrid-banner h2{font-size:23px}.hybrid-banner-icon{font-size:68px}.feature-photo-wrap{aspect-ratio:16/10!important}.feature-text h2{font-size:21px!important}.resto-grid{grid-template-columns:1fr 1fr!important;gap:12px!important}.resto-card.is-wide{grid-column:1/-1}.resto-card.is-wide .resto-house{grid-template-columns:1fr 1fr!important}.resto-card.is-wide .resto-photo-wrap{height:auto!important}.resto-card.is-wide .resto-body{padding:12px!important}.resto-card.is-wide .resto-body h3{font-size:16px!important}.resto-meta{gap:7px!important}.arrival-card{flex-basis:190px!important}}
+@media(max-width:390px){.resto-grid{grid-template-columns:1fr!important}.resto-card.is-wide .resto-house{display:block!important}.restaurants-count-pill{display:none}}
+</style>
 </head>
 <body class="app-narrow bg-safra-cream min-h-screen">
-    <!-- الهيدر المشترك: بيتحمّل تلقائيًا من shared-header.js -->
     <div id="app-header"></div>
     <script type="module" src="shared-header.js"></script>
 
-    <div id="page-content" class="p-4">
-        <div class="mb-4">
-            <h1 class="font-display text-2xl font-semibold text-safra-dark">المطاعم</h1>
-            <p id="restaurant-count" class="text-[12.5px] text-safra-muted mt-0.5">جاري تحميل المطاعم القريبة منك...</p>
-        </div>
+    <div id="page-content" class="restaurants-hybrid-page">
+        <section class="restaurants-top">
+            <div class="restaurants-title-row">
+                <div>
+                    <div class="restaurants-kicker">🍽️ سفرة</div>
+                    <h1>اكتشف مطاعمك المفضلة</h1>
+                    <p id="restaurant-count">جاري تحميل المطاعم القريبة منك...</p>
+                </div>
+                <div class="restaurants-count-pill" aria-hidden="true">مطاعم</div>
+            </div>
 
-        <!-- الكرت الرئيسي -->
-        <div id="feature-slot" class="mb-5"></div>
+            <div class="hybrid-search search-field">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="search-input" placeholder="ابحث عن مطعم أو أكلة..." autocomplete="off">
+            </div>
 
-        <!-- إضافات جديدة -->
-        <div id="arrivals-slot" class="mb-5"></div>
+            <div class="hybrid-category-wrap">
+                <div class="hybrid-category-title">تصفح حسب النوع</div>
+                <div id="category-tabs" class="category-tabs"></div>
+            </div>
+        </section>
 
-        <!-- إعلانات المنصة (بانر) — مستقلة كليًا عن اشتراكات المطاعم، يتحكم بها الأدمن -->
-        <div id="platform-banners-section" class="hidden mb-5">
+        <section class="hybrid-banner">
+            <div>
+                <span>سفرة تجمع لك كل اللي بتحبه</span>
+                <h2>شو نفسك تاكل اليوم؟</h2>
+                <p>اكتشف المطاعم وبيوت الطبخ الجديدة على سفرة</p>
+            </div>
+            <div class="hybrid-banner-icon">🍽️</div>
+        </section>
+
+        <section class="hybrid-section">
+            <div class="hybrid-section-head">
+                <div><span>مختاراتنا</span><h2>⭐ مميز اليوم</h2></div>
+                <a href="#restaurants-grid">عرض الكل</a>
+            </div>
+            <div id="feature-slot"></div>
+        </section>
+
+        <section id="arrivals-slot" class="hybrid-section hybrid-arrivals"></section>
+
+        <section id="platform-banners-section" class="hybrid-section hidden">
+            <div class="hybrid-section-head"><div><span>إعلانات</span><h2>اكتشف الجديد</h2></div></div>
             <div id="platform-banners-row" class="banner-row"></div>
-        </div>
+        </section>
 
-        <!-- البحث -->
-        <div class="search-field mb-4">
-            <input type="text" id="search-input" placeholder="ابحث عن مطعم أو نوع أكل...">
-            <i class="fa-solid fa-magnifying-glass"></i>
-        </div>
+        <section class="hybrid-section all-restaurants-section">
+            <div class="hybrid-section-head">
+                <div><span>كل الخيارات</span><h2>🍴 جميع المطاعم</h2></div>
+                <span class="hybrid-sort">الأقرب أولًا</span>
+            </div>
 
-        <!-- التصنيفات -->
-        <div id="category-tabs" class="category-tabs mb-5"></div>
-
-        <!-- حالات العرض -->
-        <div id="loading" class="resto-grid"></div>
-        <div id="error" class="hidden text-center text-red-600 bg-red-50 border border-red-100 rounded-xl py-8 px-4 text-sm"></div>
-        <div id="empty" class="hidden flex-col items-center text-center text-safra-muted py-14 px-4">
-            <i class="fa-regular fa-face-frown text-3xl mb-3 text-safra-line"></i>
-            <p class="text-sm font-semibold text-safra-dark">لا يوجد مطاعم مطابقة</p>
-            <p class="text-xs mt-1">جرّب كلمة بحث مختلفة أو اختر تصنيفًا آخر</p>
-        </div>
-
-        <div id="restaurants-grid" class="resto-grid"></div>
+            <div id="loading" class="resto-grid"></div>
+            <div id="error" class="hidden text-center text-red-600 bg-red-50 border border-red-100 rounded-xl py-8 px-4 text-sm"></div>
+            <div id="empty" class="hidden flex-col items-center text-center text-safra-muted py-14 px-4">
+                <i class="fa-regular fa-face-frown text-3xl mb-3 text-safra-line"></i>
+                <p class="text-sm font-semibold text-safra-dark">لا يوجد مطاعم مطابقة</p>
+                <p class="text-xs mt-1">جرّب كلمة بحث مختلفة أو اختر تصنيفًا آخر</p>
+            </div>
+            <div id="restaurants-grid" class="resto-grid"></div>
+        </section>
     </div>
 
     <!-- شريط التنقل السفلي -->
@@ -644,5 +685,6 @@ body.app-narrow{background:radial-gradient(circle at 8% 0%,rgba(22,183,126,.10),
         loadRestaurants();
         loadPlatformAds();
     </script>
+    <script src="safra-theme.js"></script>
 </body>
 </html>

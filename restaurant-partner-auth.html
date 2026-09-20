@@ -176,6 +176,31 @@
         .form-view { display: none; }
         .form-view.active { display: flex; flex-direction: column; gap: 14px; }
 
+        /* ===== شاشة رمز التحقق ===== */
+        .otp-head { text-align: center; }
+        .otp-icon {
+            width: 54px; height: 54px; border-radius: 9999px; margin: 0 auto 10px;
+            display: flex; align-items: center; justify-content: center;
+            background: var(--saffron-tint); color: var(--saffron); font-size: 21px;
+        }
+        .otp-head h3 { font-size: 18px; font-weight: 700; color: var(--green-deep); }
+        .otp-head p { font-size: 12.5px; color: var(--ink-soft); margin-top: 7px; line-height: 1.7; }
+        .otp-phone { font-weight: 700; color: var(--ink); direction: ltr; display: inline-block; }
+        .otp-input {
+            width: 100%; text-align: center; letter-spacing: 12px; font-size: 22px; font-weight: 700;
+            padding: 13px 10px; border-radius: 12px; border: 1.5px solid var(--line);
+            background: var(--panel); color: var(--ink); direction: ltr;
+        }
+        .otp-input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-tint); }
+        .btn-ghost {
+            background: transparent; color: var(--ink-soft); font-size: 12.5px; font-weight: 700;
+            border: none; cursor: pointer; padding: 0;
+        }
+        .btn-ghost:hover { color: var(--ink); }
+        .btn-ghost[disabled] { opacity: .55; cursor: not-allowed; }
+        .otp-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+        #recaptcha-container { display: flex; justify-content: center; }
+
         .divider-line { border-top: 1px solid var(--line); }
 
     </style>
@@ -227,6 +252,17 @@
                 <div class="field-wrap">
                     <input type="text" id="su-business" required class="field" placeholder="مثال: مطبخ سارة البيتي">
                     <i class="fa-solid fa-utensils field-icon"></i>
+                </div>
+            </div>
+
+            <div>
+                <label class="field-label">نوع المشروع</label>
+                <div class="field-wrap">
+                    <select id="su-type" required class="field select-field">
+                        <option value="home" selected>مطعم / مطبخ بيتي</option>
+                        <option value="foodtruck">فود ترك (مركبة مطعم متنقلة)</option>
+                    </select>
+                    <i class="fa-solid fa-chevron-down field-icon select-icon"></i>
                 </div>
             </div>
 
@@ -311,7 +347,7 @@
             </div>
 
             <button type="submit" id="signup-btn" class="btn btn-primary">
-                إنشاء حساب المطعم <i class="fa-solid fa-arrow-left text-[12px]"></i>
+                تأكيد التسجيل وإرسال رمز التحقق <i class="fa-solid fa-paper-plane text-[12px]"></i>
             </button>
 
             <p class="text-center text-[11.5px] text-safra-ink/50 leading-relaxed">
@@ -323,6 +359,39 @@
                 <button type="button" id="goto-login" class="font-bold text-safra-green hover:text-safra-dark">سجل دخول</button>
             </p>
         </form>
+
+        <!-- ===== شاشة تأكيد رمز التحقق (SMS) ===== -->
+        <form id="otp-form" class="form-view mt-4">
+            <div class="otp-head">
+                <div class="otp-icon"><i class="fa-solid fa-comment-sms"></i></div>
+                <h3 class="font-display">أكّد رقم جوالك</h3>
+                <p>بعتنالك رمز تحقق من 6 أرقام برسالة نصية على<br><span class="otp-phone" id="otp-target"></span></p>
+            </div>
+
+            <div>
+                <label class="field-label">رمز التحقق</label>
+                <input type="text" id="otp-code" class="otp-input" inputmode="numeric" autocomplete="one-time-code"
+                       maxlength="6" pattern="\d{6}" placeholder="------" required>
+            </div>
+
+            <button type="submit" id="otp-btn" class="btn btn-primary">
+                تأكيد التسجيل <i class="fa-solid fa-circle-check text-[13px]"></i>
+            </button>
+
+            <div class="otp-actions">
+                <button type="button" id="otp-change" class="btn-ghost">
+                    <i class="fa-solid fa-pen-to-square text-[11px]"></i> تعديل الرقم
+                </button>
+                <button type="button" id="otp-resend" class="btn-ghost" disabled>إعادة إرسال الرمز (60)</button>
+            </div>
+
+            <p class="text-center text-[11.5px] text-safra-ink/50 leading-relaxed">
+                إذا ما وصلتك الرسالة خلال دقيقة، تأكد إن الرقم صح وإن عندك تغطية شبكة.
+            </p>
+        </form>
+
+        <!-- حاوية reCAPTCHA غير المرئي (مطلوبة من Firebase لإرسال SMS) -->
+        <div id="recaptcha-container"></div>
 
         <!-- ===== فورم تسجيل الدخول ===== -->
         <form id="login-form" class="form-view mt-4">
@@ -357,21 +426,28 @@
     </div>
 
     <script type="module">
-        import { loginWithEmail, signUpWithEmail, getUserRole, resetPassword } from "./auth-logic.js";
+        import {
+            loginWithEmail, getUserRole, resetPassword,
+            setupRecaptcha, resetRecaptcha, toE164, sendPhoneCode, confirmPhoneAndCreateAccount
+        } from "./auth-logic.js";
 
         // ===== عناصر التبويب =====
         const tabSignup = document.getElementById('tab-signup');
         const tabLogin = document.getElementById('tab-login');
         const signupForm = document.getElementById('signup-form');
         const loginForm = document.getElementById('login-form');
+        const otpForm = document.getElementById('otp-form');
         const msg = document.getElementById('msg');
 
         function showTab(tab) {
             const isSignup = tab === 'signup';
-            tabSignup.classList.toggle('active', isSignup);
-            tabLogin.classList.toggle('active', !isSignup);
+            const isOtp = tab === 'otp';
+            // تبويب "إنشاء حساب" بيضل مفعّل حتى وإحنا بخطوة رمز التحقق (نفس المسار)
+            tabSignup.classList.toggle('active', isSignup || isOtp);
+            tabLogin.classList.toggle('active', tab === 'login');
             signupForm.classList.toggle('active', isSignup);
-            loginForm.classList.toggle('active', !isSignup);
+            loginForm.classList.toggle('active', tab === 'login');
+            otpForm.classList.toggle('active', isOtp);
             hideMsg();
         }
         tabSignup.addEventListener('click', () => showTab('signup'));
@@ -414,6 +490,17 @@
                 'auth/wrong-password': 'كلمة المرور غير صحيحة.',
                 'auth/invalid-credential': 'البريد الإلكتروني أو كلمة المرور غير صحيحة.',
                 'auth/too-many-requests': 'محاولات كثيرة متتالية، حاول بعد شوي.',
+                // ===== أخطاء التحقق برقم الجوال =====
+                'auth/invalid-phone-number': 'رقم الجوال غير صحيح. تأكد من الرقم والدولة.',
+                'auth/missing-phone-number': 'ما في رقم جوال مكتوب.',
+                'auth/quota-exceeded': 'تم تجاوز عدد الرسائل المسموح حاليًا. حاول بعد شوي.',
+                'auth/invalid-verification-code': 'رمز التحقق غير صحيح. تأكد من الأرقام الستة.',
+                'auth/code-expired': 'انتهت صلاحية الرمز. اضغط "إعادة إرسال الرمز".',
+                'auth/missing-verification-code': 'اكتب رمز التحقق أولاً.',
+                'auth/credential-already-in-use': 'هذا البريد الإلكتروني مرتبط بحساب ثاني. جرّب بريد غيره أو سجّل دخول.',
+                'auth/provider-already-linked': 'هذا الحساب مربوط مسبقًا ببريد إلكتروني.',
+                'auth/captcha-check-failed': 'فشل التحقق الأمني. حدّث الصفحة وحاول مرة ثانية.',
+                'safra/phone-already-registered': 'رقم الجوال هذا مسجّل مسبقًا بحساب على سفرة. سجّل دخول أو استعمل رقم ثاني.',
             };
             return map[error.code] || ('حدث خطأ: ' + error.message);
         }
@@ -441,13 +528,129 @@
             return localPattern.test(digits) || intlPattern.test(digits);
         }
 
+        // ===== الخطوة الأولى: التحقق من البيانات وإرسال رمز SMS =====
+        // بنحتفظ ببيانات الفورم مؤقتًا لحد ما يتأكد الرمز، وبعدها بننشئ الحساب
+        let pendingSignup = null;      // بيانات المطعم المعبّاة بالفورم
+        let confirmationResult = null; // ناتج إرسال الرمز من Firebase
+        let resendTimer = null;
+
+        const otpBtn = document.getElementById('otp-btn');
+        const otpCode = document.getElementById('otp-code');
+        const otpTarget = document.getElementById('otp-target');
+        const otpResend = document.getElementById('otp-resend');
+
+        function startResendCountdown(seconds = 60) {
+            clearInterval(resendTimer);
+            let left = seconds;
+            otpResend.disabled = true;
+            otpResend.textContent = `إعادة إرسال الرمز (${left})`;
+            resendTimer = setInterval(() => {
+                left -= 1;
+                if (left <= 0) {
+                    clearInterval(resendTimer);
+                    otpResend.disabled = false;
+                    otpResend.textContent = 'إعادة إرسال الرمز';
+                } else {
+                    otpResend.textContent = `إعادة إرسال الرمز (${left})`;
+                }
+            }, 1000);
+        }
+
+        async function requestSmsCode() {
+            const verifier = setupRecaptcha('recaptcha-container');
+            confirmationResult = await sendPhoneCode(pendingSignup.phoneE164, verifier);
+        }
+
+        // الرجوع لفورم البيانات (تعديل الرقم أو إلغاء)
+        document.getElementById('otp-change').addEventListener('click', () => {
+            clearInterval(resendTimer);
+            confirmationResult = null;
+            resetRecaptcha();
+            otpCode.value = '';
+            document.getElementById('signup-btn').disabled = false;
+            showTab('signup');
+            document.getElementById('su-phone').focus();
+        });
+
+        // إعادة إرسال الرمز
+        otpResend.addEventListener('click', async () => {
+            if (!pendingSignup) return;
+            otpResend.disabled = true;
+            showMsg('جاري إعادة إرسال الرمز...', 'info');
+            resetRecaptcha();
+            try {
+                await requestSmsCode();
+                showMsg('تم إرسال رمز جديد لجوالك.', 'success');
+                startResendCountdown();
+            } catch (error) {
+                resetRecaptcha();
+                showMsg(friendlyError(error), 'error');
+                otpResend.disabled = false;
+            }
+        });
+
+        // ===== الخطوة الثانية: تأكيد الرمز وإنشاء الحساب فعليًا =====
+        otpForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideMsg();
+
+            const code = otpCode.value.trim();
+            if (!/^\d{6}$/.test(code)) {
+                showMsg('اكتب رمز التحقق المكوّن من 6 أرقام.', 'error');
+                return;
+            }
+            if (!confirmationResult || !pendingSignup) {
+                showMsg('انتهت الجلسة. ارجع وعبّي البيانات من جديد.', 'error');
+                return;
+            }
+
+            otpBtn.disabled = true;
+            showMsg('جاري التحقق من الرمز وإنشاء حسابك...', 'info');
+
+            try {
+                await confirmPhoneAndCreateAccount(
+                    confirmationResult,
+                    code,
+                    pendingSignup.email,
+                    pendingSignup.password,
+                    {
+                        role: 'restaurant_owner',
+                        fullName: pendingSignup.fullName,
+                        phone: pendingSignup.phone,
+                        businessName: pendingSignup.businessName,
+                        restaurantType: pendingSignup.restaurantType,
+                        country: pendingSignup.country
+                    }
+                );
+
+                clearInterval(resendTimer);
+                showMsg('تم تأكيد رقمك وإنشاء حساب المطعم بنجاح! جاري تحويلك للوحة التحكم...', 'success');
+                setTimeout(() => { window.location.href = "restaurant-dashboard.html"; }, 1200);
+            } catch (error) {
+                showMsg(friendlyError(error), 'error');
+                otpBtn.disabled = false;
+
+                // لو صار خطأ بربط البريد (مش بالرمز)، لازم يرجع يعدّل البيانات من البداية
+                const restartCodes = [
+                    'auth/email-already-in-use', 'auth/credential-already-in-use',
+                    'auth/provider-already-linked', 'safra/phone-already-registered'
+                ];
+                if (restartCodes.includes(error.code)) {
+                    confirmationResult = null;
+                    resetRecaptcha();
+                    clearInterval(resendTimer);
+                    setTimeout(() => showTab('signup'), 2500);
+                }
+            }
+        });
+
         // ===== إنشاء حساب مطعم =====
         signupForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             hideMsg();
 
             const businessName = document.getElementById('su-business').value.trim();
-            const restaurantType = 'home';
+            const restaurantType = document.getElementById('su-type').value === 'foodtruck' ? 'foodtruck' : 'home';
             const fullName = document.getElementById('su-name').value.trim();
             const phone = document.getElementById('su-phone').value.trim();
             const country = document.getElementById('su-country').value;
@@ -471,26 +674,34 @@
                 return;
             }
 
+            // تحويل الرقم لصيغة دولية (+9627...) لأن Firebase ما بيقبل غيرها
+            const phoneE164 = toE164(phone, callingCodes[country]);
+            if (!phoneE164) {
+                showMsg('ما قدرنا نحوّل رقمك لصيغة دولية. اكتبه بصيغة 00 أو + مع كود الدولة.', 'error');
+                return;
+            }
+
             signupBtn.disabled = true;
-            showMsg('جاري إنشاء حسابك...', 'info');
+            showMsg('جاري إرسال رمز التحقق لجوالك...', 'info');
+
+            pendingSignup = {
+                businessName, restaurantType, fullName,
+                phone, phoneE164, country, email, password
+            };
 
             try {
-                const cred = await signUpWithEmail(email, password, {
-                    role: 'restaurant_owner',
-                    fullName: fullName,
-                    phone: phone,
-                    businessName: businessName,
-                    restaurantType: restaurantType,
-                    country: country
-                });
+                await requestSmsCode();
 
-                showMsg('تم إنشاء حساب المطعم بنجاح! جاري تحويلك للوحة التحكم...', 'success');
-
-                setTimeout(() => {
-                    window.location.href = "restaurant-dashboard.html";
-                }, 1200);
+                otpTarget.textContent = phoneE164;
+                otpCode.value = '';
+                showTab('otp');
+                showMsg('بعتنالك رمز تحقق برسالة نصية. اكتبه هون لإتمام التسجيل.', 'success');
+                startResendCountdown();
+                otpCode.focus();
             } catch (error) {
+                resetRecaptcha();
                 showMsg(friendlyError(error), 'error');
+            } finally {
                 signupBtn.disabled = false;
             }
         });

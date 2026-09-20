@@ -11,16 +11,17 @@
         theme: {
           extend: {
             colors: {
-              'safra-dark': '#0b3b2c',
-              'safra-green': '#2e6f40',
-              'safra-cream': '#fbf9f5',
-              'safra-gold': '#d97706',
-              'safra-gold-dark': '#b45309',
+              'safra-dark': '#063B2C',
+              'safra-green': '#16B77E',
+              'safra-cream': '#FAF8F3',
+              'safra-gold': '#EFBD61',
+              'safra-gold-dark': '#c9973e',
             }
           }
         }
       }
     </script>
+    <link rel="stylesheet" href="safra-3d.css">
 </head>
 <body class="app-narrow bg-safra-cream min-h-screen">
     <!-- الهيدر المشترك: بيتحمّل تلقائيًا من shared-header.js -->
@@ -83,10 +84,14 @@
     </div>
 
     <script type="module">
-        import { auth, db } from "./firebase-config.js";
+        import { app, auth, db } from "./firebase-config.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { collection, addDoc, serverTimestamp, Timestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
         import { getCart as getCartService, clearCart, groupCartByRestaurant } from "./cart-service.js";
+
+        const functions = getFunctions(app);
+        const createOrderFn = httpsCallable(functions, "createOrder");
 
         const form = document.getElementById('checkout-form');
         const message = document.getElementById('message');
@@ -239,47 +244,35 @@
             }
             scheduleError.classList.add('hidden');
 
-            const address = "استلام ذاتي من المطعم";
             const paymentMethod = document.getElementById('payment-method').value;
             const notes = document.getElementById('notes').value;
 
-            // بنجهّز طلب (order) مستقل لكل مطعم بالسلة
-            const orders = groups.map((group) => {
-                const groupSubtotal = group.items.reduce((sum, item) => sum + item.price * item.qty, 0);
-                return {
-                    customerId: currentUser.uid,
-                    userEmail: currentUser.email,
-                    restaurantId: group.restaurantId,
-                    items: group.items,
-                    address,
-                    paymentMethod,
-                    notes,
-                    subtotal: groupSubtotal,
-                    deliveryFee: 0,
-                    total: groupSubtotal,
-                    deliveryMethod: "selfPickup",
-                    // حقول الطلب المسبق (الجدولة)
-                    isScheduled: scheduleCheck.isScheduled,
-                    scheduledFor: scheduleCheck.isScheduled ? Timestamp.fromDate(scheduleCheck.date) : null,
-                    scheduleNotified: false,
-                    status: scheduleCheck.isScheduled ? "قيد الانتظار" : "قيد المعالجة",
-                    createdAt: serverTimestamp()
-                };
-            });
+            // نبعت بس معرّف الصنف (itemId) والكمية لكل صنف — السعر والاسم
+            // بيتحسبوا من السيرفر مباشرة من Firestore، مش من السلة المحلية
+            // (تأمين ضد التلاعب بالسعر عبر أدوات المطوّر قبل تأكيد الطلب)
+            const payloadGroups = groups.map((group) => ({
+                restaurantId: group.restaurantId,
+                items: group.items.map((item) => ({ itemId: item.itemId, qty: item.qty }))
+            }));
 
             message.className = "text-center text-sm mt-4 text-blue-600";
-            message.innerText = orders.length > 1
-                ? `جاري إرسال ${orders.length} طلبات...`
+            message.innerText = payloadGroups.length > 1
+                ? `جاري إرسال ${payloadGroups.length} طلبات...`
                 : "جاري إرسال الطلب...";
 
             try {
-                for (const order of orders) {
-                    await addDoc(collection(db, "orders"), order);
-                }
+                const result = await createOrderFn({
+                    groups: payloadGroups,
+                    paymentMethod,
+                    notes,
+                    isScheduled: scheduleCheck.isScheduled,
+                    scheduledForMillis: scheduleCheck.isScheduled ? scheduleCheck.date.getTime() : null
+                });
+                const orderIds = result.data?.orderIds || [];
                 await clearCart();
                 message.className = "text-center text-sm mt-4 text-green-600";
-                const doneMsg = orders.length > 1
-                    ? `تم تأكيد ${orders.length} طلبات (وحدة لكل مطعم) بنجاح!`
+                const doneMsg = orderIds.length > 1
+                    ? `تم تأكيد ${orderIds.length} طلبات (وحدة لكل مطعم) بنجاح!`
                     : "تم تأكيد الطلب بنجاح!";
                 message.innerText = scheduleCheck.isScheduled
                     ? `${doneMsg} هيتم تجهيزها حوالي الساعة ${scheduleCheck.date.toLocaleString('ar-EG')}. رح تحول لصفحة طلباتي...`
@@ -287,9 +280,12 @@
                 setTimeout(() => window.location.href = "orders.html", 1200);
             } catch (error) {
                 message.className = "text-center text-sm mt-4 text-red-500";
-                message.innerText = "خطأ: " + error.message;
+                message.innerText = "خطأ: " + (error.message || "تعذّر إتمام الطلب، حاول مرة ثانية.");
             }
         });
     </script>
+    <div id="app-bottom-nav"></div>
+    <script type="module" src="shared-bottom-nav.js"></script>
+    <script src="safra-theme.js"></script>
 </body>
 </html>
