@@ -87,6 +87,7 @@
         import { app, auth, db } from "./firebase-config.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { doc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { isRestaurantClosed as isRestaurantClosedShared } from "./subscription-utils.js";
         import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
         import { getCart as getCartService, clearCart, groupCartByRestaurant } from "./cart-service.js";
 
@@ -170,7 +171,7 @@
             for (const group of groups) {
                 try {
                     const rDoc = await getDoc(doc(db, "restaurants", group.restaurantId));
-                    if (rDoc.exists() && rDoc.data().status === 'متوقف') {
+                    if (rDoc.exists() && isRestaurantClosedShared(rDoc.data())) {
                         closedNames.push(rDoc.data().name || group.restaurantId);
                     }
                 } catch (err) {

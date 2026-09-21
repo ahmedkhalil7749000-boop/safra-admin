@@ -176,7 +176,7 @@
     <!-- تضمين فايربيس (Firebase v10.8.0) -->
     <script type="module">
         import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-        import { collection, query, where, getDocs, addDoc, updateDoc, deleteDoc, doc, getDoc, serverTimestamp, orderBy, limit, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { collection, query, where, getDocs, addDoc, setDoc, writeBatch, updateDoc, deleteDoc, doc, getDoc, serverTimestamp, orderBy, limit, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { initPushNotifications } from "./push-notifications.js";
         import { auth, db } from "./firebase-config.js";
         import { CARE_AUDIENCES, CARE_TRAITS, CARE_COOK_NOTE, cleanCareTags } from "./care-tags.js";
@@ -604,6 +604,26 @@
                 const q = query(collection(db, "subscriptions"), where("ownerUid", "==", uid));
                 const snap = await getDocs(q);
 
+                // الشهر المجاني محفوظ على وثيقة المطعم (مو بمجموعة subscriptions)، فإذا ما في
+                // اشتراك أساسي فعلي وكانت الفترة التجريبية سارية، اعرضها بدل "حسابك غير مفعّل"
+                const hasBasicSub = snap.docs.some(d => (d.data().type || "أساسي") === "أساسي");
+                if (!hasBasicSub) {
+                    const rSnap = await getDocs(query(collection(db, "restaurants"), where("ownerEmail", "==", currentUserEmail)));
+                    const r = rSnap.empty ? null : rSnap.docs[0].data();
+                    const trialEnd = r && r.trialEndsAt && r.trialEndsAt.toDate
+                        ? r.trialEndsAt.toDate()
+                        : (r && r.subscriptionEndDate && r.subscriptionEndDate.toDate ? r.subscriptionEndDate.toDate() : null);
+                    if (r && r.subscriptionStatus === "تجريبي" && trialEnd && trialEnd.getTime() > Date.now()) {
+                        const daysLeft = Math.max(1, Math.ceil((trialEnd.getTime() - Date.now()) / 86400000));
+                        box.innerHTML = `
+                            <div class="status-card status-success">
+                                <span class="status-icon">${ICONS.check}</span>
+                                <p class="status-text">مطعمك مفعّل مجانًا (الشهر الأول) حتى ${trialEnd.toLocaleDateString('ar-EG')} — باقي ${daysLeft} يوم.</p>
+                            </div>`;
+                        return;
+                    }
+                }
+
                 if (snap.empty) {
                     box.innerHTML = `
                         <div class="status-card status-warn flex-col sm:flex-row !items-stretch sm:!items-center">
@@ -795,21 +815,42 @@
                             if (imageFile) imageUrl = await uploadToImgbb(imageFile);
                             if (coverFile) coverImageUrl = await uploadToImgbb(coverFile);
 
-                            // الشهر الأول مجاني تلقائيًا لكل مطعم جديد: نفعّل الاشتراك الأساسي
-                            // فورًا لمدة 30 يوم بدون أي دفع. بعد انتهاء الفترة التجريبية
-                            // بتتحول صفحة الاشتراكات تلقائيًا لطلب اختيار خطة ودفع فعلي.
+                            // الشهر الأول مجاني، بس مرة وحدة لكل حساب (بريد):
+                            //  - أول مرة: بنسجّل استخدام التجربة بوثيقة trialUsage وننشئ المطعم
+                            //    بنفس العملية (batch) — قواعد الأمان بتتحقق إنهم انكتبوا سوا.
+                            //  - إذا التجربة انستخدمت قبل (مثلاً حذف المطعم وأنشأ غيره): المطعم
+                            //    بينعمل بحالة "منتهي" وبده اشتراك مدفوع.
                             const TRIAL_DAYS = 30;
-                            const trialEnd = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+                            const baseData = {
+                                name, description, phone, categories, restaurantType, status,
+                                ownerEmail: currentUserEmail, imageUrl, coverImageUrl,
+                                createdAt: serverTimestamp()
+                            };
+                            const trialRef = doc(db, "trialUsage", currentUserEmail);
+                            const trialSnap = await getDoc(trialRef);
+                            const newRestaurantRef = doc(collection(db, "restaurants"));
+                            let trialGranted = false;
 
-                            await addDoc(collection(db, "restaurants"), {
-                                name, description, phone, categories, restaurantType, status, ownerEmail: currentUserEmail, imageUrl, coverImageUrl, createdAt: serverTimestamp(),
-                                subscriptionStatus: "تجريبي",
-                                subscriptionEndDate: Timestamp.fromDate(trialEnd),
-                                trialEndsAt: Timestamp.fromDate(trialEnd),
-                                trialUsed: true
-                            });
+                            if (!trialSnap.exists()) {
+                                const trialEnd = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+                                const batch = writeBatch(db);
+                                batch.set(trialRef, { ownerUid: auth.currentUser.uid, createdAt: serverTimestamp() });
+                                batch.set(newRestaurantRef, {
+                                    ...baseData,
+                                    subscriptionStatus: "تجريبي",
+                                    subscriptionEndDate: Timestamp.fromDate(trialEnd),
+                                    trialEndsAt: Timestamp.fromDate(trialEnd),
+                                    trialUsed: true
+                                });
+                                await batch.commit();
+                                trialGranted = true;
+                            } else {
+                                await setDoc(newRestaurantRef, { ...baseData, subscriptionStatus: "منتهي" });
+                            }
                             msg.className = "form-msg ok text-center mt-2";
-                            msg.innerText = "تم إنشاء المطعم بنجاح!";
+                            msg.innerText = trialGranted
+                                ? "تم إنشاء المطعم بنجاح!"
+                                : "تم إنشاء المطعم. الشهر المجاني استُخدم سابقًا بهذا الحساب، فلازم تشترك لتفعيله.";
                             await loadMyRestaurant(currentUserEmail);
                         } catch (error) {
                             msg.className = "form-msg err text-center mt-2";
@@ -1461,6 +1502,7 @@
             </div>
         </div>
         <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+            <a href="home.html" id="nav-home-link" class="btn btn-ghost btn-sm">الرئيسية</a>
             <a href="adman.html" id="nav-orders-link" class="btn btn-ghost btn-sm">إدارة الطلبات</a>
             <a href="subscription.html" id="nav-subscription-link" class="btn btn-ghost btn-sm">اشتراكي</a>
             <a href="admin-dashboard.html" id="nav-admin-link" class="btn btn-ghost btn-sm hidden">🔙 لوحة الإدارة</a>

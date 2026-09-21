@@ -16,6 +16,82 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email == "ahmedkhalil7749000@gmail.com";
     }
 
+    // =====================================================
+    //   حماية حقول الاشتراك على وثيقة المطعم (التجربة المجانية والاشتراكات)
+    //   صاحب المطعم ما بقدر يكتب "تجريبي"/"نشط" أو تواريخ بنفسه. المسموح له بس:
+    //   1) إنشاء مطعم بتجربة مجانية مرة وحدة لكل بريد (مع وثيقة trialUsage بنفس الـ batch)
+    //   2) إنشاء مطعم بحالة "منتهي" (إذا التجربة انستخدمت قبل)
+    //   3) تحويل الحالة لـ "قيد المراجعة" أو "منتهي"
+    //   4) تفعيل اشتراك فعلي لكن بشرط وجود اشتراك "نشط" له بمجموعة subscriptions
+    //      (activationSubId) وتاريخ نهايته مطابق للاشتراك
+    //   الأدمن بيتخطى كل هاد.
+    // =====================================================
+    function newRestaurantSubscriptionOk(restaurantId) {
+      let d = request.resource.data;
+      return !('bannerSubscriptionStatus' in d) && !('bannerSubscriptionEndDate' in d)
+          && !('videoSubscriptionStatus' in d) && !('videoSubscriptionEndDate' in d)
+          && !('activationSubId' in d)
+          && 'subscriptionStatus' in d
+          && (
+            (
+              d.subscriptionStatus == "منتهي"
+              && !('trialEndsAt' in d)
+              && !('subscriptionEndDate' in d)
+            )
+            || (
+              d.subscriptionStatus == "تجريبي"
+              && d.trialEndsAt is timestamp
+              && d.subscriptionEndDate == d.trialEndsAt
+              && d.trialEndsAt > request.time
+              && d.trialEndsAt <= request.time + duration.value(31, 'd')
+              && !exists(/databases/$(database)/documents/trialUsage/$(request.auth.token.email))
+              && existsAfter(/databases/$(database)/documents/trialUsage/$(request.auth.token.email))
+            )
+          );
+    }
+
+    function activationOk(typeKey, statusField, endField, restaurantId) {
+      let d = request.resource.data;
+      let sub = get(/databases/$(database)/documents/subscriptions/$(d.activationSubId)).data;
+      return d[statusField] == "نشط"
+          && sub.ownerUid == request.auth.uid
+          && sub.status == "نشط"
+          && sub.restaurantId == restaurantId
+          && sub.get('type', 'أساسي') == typeKey
+          && d[endField] == sub.endDate;
+    }
+
+    function ownerSubscriptionFieldsOk(restaurantId) {
+      let d = request.resource.data;
+      let ch = d.diff(resource.data).affectedKeys();
+      return !ch.hasAny(['subscriptionStatus', 'subscriptionEndDate', 'trialEndsAt', 'trialUsed',
+                         'bannerSubscriptionStatus', 'bannerSubscriptionEndDate',
+                         'videoSubscriptionStatus', 'videoSubscriptionEndDate', 'activationSubId'])
+          || (
+            !ch.hasAny(['trialEndsAt', 'trialUsed'])
+            && (
+              (
+                !ch.hasAny(['subscriptionEndDate', 'bannerSubscriptionEndDate', 'videoSubscriptionEndDate', 'activationSubId'])
+                && (!('subscriptionStatus' in ch) || d.subscriptionStatus in ["قيد المراجعة", "منتهي"])
+                && (!('bannerSubscriptionStatus' in ch) || d.bannerSubscriptionStatus in ["قيد المراجعة", "منتهي"])
+                && (!('videoSubscriptionStatus' in ch) || d.videoSubscriptionStatus in ["قيد المراجعة", "منتهي"])
+              )
+              || (
+                ch.hasOnly(['subscriptionStatus', 'subscriptionEndDate', 'activationSubId'])
+                && activationOk("أساسي", "subscriptionStatus", "subscriptionEndDate", restaurantId)
+              )
+              || (
+                ch.hasOnly(['bannerSubscriptionStatus', 'bannerSubscriptionEndDate', 'activationSubId'])
+                && activationOk("بانر", "bannerSubscriptionStatus", "bannerSubscriptionEndDate", restaurantId)
+              )
+              || (
+                ch.hasOnly(['videoSubscriptionStatus', 'videoSubscriptionEndDate', 'activationSubId'])
+                && activationOk("فيديو", "videoSubscriptionStatus", "videoSubscriptionEndDate", restaurantId)
+              )
+            )
+          );
+    }
+
     // وسوم "سفرة العافية" على أصناف المنيو: إما غير موجودة، أو قائمة (حتى 8 عناصر)
     // كل عناصرها من القيم المسموحة فقط (نفس القيم بالملف care-tags.js)
     function validCareTags(data) {
@@ -63,8 +139,12 @@ service cloud.firestore {
       allow read: if true;
 
       // الإنشاء: فقط مستخدم مسجل دخول، ويجب أن يربط ownerEmail ببريده هو نفسه
-      allow create: if isSignedIn()
-                    && request.resource.data.ownerEmail == request.auth.token.email;
+      allow create: if isAdmin()
+                    || (
+                      isSignedIn()
+                      && request.resource.data.ownerEmail == request.auth.token.email
+                      && newRestaurantSubscriptionOk(restaurantId)
+                    );
 
       // التعديل: صاحب المطعم أو الأدمن يقدروا يعدلوا أي حقل.
       // أي مستخدم مسجل دخول (زبون) مسموح له يعدّل فقط rating و reviewsCount،
@@ -88,6 +168,7 @@ service cloud.firestore {
                         !('videoStatus' in request.resource.data.diff(resource.data).affectedKeys())
                         || request.resource.data.videoStatus == "قيد المراجعة"
                       )
+                      && ownerSubscriptionFieldsOk(restaurantId)
                     )
                     || (
                       isSignedIn()
@@ -275,9 +356,33 @@ service cloud.firestore {
 
       // الإنشاء: صاحب المطعم يقدر يفتح طلب اشتراك جديد لنفسه فقط،
       // ولازم يبدأ الطلب بحالة "قيد المراجعة"
+      //    + مدة الخطة وسعرها لازم يطابقوا وثيقة الخطة الحقيقية (subscriptionPlans)
+      //    + المطعم لازم يكون مطعمه هو
+      function planAndRestaurantOk() {
+        let d = request.resource.data;
+        let plan = get(/databases/$(database)/documents/subscriptionPlans/$(d.planId)).data;
+        let rest = get(/databases/$(database)/documents/restaurants/$(d.restaurantId)).data;
+        return plan.durationDays == d.durationDays
+            && plan.price == d.price
+            && rest.ownerEmail == request.auth.token.email;
+      }
+
+      // تواريخ التفعيل اللي بيكتبها صاحب المطعم لما يدخل الكود لازم تكون منطقية:
+      // طول الاشتراك ما بيزيد عن مدة الخطة، والبداية إما هلأ أو نهاية التجربة المجانية
+      // الباقية (للاشتراك الأساسي بس). هامش 60 دقيقة لفرق ساعة الجهاز.
+      function activationDatesOk() {
+        let d = request.resource.data;
+        let rest = get(/databases/$(database)/documents/restaurants/$(resource.data.restaurantId)).data;
+        let trialEnd = rest.get('trialEndsAt', request.time);
+        let base = (resource.data.get('type', 'أساسي') == 'أساسي' && trialEnd > request.time) ? trialEnd : request.time;
+        return d.endDate.toMillis() - d.startDate.toMillis() <= resource.data.durationDays * 86400000 + 60000
+            && d.startDate.toMillis() <= base.toMillis() + 3600000;
+      }
+
       allow create: if isSignedIn()
                     && request.resource.data.ownerUid == request.auth.uid
-                    && request.resource.data.status == "قيد المراجعة";
+                    && request.resource.data.status == "قيد المراجعة"
+                    && planAndRestaurantOk();
 
       // التعديل:
       // 1) الأدمن يقدر يعدّل أي شي (موافقة/رفض/توليد كود/إنهاء الاشتراك)
@@ -293,6 +398,7 @@ service cloud.firestore {
                       && request.resource.data.enteredCode == resource.data.activationCode
                       && request.resource.data.diff(resource.data).affectedKeys()
                             .hasOnly(['status', 'enteredCode', 'startDate', 'endDate', 'activatedAt'])
+                      && activationDatesOk()
                     );
 
       // الحذف: الأدمن فقط
@@ -324,6 +430,20 @@ service cloud.firestore {
 
     match /siteSettings/{docId} {
       allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // =====================================================
+    //   trialUsage/{email}  (تسجيل استخدام التجربة المجانية — مرة وحدة لكل بريد)
+    //   بتنكتب بنفس الـ batch اللي بينشأ فيه المطعم التجريبي، وما حدا بقدر
+    //   يعدّلها أو يحذفها غير الأدمن (عشان حذف المطعم ما يرجّع التجربة).
+    // =====================================================
+    match /trialUsage/{email} {
+      allow read: if isSignedIn() && (request.auth.token.email == email || isAdmin());
+      allow create: if isSignedIn()
+                    && request.auth.token.email == email
+                    && request.resource.data.ownerUid == request.auth.uid
+                    && request.resource.data.keys().hasOnly(['ownerUid', 'createdAt']);
       allow write: if isAdmin();
     }
   }

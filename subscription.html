@@ -40,9 +40,14 @@
             <img src="logo.png" alt="سفرة" class="h-8 w-8 sm:h-9 sm:w-9 object-contain rounded-full shrink-0">
             <h1 class="text-sm sm:text-lg font-bold text-safra-gold truncate">اشتراكات المطعم</h1>
         </div>
-        <a href="restaurant-dashboard.html" class="text-xs sm:text-sm text-gray-600 hover:text-safra-gold font-medium">
-            <i class="fa-solid fa-arrow-right ml-1"></i> رجوع
-        </a>
+        <div class="flex items-center gap-4">
+            <a href="home.html" class="text-xs sm:text-sm text-gray-600 hover:text-safra-gold font-medium">
+                <i class="fa-solid fa-house ml-1"></i> الرئيسية
+            </a>
+            <a href="restaurant-dashboard.html" class="text-xs sm:text-sm text-gray-600 hover:text-safra-gold font-medium">
+                <i class="fa-solid fa-arrow-right ml-1"></i> رجوع
+            </a>
+        </div>
     </header>
 
     <main class="max-w-2xl mx-auto p-4 sm:p-6">
@@ -505,9 +510,13 @@
                         createdAt: serverTimestamp()
                     });
 
-                    await updateDoc(doc(db, "restaurants", myRestaurant.id), {
-                        [TYPE_CONFIG[typeId].statusField]: "قيد المراجعة"
-                    });
+                    // أثناء التجربة المجانية ما منغيّر حالة "تجريبي" (لتضل التجربة ظاهرة ومحسوبة)
+                    const trialEndMs = myRestaurant.trialEndsAt?.toDate ? myRestaurant.trialEndsAt.toDate().getTime() : 0;
+                    if (!(typeId === 'basic' && trialEndMs > Date.now())) {
+                        await updateDoc(doc(db, "restaurants", myRestaurant.id), {
+                            [TYPE_CONFIG[typeId].statusField]: "قيد المراجعة"
+                        });
+                    }
 
                     msg.className = "text-center text-sm font-semibold text-green-600";
                     msg.innerText = "تم إرسال طلبك بنجاح! بيتم تحويله لحالة قيد المراجعة.";
@@ -532,7 +541,14 @@
             msg.innerText = "جاري التحقق من الكود...";
 
             try {
-                const start = new Date();
+                // إذا لسا في أيام تجربة مجانية باقية، الاشتراك المدفوع بيبدأ بعد ما تخلص
+                // (عشان ما يخسر الأيام الباقية). للبانر/الفيديو بيبدأ من هلأ.
+                const now = new Date();
+                let start = now;
+                if (typeId === 'basic') {
+                    const trialEnd = myRestaurant.trialEndsAt?.toDate ? myRestaurant.trialEndsAt.toDate() : null;
+                    if (trialEnd && trialEnd.getTime() > now.getTime()) start = trialEnd;
+                }
                 const end = new Date(start.getTime() + (sub.durationDays || 30) * 24 * 60 * 60 * 1000);
 
                 await updateDoc(doc(db, "subscriptions", sub.id), {
@@ -545,7 +561,8 @@
 
                 await updateDoc(doc(db, "restaurants", myRestaurant.id), {
                     [cfg.statusField]: "نشط",
-                    [cfg.endDateField]: Timestamp.fromDate(end)
+                    [cfg.endDateField]: Timestamp.fromDate(end),
+                    activationSubId: sub.id // إثبات التفعيل: قواعد الأمان بتتحقق منه قبل ما تقبل التعديل
                 });
 
                 msg.className = "text-center text-sm font-semibold mt-3 text-green-600";

@@ -27,6 +27,7 @@
         import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { collection, getDocs, onSnapshot, doc, getDoc, setDoc, addDoc, updateDoc, deleteDoc, writeBatch, query, where, orderBy, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { app, auth, db } from "./firebase-config.js";
+        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-functions.js";
         import { initPushNotifications } from "./push-notifications.js";
 
         // البريد الوحيد المسموح له بالدخول للوحة الإدارة
@@ -62,6 +63,7 @@
             content.classList.remove('hidden');
             await loadOrders();
             await loadSubscriptions();
+            await loadRestaurantsTab();
             await loadPlans();
             await loadUsers();
             await loadHomeReview();
@@ -74,7 +76,7 @@
         //                  تبديل التبويبات (طلبات / اشتراكات / الرئيسية / إعلانات المنصة / المستخدمين)
         // ===============================================================
         window.showTab = function(tab) {
-            const tabs = ['orders', 'subscriptions', 'home', 'platform-ads', 'hero-dishes', 'users'];
+            const tabs = ['orders', 'subscriptions', 'restaurants', 'home', 'platform-ads', 'hero-dishes', 'users'];
             tabs.forEach(t => {
                 document.getElementById('tab-' + t).classList.toggle('hidden', t !== tab);
                 const extra = t === 'orders' ? 'relative ' : '';
@@ -112,38 +114,6 @@
         // ===== نوع الاشتراك: أساسي / بانر / فيديو =====
         const SUB_TYPES = ["أساسي", "بانر", "فيديو"];
         let activeSubTypeFilter = "الكل";
-
-        // ===== عد تنازلي حي لكل اشتراك نشط (كم باقي على انتهاء الاشتراك) =====
-        let subCountdownInterval = null;
-
-        function formatSubCountdown(remainingMs) {
-            if (remainingMs === null || isNaN(remainingMs)) return '-';
-            if (remainingMs <= 0) return 'انتهت المدة';
-            const days = Math.floor(remainingMs / (1000 * 60 * 60 * 24));
-            const hours = Math.floor((remainingMs / (1000 * 60 * 60)) % 24);
-            const minutes = Math.floor((remainingMs / (1000 * 60)) % 60);
-            if (days > 0) return `باقي ${days} يوم و ${hours} ساعة`;
-            if (hours > 0) return `باقي ${hours} ساعة و ${minutes} دقيقة`;
-            return `باقي ${minutes} دقيقة`;
-        }
-
-        function updateSubCountdowns() {
-            document.querySelectorAll('.sub-countdown').forEach(el => {
-                const endMs = parseInt(el.dataset.end, 10);
-                const remaining = endMs ? endMs - Date.now() : null;
-                el.textContent = formatSubCountdown(remaining);
-                el.classList.toggle('text-red-600', remaining !== null && remaining > 0 && remaining <= 3 * 24 * 60 * 60 * 1000);
-                el.classList.toggle('text-safra-green', remaining !== null && remaining > 3 * 24 * 60 * 60 * 1000);
-                el.classList.toggle('text-gray-400', remaining !== null && remaining <= 0);
-            });
-        }
-
-        function ensureSubCountdownTicker() {
-            updateSubCountdowns();
-            if (!subCountdownInterval) {
-                subCountdownInterval = setInterval(updateSubCountdowns, 60000); // تحديث كل دقيقة، كافي لعرض الأيام/الساعات
-            }
-        }
 
         function typeBadge(type) {
             const t = type || "أساسي";
@@ -205,10 +175,7 @@
                             <button data-id="${id}" class="act-reject bg-red-100 text-red-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-red-200">❌ رفض</button>`;
                     } else if (s.status === "نشط") {
                         actions = `
-                            <div class="flex flex-col items-start sm:items-end gap-0.5">
-                                <span class="text-[11px] text-gray-400">حتى ${end ? fmtDate(end) : '-'}</span>
-                                <span class="sub-countdown text-xs font-bold" data-end="${end ? end.getTime() : ''}">-</span>
-                            </div>
+                            <span class="text-xs text-gray-500">حتى ${end ? fmtDate(end) : '-'}</span>
                             <button data-id="${id}" data-rid="${subTargetId(s)}" data-type="${s.type || 'أساسي'}" class="act-end bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-xs font-semibold hover:bg-gray-300">⛔ إنهاء الاشتراك</button>`;
                     } else {
                         actions = `<button data-id="${id}" class="act-delete text-gray-400 hover:text-red-500 text-xs">حذف السجل</button>`;
@@ -244,8 +211,6 @@
                 box.querySelectorAll('.act-reject').forEach(btn => btn.addEventListener('click', () => rejectSubscription(btn.dataset.id)));
                 box.querySelectorAll('.act-end').forEach(btn => btn.addEventListener('click', () => endSubscription(btn.dataset.id, btn.dataset.rid, btn.dataset.type)));
                 box.querySelectorAll('.act-delete').forEach(btn => btn.addEventListener('click', () => deleteSubscriptionRecord(btn.dataset.id)));
-
-                ensureSubCountdownTicker();
             } catch (error) {
                 console.error("خطأ في جلب طلبات الاشتراك:", error);
                 box.innerHTML = `<p class="text-red-500 text-sm text-center py-4">تعذر تحميل طلبات الاشتراك: ${error.message}</p>`;
@@ -272,7 +237,19 @@
                 if (!subSnap.exists()) return;
                 const s = subSnap.data();
 
-                const start = new Date();
+                const targetId = subTargetId(s);
+                const { statusField, endDateField } = restaurantFieldsForType(s.type);
+
+                // إذا لسا في أيام تجربة مجانية باقية للاشتراك الأساسي، الاشتراك المدفوع
+                // بيبدأ بعد ما تخلص (عشان صاحب المطعم ما يخسر الأيام الباقية)
+                const now = new Date();
+                let start = now;
+                if (statusField === "subscriptionStatus") {
+                    const rSnap = await getDoc(doc(db, "restaurants", targetId));
+                    const trialEnd = rSnap.exists() && rSnap.data().trialEndsAt && rSnap.data().trialEndsAt.toDate
+                        ? rSnap.data().trialEndsAt.toDate() : null;
+                    if (trialEnd && trialEnd.getTime() > now.getTime()) start = trialEnd;
+                }
                 const end = new Date(start.getTime() + (s.durationDays || 30) * 24 * 60 * 60 * 1000);
 
                 await updateDoc(subRef, {
@@ -282,8 +259,6 @@
                     activatedAt: serverTimestamp()
                 });
 
-                const targetId = subTargetId(s);
-                const { statusField, endDateField } = restaurantFieldsForType(s.type);
                 await updateDoc(doc(db, "restaurants", targetId), {
                     [statusField]: "نشط",
                     [endDateField]: Timestamp.fromDate(end)
@@ -473,6 +448,159 @@
         let unseenOrdersCount = 0;
         let ordersInitialLoadDone = false;
         let originalDocTitle = document.title;
+
+        // ===============================================================
+        //          تبويب "المطاعم": كل المطاعم (مشترك / غير مشترك / تجريبي)
+        //          + عدد كل الاشتراكات (تاريخيًا) لكل مطعم، تنازليًا
+        // ===============================================================
+        let restaurantsTabCache = [];
+        let activeRestaurantStatusFilter = "الكل";
+
+        // بيرجع حالة اشتراك المطعم (الاشتراك الأساسي) كتصنيف واحد واضح
+        function restaurantSubStatus(r) {
+            if (r.subscriptionStatus === "نشط") return "مشترك";
+            if (r.subscriptionStatus === "تجريبي") {
+                const e = r.trialEndsAt && r.trialEndsAt.toDate ? r.trialEndsAt.toDate()
+                        : (r.subscriptionEndDate && r.subscriptionEndDate.toDate ? r.subscriptionEndDate.toDate() : null);
+                return (!e || e.getTime() > Date.now()) ? "تجريبي مجاني" : "غير مشترك";
+            }
+            return "غير مشترك";
+        }
+
+        function restaurantSubStatusBadge(label) {
+            const map = {
+                "مشترك": "bg-green-100 text-green-800",
+                "تجريبي مجاني": "bg-blue-100 text-blue-800",
+                "غير مشترك": "bg-gray-100 text-gray-600"
+            };
+            return `<span class="px-2 py-1 rounded-full text-xs font-bold ${map[label]}">${label}</span>`;
+        }
+
+        // يعطي تجربة مجانية 30 يوم للمطاعم القديمة (يلي ما عندها حالة اشتراك ولا تجربة)،
+        // وبيسجّل "استخدام التجربة" لكل أصحاب المطاعم الحاليين (trialUsage) عشان ما
+        // ياخدوا تجربة ثانية لو حذفوا مطعمهم وأنشأوا غيره. بتقدر تضغطه أكتر من مرة بأمان.
+        window.applyTrialToExistingRestaurants = async function() {
+            if (!confirm("رح تنعطى تجربة مجانية 30 يوم لكل مطعم قديم ما عنده اشتراك أو تجربة، وبنسجّل استخدام التجربة لأصحاب المطاعم الحاليين. متأكد؟")) return;
+            try {
+                const snap = await getDocs(collection(db, "restaurants"));
+                let granted = 0, registered = 0;
+                for (const d of snap.docs) {
+                    const r = d.data();
+                    if (!r.ownerEmail) continue;
+                    if (!r.subscriptionStatus && !r.trialEndsAt) {
+                        const end = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+                        await updateDoc(d.ref, {
+                            subscriptionStatus: "تجريبي",
+                            subscriptionEndDate: Timestamp.fromDate(end),
+                            trialEndsAt: Timestamp.fromDate(end),
+                            trialUsed: true
+                        });
+                        granted++;
+                    }
+                    const tuRef = doc(db, "trialUsage", r.ownerEmail);
+                    const tuSnap = await getDoc(tuRef);
+                    if (!tuSnap.exists()) {
+                        await setDoc(tuRef, { restaurantId: d.id, createdAt: serverTimestamp(), registeredByAdmin: true });
+                        registered++;
+                    }
+                }
+                await loadRestaurantsTab();
+                alert(`تم. تجربة جديدة لـ ${granted} مطعم، وتسجيل استخدام التجربة لـ ${registered} حساب.`);
+            } catch (error) {
+                alert("خطأ: " + error.message);
+            }
+        };
+
+        window.setRestaurantStatusFilter = function(status) {
+            activeRestaurantStatusFilter = status;
+            document.querySelectorAll('.restaurant-status-filter-btn').forEach(b => {
+                b.className = "restaurant-status-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold " +
+                    (b.dataset.status === status ? "bg-safra-gold text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200");
+            });
+            renderRestaurantsTab();
+        }
+
+        // جلب كل المطاعم (بغض النظر عن حالة الاشتراك) + كل سجلات الاشتراكات
+        // لحساب عدد الاشتراكات الكلي (كل الأنواع وكل الحالات) لكل مطعم منذ البداية
+        async function loadRestaurantsTab() {
+            const box = document.getElementById('restaurants-tab-body');
+            if (!box) return;
+            try {
+                const [restaurantsSnap, subsSnap] = await Promise.all([
+                    getDocs(collection(db, "restaurants")),
+                    getDocs(collection(db, "subscriptions"))
+                ]);
+
+                const subCountByRestaurant = {};
+                subsSnap.forEach(d => {
+                    const rid = d.data().restaurantId;
+                    if (!rid) return;
+                    subCountByRestaurant[rid] = (subCountByRestaurant[rid] || 0) + 1;
+                });
+
+                restaurantsTabCache = restaurantsSnap.docs.map(d => {
+                    const data = d.data();
+                    return {
+                        id: d.id,
+                        ...data,
+                        subCount: subCountByRestaurant[d.id] || 0
+                    };
+                });
+
+                renderRestaurantsTab();
+            } catch (error) {
+                console.error("خطأ في جلب المطاعم:", error);
+                box.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-red-500">تعذر تحميل المطاعم: ${esc(error.message)}</td></tr>`;
+            }
+        }
+
+        function renderRestaurantsTab() {
+            const box = document.getElementById('restaurants-tab-body');
+            const countLabel = document.getElementById('restaurants-tab-count');
+            if (!box) return;
+
+            let list = restaurantsTabCache.filter(r => {
+                if (activeRestaurantStatusFilter === "الكل") return true;
+                return restaurantSubStatus(r) === activeRestaurantStatusFilter;
+            });
+
+            // ترتيب تنازلي حسب إجمالي عدد الاشتراكات لكل مطعم
+            list = list.slice().sort((a, b) => b.subCount - a.subCount);
+
+            if (countLabel) countLabel.textContent = `${list.length} مطعم`;
+
+            if (list.length === 0) {
+                box.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-gray-400">لا يوجد مطاعم مطابقة للفلتر الحالي</td></tr>`;
+                return;
+            }
+
+            box.innerHTML = "";
+            list.forEach(r => {
+                const isFoodtruck = r.restaurantType === 'foodtruck';
+                const typeBadgeHtml = isFoodtruck
+                    ? `<span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full text-[10px] font-semibold">🚚 فود ترك</span>`
+                    : `<span class="bg-safra-gold/10 text-safra-gold-dark px-2 py-0.5 rounded-full text-[10px] font-semibold">🍽️ مطعم/بيتي</span>`;
+                const statusLabel = restaurantSubStatus(r);
+
+                box.innerHTML += `
+                    <tr class="border-b border-gray-100 hover:bg-gray-50 transition">
+                        <td class="py-3 px-4">
+                            <p class="font-semibold text-gray-800 text-sm">${esc(r.name || 'مطعم بدون اسم')}</p>
+                            ${typeBadgeHtml}
+                        </td>
+                        <td class="py-3 px-4 text-gray-600 text-sm">${esc(r.ownerEmail || '-')}</td>
+                        <td class="py-3 px-4">${restaurantSubStatusBadge(statusLabel)}</td>
+                        <td class="py-3 px-4">
+                            <span class="inline-flex items-center justify-center min-w-[28px] px-2 py-1 rounded-full text-xs font-bold bg-safra-gold/10 text-safra-gold-dark">${r.subCount}</span>
+                        </td>
+                        <td class="py-3 px-4 text-xs text-gray-400">${r.subscriptionEndDate ? ('حتى ' + fmtDate(r.subscriptionEndDate)) : '-'}</td>
+                        <td class="py-3 px-4">
+                            <a href="restaurant-page.html?id=${encodeURIComponent(r.id)}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 bg-gray-100 text-gray-700 px-2.5 py-1.5 rounded-lg text-xs font-semibold hover:bg-gray-200">👁️ عرض الصفحة</a>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
 
         window.setOrderTypeFilter = function setOrderTypeFilter(type) {
             currentOrderTypeFilter = type;
@@ -710,6 +838,11 @@
                     const u = d.data();
                     const uid = d.id;
                     const currentRole = u.role || 'غير محدد';
+                    // نوع الحساب الفعلي: صاحب المشروع بينقسم لنوعين حسب users.restaurantType
+                    // (القيمة الافتراضية home، نفس اللي بتعتمدها restaurant-dashboard.html)
+                    const currentType = currentRole === 'restaurant_owner'
+                        ? (u.restaurantType === 'foodtruck' ? 'owner_foodtruck' : 'owner_home')
+                        : currentRole;
                     const isYou = uid === auth.currentUser?.uid;
 
                     const row = document.createElement('div');
@@ -721,11 +854,13 @@
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
                             <select data-uid="${uid}" class="role-select text-xs border rounded-lg px-2 py-1.5">
-                                <option value="customer" ${currentRole === 'customer' ? 'selected' : ''}>زبون</option>
-                                <option value="restaurant_owner" ${currentRole === 'restaurant_owner' ? 'selected' : ''}>صاحب مطعم</option>
-                                <option value="admin" ${currentRole === 'admin' ? 'selected' : ''}>أدمن</option>
+                                <option value="customer" ${currentType === 'customer' ? 'selected' : ''}>زبون</option>
+                                <option value="owner_home" ${currentType === 'owner_home' ? 'selected' : ''}>🍽️ مطعم / مطبخ بيتي</option>
+                                <option value="owner_foodtruck" ${currentType === 'owner_foodtruck' ? 'selected' : ''}>🚚 فود ترك (مركبة مطعم متنقلة)</option>
+                                <option value="admin" ${currentType === 'admin' ? 'selected' : ''}>أدمن</option>
                             </select>
-                            <button data-uid="${uid}" class="act-save-role bg-safra-gold text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-safra-gold-dark transition">حفظ</button>
+                            <button data-uid="${uid}" data-email="${(u.email || '').replace(/"/g, '&quot;')}" class="act-save-role bg-safra-gold text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-safra-gold-dark transition">حفظ</button>
+                            ${currentRole === 'restaurant_owner' && !isYou ? `<button data-uid="${uid}" data-email="${(u.email || '').replace(/"/g, '&quot;')}" class="act-delete-owner bg-red-50 text-red-600 border border-red-200 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-red-100 transition">🗑️ حذف بكل بياناته</button>` : ''}
                         </div>
                     `;
                     box.appendChild(row);
@@ -735,8 +870,12 @@
                     btn.addEventListener('click', () => {
                         const uid = btn.dataset.uid;
                         const select = box.querySelector(`.role-select[data-uid="${uid}"]`);
-                        saveUserRole(uid, select.value, btn);
+                        saveUserAccountType(uid, btn.dataset.email, select.value, btn);
                     });
+                });
+
+                box.querySelectorAll('.act-delete-owner').forEach(btn => {
+                    btn.addEventListener('click', () => deleteRestaurantOwner(btn.dataset.uid, btn.dataset.email, btn));
                 });
             } catch (error) {
                 console.error("خطأ في جلب المستخدمين:", error);
@@ -744,12 +883,100 @@
             }
         }
 
-        async function saveUserRole(uid, newRole, btn) {
+        // حذف صاحب مطعم / فود ترك مع كل بياناته عبر Cloud Function الموثوقة adminDeleteRestaurantOwner
+        // (لازم تنعمل deploy لـ functions أول). بنعمل معاينة (dryRun) بالأعداد، وبعدين
+        // تأكيد بكتابة الإيميل، وبعدين سؤال منفصل عن سجل الطلبات.
+        const adminDeleteOwnerFn = httpsCallable(getFunctions(app), "adminDeleteRestaurantOwner");
+
+        async function deleteRestaurantOwner(uid, email, btn) {
             const original = btn.textContent;
             btn.disabled = true;
             btn.textContent = '...';
             try {
-                await updateDoc(doc(db, "users", uid), { role: newRole });
+                const preview = (await adminDeleteOwnerFn({ uid, dryRun: true })).data;
+                const c = preview.counts;
+                const who = preview.email || email || uid;
+
+                if (!confirm(
+                    `⚠️ رح ينحذف نهائيًا (ما في رجعة):\n\n` +
+                    `• حساب الدخول: ${who}\n` +
+                    `• ${c.restaurants} مطعم / فود ترك\n` +
+                    `• ${c.menuItems} صنف بالمنيو\n` +
+                    `• ${c.reviews} تقييم، ${c.videoLikes} إعجاب فيديو، ${c.videoRatings} تقييم فيديو\n` +
+                    `• ${c.subscriptions} سجل اشتراك\n\n` +
+                    `متأكد؟`)) {
+                    return;
+                }
+
+                const expected = preview.email || email || 'حذف';
+                const typed = prompt(`للتأكيد اكتب هالنص بالضبط:\n${expected}`);
+                if (typed === null) return;
+                if (typed.trim() !== expected) {
+                    alert("النص ما طابق، انلغت العملية.");
+                    return;
+                }
+
+                let deleteOrders = false;
+                if (c.orders > 0) {
+                    deleteOrders = confirm(
+                        `عند هالمطاعم ${c.orders} طلب بالسجل.\n\n` +
+                        `OK = احذف الطلبات كمان\nCancel = خلّي سجل الطلبات محفوظ`
+                    );
+                }
+
+                btn.textContent = 'جاري الحذف...';
+                const res = (await adminDeleteOwnerFn({ uid, deleteOrders })).data;
+
+                alert(`تم الحذف: ${res.email || who}` +
+                      (res.ordersDeleted ? `\nوانحذف ${res.counts.orders} طلب.` : (c.orders > 0 ? `\nسجل الطلبات (${c.orders}) انترك.` : '')));
+
+                await loadUsers();
+                if (typeof loadRestaurantsTab === 'function') loadRestaurantsTab();
+                return;
+            } catch (error) {
+                alert("خطأ أثناء الحذف: " + (error.message || error));
+            } finally {
+                if (btn.isConnected) {
+                    btn.textContent = original;
+                    btn.disabled = false;
+                }
+            }
+        }
+
+        // بيحفظ نوع الحساب: زبون / مطعم أو مطبخ بيتي / فود ترك / أدمن.
+        // للنوعين الأخيرين بيتخزن role = restaurant_owner + users.restaurantType (home | foodtruck)،
+        // وإذا المستخدم عنده مطاعم مسجّلة بإيميله بنسأل الأدمن إذا بدو نحدّث نوعها كمان
+        // (لأن home.html بتفرّز الفود ترك حسب restaurants.restaurantType).
+        async function saveUserAccountType(uid, email, selectedValue, btn) {
+            const original = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '...';
+            try {
+                const map = {
+                    'customer':        { role: 'customer' },
+                    'owner_home':      { role: 'restaurant_owner', restaurantType: 'home' },
+                    'owner_foodtruck': { role: 'restaurant_owner', restaurantType: 'foodtruck' },
+                    'admin':           { role: 'admin' }
+                };
+                const payload = map[selectedValue];
+                if (!payload) throw new Error("نوع حساب غير معروف");
+
+                await updateDoc(doc(db, "users", uid), payload);
+
+                if (payload.restaurantType && email) {
+                    const rSnap = await getDocs(query(collection(db, "restaurants"), where("ownerEmail", "==", email)));
+                    const toUpdate = rSnap.docs.filter(d => (d.data().restaurantType === 'foodtruck' ? 'foodtruck' : 'home') !== payload.restaurantType);
+                    if (toUpdate.length > 0) {
+                        const label = payload.restaurantType === 'foodtruck' ? 'فود ترك' : 'مطعم / مطبخ بيتي';
+                        if (confirm(`هالمستخدم عنده ${toUpdate.length} مطعم مسجّل بنوع مختلف. بدك تحدّث نوعهم كمان لـ "${label}"؟`)) {
+                            const batch = writeBatch(db);
+                            toUpdate.forEach(d => batch.update(d.ref, { restaurantType: payload.restaurantType }));
+                            await batch.commit();
+                            if (typeof loadRestaurantsTab === 'function') loadRestaurantsTab();
+                        }
+                    }
+                }
+
                 btn.textContent = '✅';
                 setTimeout(() => { btn.textContent = original; btn.disabled = false; }, 1200);
             } catch (error) {
@@ -1286,6 +1513,7 @@
                     <span id="orders-badge" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1 leading-none">0</span>
                 </button>
                 <button id="btn-tab-subscriptions" onclick="showTab('subscriptions')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">الاشتراكات</button>
+                <button id="btn-tab-restaurants" onclick="showTab('restaurants')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">🍽️ المطاعم</button>
                 <button id="btn-tab-home" onclick="showTab('home')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">الرئيسية</button>
                 <button id="btn-tab-platform-ads" onclick="showTab('platform-ads')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">📣 إعلانات المنصة</button>
                 <button id="btn-tab-hero-dishes" onclick="showTab('hero-dishes')" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">🍲 صور الرئيسية</button>
@@ -1388,6 +1616,45 @@
                     </form>
                 </div>
 
+            </div>
+
+            <!-- ===== تبويب: المطاعم (كل المطاعم: مشترك / غير مشترك / تجريبي مجاني) ===== -->
+            <div id="tab-restaurants" class="hidden">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <h2 class="text-lg font-bold text-gray-800">كل المطاعم</h2>
+                            <span id="restaurants-tab-count" class="text-xs text-gray-400 font-mono"></span>
+                            <button onclick="applyTrialToExistingRestaurants()" class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-safra-gold text-white">🎁 تطبيق نظام التجربة على المطاعم الحالية</button>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button data-status="الكل" onclick="setRestaurantStatusFilter('الكل')" class="restaurant-status-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-safra-gold text-white">الكل</button>
+                            <button data-status="مشترك" onclick="setRestaurantStatusFilter('مشترك')" class="restaurant-status-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">✅ مشترك</button>
+                            <button data-status="غير مشترك" onclick="setRestaurantStatusFilter('غير مشترك')" class="restaurant-status-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">غير مشترك</button>
+                            <button data-status="تجريبي مجاني" onclick="setRestaurantStatusFilter('تجريبي مجاني')" class="restaurant-status-filter-btn px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200">🆓 تجريبي مجاني</button>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-400 mb-4">عمود "عدد الاشتراكات" هو إجمالي كل طلبات الاشتراك (أساسي + بانر + فيديو، بكل الحالات) منذ إنشاء حساب المطعم — والجدول مرتّب تنازليًا حسب هذا العدد.</p>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-right border-collapse">
+                            <thead>
+                                <tr class="border-b border-gray-200 text-gray-500 text-sm">
+                                    <th class="py-3 px-4 font-semibold">المطعم</th>
+                                    <th class="py-3 px-4 font-semibold">صاحب المطعم</th>
+                                    <th class="py-3 px-4 font-semibold">حالة الاشتراك</th>
+                                    <th class="py-3 px-4 font-semibold">عدد الاشتراكات ↓</th>
+                                    <th class="py-3 px-4 font-semibold">الاشتراك الحالي</th>
+                                    <th class="py-3 px-4 font-semibold">الصفحة</th>
+                                </tr>
+                            </thead>
+                            <tbody id="restaurants-tab-body">
+                                <tr>
+                                    <td colspan="6" class="text-center py-6 text-gray-400">جاري التحميل...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
 
             <!-- ===== تبويب: الرئيسية (مراجعة البانرات والفيديوهات) ===== -->
@@ -1543,7 +1810,7 @@
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
                     <div class="flex justify-between items-center mb-6">
                         <h2 class="text-lg font-bold text-gray-800">إدارة نوع الحساب</h2>
-                        <span class="text-xs text-gray-400">زبون / صاحب مطعم / أدمن</span>
+                        <span class="text-xs text-gray-400">زبون / مطعم أو مطبخ بيتي / فود ترك / أدمن</span>
                     </div>
                     <div id="users-list" class="space-y-3">
                         <p class="text-center text-gray-400 py-6">جاري التحميل...</p>

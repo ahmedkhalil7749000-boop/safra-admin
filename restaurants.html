@@ -460,6 +460,7 @@ body.app-narrow{background:#f7f7f4!important;color:#17211b!important}
     <script type="module">
         import { db } from "./firebase-config.js";
         import { collection, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { isRestaurantClosed as isRestaurantClosedShared } from "./subscription-utils.js";
 
         // ===== إعلانات المنصة (بانر): مستقلة كليًا عن اشتراكات المطاعم، يديرها الأدمن مباشرة =====
         function renderPlatformBanner(ad) {
@@ -505,7 +506,7 @@ body.app-narrow{background:#f7f7f4!important;color:#17211b!important}
         let activeCategory = 'all';
 
         function isRestaurantClosed(r) {
-            return r.status === 'متوقف';
+            return isRestaurantClosedShared(r); // موقوف يدويًا أو اشتراكه منتهي
         }
 
         function restaurantCategories(r) {

@@ -1674,24 +1674,14 @@ body{min-width:0}
 
 <!-- FOOD TRUCKS -->
 
-<section class="section" id="trucks-section">
+<section class="section" id="trucks-section" style="display:none"><!-- مخفي لحد ما يتحمّل فود ترك حقيقي فعّال -->
 
   <div class="section-head">
     <h2>فود ترك 🚚</h2>
     <span>مطاعم متنقلة</span>
   </div>
 
-  <div class="trucks" id="home-trucks-row">
-
-    <a class="truck-card" href="restaurant-page.html">
-      <img src="foodtruck-demo.webp" alt="فود ترك الغروب" loading="lazy">
-      <div class="truck-info">
-        <b>فود ترك الغروب</b>
-        <span class="truck-rating">★ 4.8</span>
-      </div>
-    </a>
-
-  </div>
+  <div class="trucks" id="home-trucks-row"></div>
 
 </section>
 
@@ -1798,6 +1788,7 @@ body{min-width:0}
   import { auth, db } from "./firebase-config.js";
   import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
   import { collection, getDocs, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  import { isRestaurantClosed as isRestaurantClosedShared } from "./subscription-utils.js";
 
   // ===============================================================
   //   بانرات الصفحة الرئيسية: جايّة من Firestore
@@ -2103,7 +2094,7 @@ body{min-width:0}
         const item = d.data();
         const restaurant = restaurantsMap.get(item.restaurantId);
         // نستبعد أصناف المطاعم المتوقفة، وأي صنف بلا صورة حتى ما تنكسر الواجهة
-        if (!restaurant || restaurant.status === 'متوقف' || !mealImage(item)) return;
+        if (!restaurant || isRestaurantClosed(restaurant) || !mealImage(item)) return;
         entries.push({ id: d.id, restaurantId: item.restaurantId, item, restaurant });
       });
 
@@ -2151,7 +2142,7 @@ body{min-width:0}
   // ===============================================================
 
   function isRestaurantClosed(r) {
-    return r.status === 'متوقف';
+    return isRestaurantClosedShared(r); // موقوف يدويًا أو اشتراكه منتهي
   }
 
   function restaurantCategories(r) {
@@ -2282,7 +2273,7 @@ body{min-width:0}
       const trucks = [...restaurantsMap.values()]
         .filter(r => r.restaurantType === 'foodtruck' && !isRestaurantClosed(r))
         .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
-      if (!trucks.length) return; // ما في فود ترك حقيقي بعد: منخلي البطاقة الافتراضية
+      if (!trucks.length) return; // ما في فود ترك حقيقي فعّال: القسم كله بضل مخفي
 
       row.innerHTML = trucks.map(r => `
         <a class="truck-card" href="restaurant-page.html?id=${r.id}">
@@ -2292,6 +2283,8 @@ body{min-width:0}
             <span class="truck-rating">${restRatingLabel(r)}</span>
           </div>
         </a>`).join('');
+      const trucksSection = document.getElementById('trucks-section');
+      if (trucksSection) trucksSection.style.display = '';
     } catch (error) {
       console.error("تعذر تحميل الفود ترك:", error);
     }

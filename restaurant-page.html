@@ -295,6 +295,7 @@
         } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
         import { addToCart as addToCartService } from "./cart-service.js";
+        import { isRestaurantClosed as isRestaurantClosedShared } from "./subscription-utils.js";
 
         const params = new URLSearchParams(window.location.search);
         const restaurantId = params.get('id');
@@ -689,7 +690,7 @@
 
                 const r = restaurantDoc.data();
                 restaurantMenuCategories = buildRestaurantMenuCategories(r);
-                isRestaurantClosed = r.status === 'متوقف';
+                isRestaurantClosed = isRestaurantClosedShared(r);
                 closedBanner.classList.toggle('hidden', !isRestaurantClosed);
                 const coverUrl = r.coverImageUrl || r.heroImageUrl || '';
                 const restaurantImageUrl = r.imageUrl || r.image || '';

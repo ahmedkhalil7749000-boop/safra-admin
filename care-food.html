@@ -158,6 +158,7 @@
 
     <script type="module">
         import { db } from "./firebase-config.js";
+        import { isRestaurantClosed as isRestaurantClosedShared } from "./subscription-utils.js";
         import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
         import { CARE_AUDIENCES, CARE_TRAITS, CARE_ALL_KEYS, CARE_AUDIENCE_KEYS, CARE_DISCLAIMER, cleanCareTags } from "./care-tags.js";
 
@@ -286,7 +287,7 @@
                     const it = d.data();
                     const r = restaurants[it.restaurantId];
                     // نخفي أصناف المطابخ الموقوفة أو المحذوفة
-                    if (!r || r.status === 'متوقف') return;
+                    if (!r || isRestaurantClosedShared(r)) return;
                     allItems.push({ id: d.id, ...it, careTags: cleanCareTags(it.careTags), restaurantName: r.name || '' });
                 });
                 allItems.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
